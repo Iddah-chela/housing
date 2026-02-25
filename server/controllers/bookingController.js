@@ -1,70 +1,57 @@
 import Booking from "../models/booking.js";
-import Room from './../models/room.js';
-import House from './../models/house.js';
-
-// Function to Check Availability of room
-const checkAvailability = async ({checkInDate, checkOutDate, room})=> {
-    try {
-        const bookings = await Booking.find({
-            room,
-            checkInDate: {$lte: checkOutDate},
-            checkOutDate: {$gte: checkInDate},
-        });
-        const isAvailable = bookings.length === 0;
-        return isAvailable;
-    } catch (error) {
-        console.error(error.message);
-    }
-}
-
-// Api to check availability of room
-// Post api/bookings/check-availability
-export const checkAvailabilityAPI = async(req, res)=> {
-    try {
-        const {room, checkInDate, checkOutDate} = req.body;
-        const isAvailable = await checkAvailability({checkInDate, checkOutDate, room});
-        res.json({success: true, isAvailable})
-    } catch (error) {
-        res.json({success: false, message: error.message})
-    }
-}
+import Property from "../models/property.js";
 
 // api to create a new booking
 //Post /api/bookings/book
 export const createBooking = async (req, res)=>{
     try {
-        const {room, checkInDate, checkOutDate, roommates} = req.body;
+        const {propertyId, roomDetails, moveInDate, viewingRequestId} = req.body;
         const user = req.user._id;
 
-        //Before Booking Check Availability
-        const isAvailable = await checkAvailability({
-            checkInDate,
-            checkOutDate,
-            room
-        });
-        if(!isAvailable){
-            return res.json({success: false, message: "Room is not available"})
+        // Verify property exists
+        const property = await Property.findById(propertyId);
+        if (!property) {
+            return res.json({success: false, message: "Property not found"});
         }
-        // Get totalPrice from Room
-        const roomDate = await Room.findById(room).populate("house");
-        let totalPrice = roomDate.pricePerMonth;
 
-        //Calculate totalPrice based on nights
-        const checkIn = new Date(checkInDate)
-        const checkOut = new Date(checkOutDate)
-        const timeDiff = checkOut.getTime() - checkIn.getTime();
-        const Months = Math.ceil(timeDiff/(1000 * 3600 * 24));
+        // Prevent duplicate bookings for same room
+        const existing = await Booking.findOne({
+            property: propertyId,
+            'roomDetails.buildingId': roomDetails.buildingId,
+            'roomDetails.row': roomDetails.row,
+            'roomDetails.col': roomDetails.col,
+            status: { $ne: 'cancelled' }
+        });
+        if (existing) {
+            return res.json({ success: false, message: 'This room is already booked' });
+        }
 
-        totalPrice *=Months;
-        const booking = await Booking.create({
+        // Create booking
+        await Booking.create({
             user, 
-            room,
-            house: roomData.house._id,
-            roommates: +roommates,
-            checkInDate,
-            checkOutDate,
-            totalPrice
+            property: propertyId,
+            roomDetails: {
+                buildingId: roomDetails.buildingId,
+                buildingName: roomDetails.buildingName,
+                row: roomDetails.row,
+                col: roomDetails.col,
+                roomType: roomDetails.roomType,
+                pricePerMonth: roomDetails.pricePerMonth
+            },
+            moveInDate,
+            status: "confirmed",
+            ...(viewingRequestId && { viewingRequestId })
         })
+        // Mark cell as booked in property grid
+        try {
+            const building = property.buildings?.find(b => b.id === roomDetails.buildingId);
+            if (building && building.grid?.[roomDetails.row]?.[roomDetails.col]) {
+                building.grid[roomDetails.row][roomDetails.col].isBooked = true;
+                property.markModified('buildings');
+                await property.save();
+            }
+        } catch (_) {}
+
         res.json({success: true, message: "Booking Created successfully"})
     } catch (error) {
         console.log(error);
@@ -77,27 +64,58 @@ export const createBooking = async (req, res)=>{
 export const getUserBookings = async (req, res) => {
     try {
         const user = req.user._id;
-        const bookings = await Booking.find({user}).populate("room house").sort({createdAt: -1})
+        const bookings = await Booking.find({user}).populate("property").sort({createdAt: -1})
         res.json({success: true, bookings})
     } catch (error) {
         res.json({success: false, message: "Failed to fetch bookings"});
     }
 }
 
+// Confirm move-in — tenant marks they've moved in
+// POST /api/bookings/move-in
+export const confirmMoveIn = async (req, res) => {
+    try {
+        const { bookingId } = req.body;
+        const booking = await Booking.findById(bookingId);
+        if (!booking) return res.json({ success: false, message: 'Booking not found' });
+        if (String(booking.user) !== String(req.user._id))
+            return res.json({ success: false, message: 'Unauthorized' });
+        if (booking.status !== 'confirmed')
+            return res.json({ success: false, message: 'Booking must be confirmed first' });
 
-export const getHouseBookings = async (req, res) => {
-   try {
-     const house = await House.findOne({owner: req.auth.userId});
-    if(!house){
-        return res.json({success: false, message: "No House Found"});
+        booking.hasMoved = true;
+        await booking.save();
+
+        // Mark cell as occupied in property grid
+        try {
+            const property = await Property.findById(booking.property);
+            if (property) {
+                const building = property.buildings?.find(b => b.id === booking.roomDetails.buildingId);
+                if (building && building.grid?.[booking.roomDetails.row]?.[booking.roomDetails.col]) {
+                    building.grid[booking.roomDetails.row][booking.roomDetails.col].isVacant = false;
+                    building.grid[booking.roomDetails.row][booking.roomDetails.col].isBooked = false;
+                    property.markModified('buildings');
+                    await property.save();
+                }
+            }
+        } catch (_) {}
+
+        res.json({ success: true, message: 'Move-in confirmed' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
     }
-     const bookings = await Booking.find({house: house._id}).populate("room house user").sort({createdAt: -1});
-     // total bookings
-     const totalBookings = bookings.length;
-     //total Revenue
-     const totalRevenue = bookings.reduce((acc, booking) + acc + booking.totalPrice, 0)
+};
 
-     res.json({success: true, dashboardData: totalBookings, totalRevenue, bookings})
+export const getPropertyBookings = async (req, res) => {
+   try {
+     const property = await Property.findOne({owner: req.user._id});
+    if(!property){
+        return res.json({success: false, message: "No Property Found"});
+    }
+     const bookings = await Booking.find({property: property._id}).populate("property user").sort({createdAt: -1});
+     const totalBookings = bookings.length;
+
+     res.json({success: true, totalBookings, bookings})
    } catch (error) {
     res.json({success: false, message: "Failed to fetch bookings" })
    } 

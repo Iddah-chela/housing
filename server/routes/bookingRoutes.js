@@ -1,13 +1,13 @@
 import express from 'express';
-import { checkAvailabilityAPI, createBooking, getHouseBookings, getUserBookings } from '../controllers/bookingController.js';
+import { createBooking, getPropertyBookings, getUserBookings, confirmMoveIn } from '../controllers/bookingController.js';
 import { protect } from './../middleware/authMiddleware.js';
 
 const  bookingRouter = express.Router();
 
-bookingRouter.post('/check-availability', checkAvailabilityAPI);
 bookingRouter.post('/book', protect, createBooking);
+bookingRouter.post('/move-in', protect, confirmMoveIn);
 bookingRouter.get('/user', protect, getUserBookings);
-bookingRouter.get('/house', protect, getHouseBookings);
+bookingRouter.get('/property', protect, getPropertyBookings);
 
 
 export default bookingRouter;

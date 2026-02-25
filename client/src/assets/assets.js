@@ -83,58 +83,63 @@ export const Places = [
 
 // Exclusive Offers Dummy Data
 export const exclusiveOffers = [
-    { _id: 1, title: "Summer Escape Package", description: "Enjoy a complimentary night and daily breakfast", priceOff: 25, expiryDate: "Aug 31", image: exclusiveOfferCardImg1 },
-    { _id: 2, title: "Romantic Getaway", description: "Special couples package including spa treatment", priceOff: 20, expiryDate: "Sep 20", image: exclusiveOfferCardImg2 },
-    { _id: 3, title: "Luxury Retreat", description: "Book 60 days in advance and save on your stay at any of our luxury properties worldwide.", priceOff: 30, expiryDate: "Sep 25", image: exclusiveOfferCardImg3 },
+    { _id: 1, title: "Student Special", description: "Get your first month at 15% off any verified listing", priceOff: 15, expiryDate: "Aug 31", image: exclusiveOfferCardImg1 },
+    { _id: 2, title: "Semester Package", description: "Book for 6 months and save on verified rentals", priceOff: 20, expiryDate: "Sep 20", image: exclusiveOfferCardImg2 },
+    { _id: 3, title: "Early Bird Offer", description: "Book 2 months in advance and get 25% off your rental", priceOff: 25, expiryDate: "Sep 25", image: exclusiveOfferCardImg3 },
 ]
 
 // Testimonials Dummy Data
 export const testimonials = [
-    { id: 1, name: "Emma Rodriguez", address: "Barcelona, Spain", image: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200", rating: 5, review: "I've used many booking platforms before, but none compare to the personalized experience and attention to detail that QuickStay provides." },
-    { id: 2, name: "Liam Johnson", address: "New York, USA", image: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200", rating: 4, review: "QuickStay exceeded my expectations. The booking process was seamless, and the hotels were absolutely top-notch. Highly recommended!" },
-    { id: 3, name: "Sophia Lee", address: "Seoul, South Korea", image: "https://images.unsplash.com/photo-1701615004837-40d8573b6652?q=80&w=200", rating: 5, review: "Amazing service! I always find the best luxury accommodations through QuickStay. Their recommendations never disappoint!" }
+    { id: 1, name: "Emma Wanjiku", address: "Nairobi, Kenya", image: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200", rating: 5, review: "Found the perfect room near campus! The verification process made me feel safe, and the owner was very responsive to my viewing request." },
+    { id: 2, name: "David Ochieng", address: "Eldoret, Kenya", image: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200", rating: 4, review: "Great platform for finding student accommodation. The viewing system works perfectly and all listings are verified. Highly recommended!" },
+    { id: 3, name: "Grace Muthoni", address: "Mombasa, Kenya", image: "https://images.unsplash.com/photo-1701615004837-40d8573b6652?q=80&w=200", rating: 5, review: "Amazing service! I found a clean, affordable bedsitter within walking distance to campus. The booking process was smooth and secure." }
 ];
 
 // Facility Icon
 export const facilityIcons = {
     "Free WiFi": assets.freeWifiIcon,
     "Free Breakfast": assets.freeBreakfastIcon,
-    "Room Service": assets.roomServiceIcon,
-    "Mountain View": assets.mountainIcon,
-    "Pool Access": assets.poolIcon,
+    "24/7 Security": assets.roomServiceIcon,
+    "Water Supply": assets.mountainIcon,
+    "Parking": assets.poolIcon,
 };
 
 // For Room Details Page
 export const roomCommonData = [
-    { icon: assets.homeIcon, title: "Clean & Safe Stay", description: "A well-maintained and hygienic space just for you." },
-    { icon: assets.badgeIcon, title: "Enhanced Cleaning", description: "This host follows Staybnb's strict cleaning standards." },
-    { icon: assets.locationFilledIcon, title: "Excellent Location", description: "90% of guests rated the location 5 stars." },
-    { icon: assets.heartIcon, title: "Smooth Check-In", description: "100% of guests gave check-in a 5-star rating." },
+    { icon: assets.homeIcon, title: "Clean & Safe Stay", description: "Well-maintained and secure rental space." },
+    { icon: assets.badgeIcon, title: "Verified Listing", description: "This property has been verified by our team." },
+    { icon: assets.locationFilledIcon, title: "Near Campus", description: "Walking distance to university facilities." },
+    { icon: assets.heartIcon, title: "Student Friendly", description: "Perfect for students and young professionals." },
 ];
 
 // User Dummy Data
 export const userDummyData = {
-    "_id": "user_2unqyL4diJFP1E3pIBnasc7w8hP",
-    "username": "Great Stack",
-    "email": "user.greatstack@gmail.com",
+    "_id": "owner_123abc",
+    "username": "John Kamau",
+    "email": "john.kamau@gmail.com",
     "image": "https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvdXBsb2FkZWQvaW1nXzJ2N2c5YVpSSEFVYVUxbmVYZ2JkSVVuWnFzWSJ9",
-    "role": "hotelOwner",
+    "role": "houseOwner",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "averageResponseTime": 2,
     "createdAt": "2025-03-25T09:29:16.367Z",
     "updatedAt": "2025-04-10T06:34:48.719Z",
     "__v": 1,
-    "recentSearchedCities": [
-        "New York"
+    "recentSearchedPlaces": [
+        "Junction"
     ]
 }
 
-// Hotel Dummy Data
-export const hotelDummyData = {
-    "_id": "67f76393197ac559e4089b72",
-    "name": "Urbanza Suites",
-    "address": "Main Road  123 Street , 23 Colony",
-    "contact": "+0123456789",
+// House Dummy Data
+export const houseDummyData = {
+    "_id": "house_456def",
+    "name": "Mwamba Apartments",
+    "address": "Plot 45, University Road",
+    "contact": "+254712345678",
     "owner": userDummyData,
-    "city": "New York",
+    "place": "Junction",
+    "estate": "Campus View Estate",
+    "isVerified": true,
     "createdAt": "2025-04-10T06:22:11.663Z",
     "updatedAt": "2025-04-10T06:22:11.663Z",
     "__v": 0
@@ -143,49 +148,57 @@ export const hotelDummyData = {
 // Rooms Dummy Data
 export const roomsDummyData = [
     {
-        "_id": "67f7647c197ac559e4089b96",
-        "house": hotelDummyData,
-        "roomType": "Double Bed",
-        "pricePerMonth": 399,
-        "amenities": ["Room Service", "Mountain View", "Pool Access"],
+        "_id": "6756a1b4f2e3c4d8e9a0b1c2",
+        "house": houseDummyData,
+        "roomType": "BedSitter",
+        "pricePerMonth": 4500,
+        "amenities": ["Free WiFi", "24/7 Security", "Water Supply"],
         "images": [roomImg1, roomImg2, roomImg3, roomImg4],
         "isAvailable": true,
+        "availabilityStatus": "available",
+        "isVerified": true,
         "createdAt": "2025-04-10T06:26:04.013Z",
         "updatedAt": "2025-04-10T06:26:04.013Z",
         "__v": 0
     },
     {
-        "_id": "67f76452197ac559e4089b8e",
-        "house": hotelDummyData,
-        "roomType": "Double Bed",
-        "pricePerMonth": 299,
-        "amenities": ["Room Service", "Mountain View", "Pool Access"],
+        "_id": "6756a2c5f3e4d5e9f0b2c3d4",
+        "house": houseDummyData,
+        "roomType": "One-Bedroom",
+        "pricePerMonth": 3800,
+        "amenities": ["Free WiFi", "Parking", "Water Supply"],
         "images": [roomImg2, roomImg3, roomImg4, roomImg1],
         "isAvailable": true,
+        "availabilityStatus": "available",
+        "isVerified": true,
         "createdAt": "2025-04-10T06:25:22.593Z",
         "updatedAt": "2025-04-10T06:25:22.593Z",
         "__v": 0
     },
     {
-        "_id": "67f76406197ac559e4089b82",
-        "house": hotelDummyData,
-        "roomType": "Double Bed",
-        "pricePerMonth": 249,
-        "amenities": ["Free WiFi", "Free Breakfast", "Room Service"],
+        "_id": "6756a3d6f4e5d6f0a1c3d4e5",
+        "house": houseDummyData,
+        "roomType": "Self-Contain",
+        "pricePerMonth": 3200,
+        "amenities": ["Free WiFi", "24/7 Security", "Parking"],
         "images": [roomImg3, roomImg4, roomImg1, roomImg2],
         "isAvailable": true,
+        "availabilityStatus": "available",
+        "isVerified": true,
         "createdAt": "2025-04-10T06:24:06.285Z",
         "updatedAt": "2025-04-10T06:24:06.285Z",
         "__v": 0
     },
     {
-        "_id": "67f763d8197ac559e4089b7a",
-        "house": hotelDummyData,
-        "roomType": "Single Bed",
-        "pricePerMonth": 199,
-        "amenities": ["Free WiFi", "Room Service", "Pool Access"],
+        "_id": "6756a4e7f5e6d7f1a2c4d5e6",
+        "house": houseDummyData,
+        "roomType": "BedSitter",
+        "pricePerMonth": 4200,
+        "amenities": ["Free WiFi", "Water Supply", "Parking"],
         "images": [roomImg4, roomImg1, roomImg2, roomImg3],
         "isAvailable": true,
+        "availabilityStatus": "available",
+        "isVerified": true,
         "createdAt": "2025-04-10T06:23:20.252Z",
         "updatedAt": "2025-04-10T06:23:20.252Z",
         "__v": 0
@@ -197,49 +210,49 @@ export const roomsDummyData = [
 // User Bookings Dummy Data
 export const userBookingsDummyData = [
     {
-        "_id": "67f76839994a731e97d3b8ce",
+        "_id": "booking_1",
         "user": userDummyData,
         "room": roomsDummyData[1],
-        "house": hotelDummyData,
-        "checkInDate": "2025-04-30T00:00:00.000Z",
-        "checkOutDate": "2025-05-01T00:00:00.000Z",
-        "totalPrice": 299,
+        "house": houseDummyData,
+        "checkInDate": "2025-05-01T00:00:00.000Z",
+        "checkOutDate": "2025-11-01T00:00:00.000Z",
+        "totalPrice": 22800,
         "guests": 1,
-        "status": "pending",
-        "paymentMethod": "Stripe",
+        "status": "confirmed",
+        "paymentMethod": "M-Pesa",
         "isPaid": true,
         "createdAt": "2025-04-10T06:42:01.529Z",
         "updatedAt": "2025-04-10T06:43:54.520Z",
         "__v": 0
     },
     {
-        "_id": "67f76829994a731e97d3b8c3",
+        "_id": "booking_2",
         "user": userDummyData,
         "room": roomsDummyData[0],
-        "house": hotelDummyData,
-        "checkInDate": "2025-04-27T00:00:00.000Z",
-        "checkOutDate": "2025-04-28T00:00:00.000Z",
-        "totalPrice": 399,
+        "house": houseDummyData,
+        "checkInDate": "2025-06-01T00:00:00.000Z",
+        "checkOutDate": "2025-12-01T00:00:00.000Z",
+        "totalPrice": 27000,
         "guests": 1,
         "status": "pending",
-        "paymentMethod": "Pay At Hotel",
+        "paymentMethod": "Cash",
         "isPaid": false,
         "createdAt": "2025-04-10T06:41:45.873Z",
         "updatedAt": "2025-04-10T06:41:45.873Z",
         "__v": 0
     },
     {
-        "_id": "67f76810994a731e97d3b8b4",
+        "_id": "booking_3",
         "user": userDummyData,
         "room": roomsDummyData[3],
-        "house": hotelDummyData,
-        "checkInDate": "2025-04-11T00:00:00.000Z",
-        "checkOutDate": "2025-04-12T00:00:00.000Z",
-        "totalPrice": 199,
+        "house": houseDummyData,
+        "checkInDate": "2025-05-15T00:00:00.000Z",
+        "checkOutDate": "2025-11-15T00:00:00.000Z",
+        "totalPrice": 25200,
         "guests": 1,
-        "status": "pending",
-        "paymentMethod": "Pay At Hotel",
-        "isPaid": false,
+        "status": "confirmed",
+        "paymentMethod": "Bank Transfer",
+        "isPaid": true,
         "createdAt": "2025-04-10T06:41:20.501Z",
         "updatedAt": "2025-04-10T06:41:20.501Z",
         "__v": 0
@@ -249,7 +262,7 @@ export const userBookingsDummyData = [
 // Dashboard Dummy Data
 export const dashboardDummyData = {
     "totalBookings": 3,
-    "totalRevenue": 897,
+    "totalRevenue": 75000,
     "bookings": userBookingsDummyData
 }
 

@@ -3,8 +3,9 @@ import User from "../models/user.js";
 
 export const getUserData = async (req, res) => {
     try {
-        const role = req.user.role;
-        const recentSearchedPlaces = req.user.recentSearchedPlaces;
+        const role = req.user.role || 'user';
+        const recentSearchedPlaces = req.user.recentSearchedPlaces || [];
+        console.log('User role:', role, 'User ID:', req.user._id);
         res.json({success: true, role, recentSearchedPlaces})
     } catch (error) {
         res.json({success: false, message: error.message})

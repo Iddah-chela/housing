@@ -6,45 +6,36 @@ const bookingSchema = new mongoose.Schema({
         ref: "User",
         required: true
     },
-    room: {
-        type: String, 
-        ref: "Room",
+    property: {
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: "Property",
         required: true
     },
-    house: {
-        type: String, 
-        ref: "House",
-        required: true
+    roomDetails: {
+        buildingId: { type: String, required: true },
+        buildingName: { type: String, required: true },
+        row: { type: Number, required: true },
+        col: { type: Number, required: true },
+        roomType: { type: String, required: true },
+        pricePerMonth: { type: Number, required: true }
     },
-    checkInDate: {
+    moveInDate: {
         type: Date, 
         required: true
     },
-    checkOutDate: {
-        type: Date, 
-        required: true
-    },
-    totalPrice: {
-        type: Number,
-        required: true
-    },
-    RoomMates: {
-        type: Number,
-        required: true
+    hasMoved: {
+        type: Boolean,
+        default: false
     },
     status: {
         type: String,
         enum: ["pending", "confirmed", "cancelled"],
         default: "pending"
     },
-    paymentMethod: {
-        type: String,
-        required: true,
-        default: "Pay At Upon Getting there"
-    },
-    isPaid: {
-        type: Boolean,
-        default: false
+    viewingRequestId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ViewingRequest",
+        required: false
     }
 
    

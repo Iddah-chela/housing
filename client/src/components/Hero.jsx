@@ -1,56 +1,85 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { assets } from '../assets/assets'
 import { Places } from '../assets/assets';
-
-
+import { useAppContext } from '../context/AppContext';
 
 const Hero = () => {
+  const { navigate } = useAppContext();
+  const [location, setLocation] = useState('');
+  const [minBudget, setMinBudget] = useState('');
+  const [maxBudget, setMaxBudget] = useState('');
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    // Navigate to rooms page with search params
+    const params = new URLSearchParams();
+    if (location) params.append('location', location);
+    if (minBudget) params.append('minPrice', minBudget);
+    if (maxBudget) params.append('maxPrice', maxBudget);
+    navigate(`/rooms?${params.toString()}`);
+  };
+
   return (
     <div className='flex flex-col items-start justify-center px-6 md:px-16 lg:px-24 xl:px32 text-white bg-[url("/src/assets/heroImage.png")] bg-no-repeat bg-cover bg-centre h-screen'>
-        <p className='bg-[#49B9ff]/50 px-3.5 py-1 rounded-full mt-20'>The Ultimate House Booking Experience</p>
-        <h1 className='font-playfair text-2xl md:text-5xl md:text-[56px] md:leading-[56px] font-bold md:font-extrabold max-w-xl mt-4'>Discover Your Perfect Gateway Destination</h1>
-        <p className='max-w-130 mt-2 text-sm md:text-base'>Unparalled luxury and comfort at await at the world's exclusive hotels and resorts . Start your journey today</p>
+        <div className='bg-green-600/80 px-4 py-1.5 rounded-full mt-20'>
+          <p className='text-sm font-medium'>✓ Verified listings · No scams</p>
+        </div>
+        <h1 className='font-medium text-3xl md:text-5xl lg:text-6xl max-w-2xl mt-6'>
+          Find available houses for rent near you
+        </h1>
+        <p className='max-w-xl mt-4 text-base md:text-lg'>
+          Verified listings. Viewing requests. Safe and secure rentals.
+        </p>
         
-          <form className='bg-white text-gray-500 rounded-lg px-6 py-4 mt-8  flex flex-col md:flex-row max-md:items-start gap-4 max-md:mx-auto'>
+        <form onSubmit={handleSearch} className='bg-white/85 text-gray-700 rounded-lg px-6 py-5 mt-10 flex flex-col md:flex-row max-md:items-start gap-4 w-full max-w-3xl'>
 
-            <div>
-                <div className='flex items-center gap-2'>
-                    <img src={assets.calenderIcon} alt=""  className='h-4'/>
-                    <label htmlFor="destinationInput">Destination</label>
+            <div className='flex-1'>
+                <div className='flex items-center gap-2 mb-2'>
+                    <img src={assets.locationIcon} alt="" className='w-4 h-4'/>
+                    <label htmlFor="locationInput" className='text-sm font-medium'>Location</label>
                 </div>
-                <input list='destinations' id="destinationInput" type="text" className=" rounded border border-gray-200 px-3 py-1.5 mt-1.5 text-sm outline-none" placeholder="Type here" required />
-                <datalist id='destinations'>
+                <input 
+                  list='locations' 
+                  id="locationInput" 
+                  type="text" 
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm outline-none focus:border-primary" 
+                  placeholder="Where do you want to live?" 
+                />
+                <datalist id='locations'>
                     {Places.map((place, index)=> (
                         <option value={place} key={index}/>
-                    
                     ))}
                 </datalist>
             </div>
 
-            <div>
-                <div className='flex items-center gap-2'>
-                    <img src={assets.calenderIcon} alt=""  className='h-4'/>
-                    <label htmlFor="checkIn">Check in</label>
+            <div className='flex-1'>
+                <div className='flex items-center gap-2 mb-2'>
+                    <label className='text-sm font-medium'>Budget Range (per month)</label>
                 </div>
-                <input id="checkIn" type="date" className=" rounded border border-gray-200 px-3 py-1.5 mt-1.5 text-sm outline-none" />
-            </div>
-
-            <div>
                 <div className='flex items-center gap-2'>
-                    <img src={assets.calenderIcon} alt=""  className='h-4'/>
-                    <label htmlFor="checkOut">Check out</label>
+                  <input 
+                    type="number" 
+                    value={minBudget}
+                    onChange={(e) => setMinBudget(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm outline-none focus:border-primary" 
+                    placeholder="Min (Ksh)" 
+                  />
+                  <span className='text-gray-400'>–</span>
+                  <input 
+                    type="number" 
+                    value={maxBudget}
+                    onChange={(e) => setMaxBudget(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm outline-none focus:border-primary" 
+                    placeholder="Max (Ksh)" 
+                  />
                 </div>
-                <input id="checkOut" type="date" className=" rounded border border-gray-200 px-3 py-1.5 mt-1.5 text-sm outline-none" />
             </div>
 
-            <div className='flex md:flex-col max-md:gap-2 max-md:items-center'>
-                <label htmlFor="guests">Guests</label>
-                <input min={1} max={4} id="guests" type="number" className=" rounded border border-gray-200 px-3 py-1.5 mt-1.5 text-sm outline-none  max-w-16" placeholder="0" />
-            </div>
-
-            <button className='flex items-center justify-center gap-1 rounded-md bg-black py-3 px-4 text-white my-auto cursor-pointer max-md:w-full max-md:py-1' >
-                <img src={assets.searchIcon} alt=""  className='h-7'/>
-                <span>Search</span>
+            <button type='submit' className='flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary-dull py-3 px-8 text-white font-medium my-auto cursor-pointer max-md:w-full transition-all'>
+                <img src={assets.searchIcon} alt="" className='h-5 invert'/>
+                <span>Search homes</span>
             </button>
         </form>
     </div>

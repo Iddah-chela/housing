@@ -33,10 +33,13 @@ export const createRoom = async (req, res) =>{
     }
 }
 
-//api to get all rooms
+//api to get all available rooms for browsing
 export const getRooms = async (req, res) =>{
     try {
-        const rooms = await Room.find({isAvailable: true}).populate({
+        const rooms = await Room.find({
+            isAvailable: true,  // Owner has listed it
+            availabilityStatus: { $in: ["available", "viewing_requested"] }  // Not booked
+        }).populate({
             path: 'house',
             populate:{
                 path: 'owner',
@@ -49,11 +52,37 @@ export const getRooms = async (req, res) =>{
     }
 }
 
-//api to get all rooms for a specific house
+//api to get a single room by ID
+export const getRoomById = async (req, res) =>{
+    try {
+        const { id } = req.params;
+        const room = await Room.findById(id).populate({
+            path: 'house',
+            populate:{
+                path: 'owner',
+                select: 'image username isPhoneVerified isIdVerified averageResponseTime'
+            }
+        });
+        
+        if(!room) {
+            return res.json({success: false, message: "Room not found"});
+        }
+        
+        res.json({success: true, room});
+    } catch (error) {
+         res.json({success: false, message: error.message});
+    }
+}
+
+//api to get all rooms for a specific house owner
 export const getOwnerRooms = async (req, res) =>{
     try {
         const { userId } = req.auth();
         const houseData = await House.findOne({owner: userId});
+        
+        if(!houseData) {
+            return res.json({success: false, message: "No house registered"});
+        }
 
         const rooms = await Room.find({house: houseData._id.toString()}).populate("house");
         res.json({success: true, rooms});

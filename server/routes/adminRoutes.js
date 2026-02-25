@@ -1,0 +1,44 @@
+import express from "express";
+import { 
+    suspendUser,
+    unsuspendUser,
+    unverifyListing,
+    hideRoom,
+    verifyUser,
+    verifyHouse,
+    getAllUsers,
+    getAllRooms,
+    getDashboardStats,
+    isAdmin,
+    getAllProperties,
+    delistProperty,
+    relistProperty,
+    verifyProperty,
+    deleteUser,
+    revokeHouseOwner
+} from "../controllers/adminController.js";
+import { protect } from "../middleware/authMiddleware.js";
+
+const adminRouter = express.Router();
+
+// All admin routes require authentication and admin role
+adminRouter.use(protect);
+adminRouter.use(isAdmin);
+
+adminRouter.post("/suspend-user", suspendUser);
+adminRouter.post("/unsuspend-user", unsuspendUser);
+adminRouter.post("/unverify-listing", unverifyListing);
+adminRouter.post("/hide-room", hideRoom);
+adminRouter.post("/verify-user", verifyUser);
+adminRouter.post("/verify-house", verifyHouse);
+adminRouter.post("/delete-user", deleteUser);
+adminRouter.get("/users", getAllUsers);
+adminRouter.get("/rooms", getAllRooms);
+adminRouter.get("/stats", getDashboardStats);
+adminRouter.get("/properties", getAllProperties);
+adminRouter.post("/delist-property", delistProperty);
+adminRouter.post("/relist-property", relistProperty);
+adminRouter.post("/verify-property", verifyProperty);
+adminRouter.post("/revoke-landlord", revokeHouseOwner);
+
+export default adminRouter;

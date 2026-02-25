@@ -21,8 +21,17 @@ const roomSchema = new mongoose.Schema({
     type: String
    }],
    isAvailable: {
-    type: Boolean, 
+    type: Boolean,
     default: true
+   },
+   availabilityStatus: {
+    type: String,
+    enum: ["available", "viewing_requested", "booked"],
+    default: "available"
+   },
+   isVerified: {
+    type: Boolean,
+    default: false
    },
 }, {timestamps: true});
 

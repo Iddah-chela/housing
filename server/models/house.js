@@ -22,6 +22,18 @@ const houseSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    estate: {
+        type: String,
+        required: true
+    },
+    locationPin: {
+        lat: Number,
+        lng: Number
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
 }, {timestamps: true});
 
 const House = mongoose.model("House", houseSchema);
