@@ -23,7 +23,7 @@ const Navbar = () => {
     
     const location = useLocation()
 
-    const{user, navigate, isOwner} = useAppContext()
+    const{user, navigate, isOwner, dbImage} = useAppContext()
 
     useEffect(() => {
         if(location.pathname !== '/'){
@@ -43,11 +43,11 @@ const Navbar = () => {
 
     return (
         <>
-            <nav className={`fixed top-0 left-0  w-full flex items-center justify-between px-4 md:px-16 lg:px-24 xl:px-32 transition-all duration-500 z-40 ${isScrolled ? "bg-white/80 shadow-md text-gray-700 backdrop-blur-lg py-3 md:py-4" : "py-4 md:py-6"}`}>
+            <nav className={`fixed top-0 left-0 w-full flex items-center justify-between px-4 md:px-16 lg:px-24 xl:px-32 transition-all duration-500 z-40 overflow-visible ${isScrolled ? "bg-white/80 shadow-md text-gray-700 backdrop-blur-lg py-2 md:py-2" : "py-3 md:py-4"}`}>
 
-                {/* Logo */}
-                <Link to ="/" >
-                    <img src={assets.logo} alt="logo" className={`h-9 ${isScrolled && "invert opacity-80"}`} />
+                {/* Logo - overflows navbar intentionally */}
+                <Link to ="/" className="flex-shrink-0 relative z-50">
+                    <img src={assets.logo} alt="logo" className={`h-24 md:h-32 w-auto -my-6 md:-my-8 ${isScrolled && "invert opacity-80"}`} />
                 </Link>
 
                 {/* Desktop Nav */}
@@ -90,10 +90,11 @@ const Navbar = () => {
                 {user ? (
                     // Profile Picture - Click to open modal
                     <img 
-                        src={user.imageUrl} 
+                        src={dbImage || user.imageUrl} 
                         alt={user.fullName}
                         onClick={() => setShowProfileModal(true)}
                         className="w-10 h-10 rounded-full cursor-pointer border-2 border-gray-300 hover:border-indigo-500 transition-all"
+                        onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }}
                     />
                 ) : (
                     <div className="flex gap-2">
@@ -115,13 +116,14 @@ const Navbar = () => {
                 <div className="flex items-center gap-3 md:hidden">
                     {user && (
                         <img 
-                            src={user.imageUrl} 
+                            src={dbImage || user.imageUrl} 
                             alt={user.fullName}
                             onClick={() => setShowProfileModal(true)}
                             className="w-8 h-8 rounded-full border-2 border-gray-800 cursor-pointer hover:border-indigo-500 transition-all"
+                            onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }}
                         />
                     )}
-                    <img onClick={() => setIsMenuOpen(!isMenuOpen)} src={assets.menuIcon} alt="" className='h-4' />
+                    <img onClick={() => setIsMenuOpen(!isMenuOpen)} src={assets.menuIcon} alt="" className={`h-4 transition-all${isScrolled ? ' brightness-0' : ''}`} />
                 </div>
 
                 {/* Mobile Menu */}

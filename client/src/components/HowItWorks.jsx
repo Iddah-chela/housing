@@ -2,7 +2,7 @@ import React from 'react'
 
 const HowItWorks = () => {
   return (
-    <div className='py-20 px-4 md:px-16 lg:px-24 xl:px-32 bg-gray-50'>
+    <div id='how-it-works' className='py-20 px-4 md:px-16 lg:px-24 xl:px-32 bg-gray-50'>
       <div className='max-w-7xl mx-auto'>
         {/* Section Header */}
         <h2 className='text-3xl font-playfair font-semibold text-gray-800 text-center mb-12'>

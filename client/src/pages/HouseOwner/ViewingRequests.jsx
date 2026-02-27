@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { toast } from 'react-hot-toast';
+import { Check, XCircle, Eye } from 'lucide-react';
 
 const ViewingRequests = () => {
   const { axios, getToken } = useAppContext();
@@ -214,13 +215,13 @@ const ViewingRequests = () => {
                       onClick={() => handleResponse(request._id, 'confirmed')}
                       className="flex-1 lg:flex-none px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium"
                     >
-                      ✓ Confirm
+                      <span className='flex items-center justify-center gap-1'><Check className='w-4 h-4' /> Confirm</span>
                     </button>
                     <button
                       onClick={() => handleResponse(request._id, 'declined')}
                       className="flex-1 lg:flex-none px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
                     >
-                      ✗ Decline
+                      <span className='flex items-center justify-center gap-1'><XCircle className='w-4 h-4' /> Decline</span>
                     </button>
                   </div>
                 )}
@@ -230,7 +231,7 @@ const ViewingRequests = () => {
                       onClick={() => handleMarkCompleted(request._id)}
                       className="flex-1 lg:flex-none px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium"
                     >
-                      ✓ Mark Viewed
+                      <span className='flex items-center justify-center gap-1'><Eye className='w-4 h-4' /> Mark Viewed</span>
                     </button>
                   </div>
                 )}

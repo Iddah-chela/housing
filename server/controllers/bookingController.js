@@ -1,5 +1,6 @@
 import Booking from "../models/booking.js";
 import Property from "../models/property.js";
+import ViewingRequest from "../models/viewingRequest.js";
 
 // api to create a new booking
 //Post /api/bookings/book
@@ -51,6 +52,13 @@ export const createBooking = async (req, res)=>{
                 await property.save();
             }
         } catch (_) {}
+
+        // Mark viewing request as booked so "Book This Room" button hides
+        if (viewingRequestId) {
+            try {
+                await ViewingRequest.findByIdAndUpdate(viewingRequestId, { status: 'booked' });
+            } catch (_) {}
+        }
 
         res.json({success: true, message: "Booking Created successfully"})
     } catch (error) {
@@ -108,15 +116,16 @@ export const confirmMoveIn = async (req, res) => {
 
 export const getPropertyBookings = async (req, res) => {
    try {
-     const property = await Property.findOne({owner: req.user._id});
-    if(!property){
-        return res.json({success: false, message: "No Property Found"});
+     const properties = await Property.find({ owner: req.user._id }).select('_id');
+    if (!properties.length) {
+        return res.json({ success: true, totalBookings: 0, bookings: [] });
     }
-     const bookings = await Booking.find({property: property._id}).populate("property user").sort({createdAt: -1});
+    const propertyIds = properties.map(p => p._id);
+     const bookings = await Booking.find({ property: { $in: propertyIds } }).populate('property user').sort({ createdAt: -1 });
      const totalBookings = bookings.length;
 
-     res.json({success: true, totalBookings, bookings})
+     res.json({ success: true, totalBookings, bookings });
    } catch (error) {
-    res.json({success: false, message: "Failed to fetch bookings" })
+    res.json({ success: false, message: 'Failed to fetch bookings' });
    } 
 }

@@ -7,6 +7,7 @@ import ReportModal from '../components/ReportModal'
 import VerificationBadge from '../components/VerificationBadge'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
+import { Check, AlertTriangle, MessageCircle, Smartphone, Hourglass } from 'lucide-react'
 
 const RoomDetails = () => {
     const {id} = useParams()
@@ -108,7 +109,7 @@ const RoomDetails = () => {
         {viewingRequest && viewingRequest.status === 'pending' && (
           <div className='mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg'>
             <p className='text-yellow-800 font-medium'>
-              ⏳ Viewing requested. Waiting for owner response.
+              <span className='flex items-center gap-1'><Hourglass className='w-4 h-4' /> Viewing requested. Waiting for owner response.</span>
             </p>
             <p className='text-sm text-yellow-700 mt-1'>
               Your viewing request for {new Date(viewingRequest.viewingDate).toLocaleDateString()} {viewingRequest.viewingTimeRange} is pending.
@@ -119,7 +120,7 @@ const RoomDetails = () => {
         {viewingRequest && viewingRequest.status === 'confirmed' && (
           <div className='mt-4 p-4 bg-green-50 border border-green-200 rounded-lg'>
             <p className='text-green-800 font-medium'>
-              ✓ Viewing confirmed for {new Date(viewingRequest.viewingDate).toLocaleDateString()} {viewingRequest.viewingTimeRange}
+              <span className='flex items-center gap-1'><Check className='w-4 h-4' /> Viewing confirmed for {new Date(viewingRequest.viewingDate).toLocaleDateString()} {viewingRequest.viewingTimeRange}</span>
             </p>
             <p className='text-sm text-green-700 mt-1'>
               The owner will be expecting you at the scheduled time.
@@ -130,7 +131,7 @@ const RoomDetails = () => {
         {viewingRequest && viewingRequest.status === 'expired' && (
           <div className='mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg'>
             <p className='text-gray-800 font-medium'>
-              ⚠️ Viewing expired. Request again.
+              <span className='flex items-center gap-1'><AlertTriangle className='w-4 h-4' /> Viewing expired. Request again.</span>
             </p>
             <p className='text-sm text-gray-600 mt-1'>
               The owner did not respond. You can request another viewing.
@@ -172,7 +173,7 @@ const RoomDetails = () => {
               onClick={() => setShowChat(true)}
               className='px-6 py-3 rounded-lg border border-gray-300 hover:bg-gray-100 transition-all'
             >
-              💬 Message Owner
+              <span className='flex items-center gap-1'><MessageCircle className='w-4 h-4' /> Message Owner</span>
             </button>
             {/* WhatsApp contact hidden until payment feature is implemented */}
             {/* {room.whatsappNumber && (

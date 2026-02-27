@@ -14,6 +14,7 @@ import {
     delistProperty,
     relistProperty,
     verifyProperty,
+    unverifyProperty,
     deleteUser,
     revokeHouseOwner
 } from "../controllers/adminController.js";
@@ -39,6 +40,7 @@ adminRouter.get("/properties", getAllProperties);
 adminRouter.post("/delist-property", delistProperty);
 adminRouter.post("/relist-property", relistProperty);
 adminRouter.post("/verify-property", verifyProperty);
+adminRouter.post("/unverify-property", unverifyProperty);
 adminRouter.post("/revoke-landlord", revokeHouseOwner);
 
 export default adminRouter;

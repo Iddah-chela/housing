@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { assets } from '../assets/assets.js'
 import toast from 'react-hot-toast'
+import { DoorOpen, Circle } from 'lucide-react'
 
 const RoomGridEditor = ({ onClose, roomData, onSave }) => {
     const [gridLayout, setGridLayout] = useState(roomData.gridLayout || {
@@ -133,7 +134,7 @@ const RoomGridEditor = ({ onClose, roomData, onSave }) => {
                                                     >
                                                         {isGateCell ? (
                                                             <>
-                                                                <div className='text-2xl'>🚪</div>
+                                                                <DoorOpen className='w-6 h-6 text-yellow-600' />
                                                                 <div className='text-xs font-bold'>GATE</div>
                                                             </>
                                                         ) : room ? (
@@ -153,7 +154,7 @@ const RoomGridEditor = ({ onClose, roomData, onSave }) => {
                                 </div>
                                 
                                 <div className='mt-4 text-sm text-gray-600'>
-                                    <p>🚪 Gate entrance | 🟢 Vacant | 🔴 Occupied</p>
+                                    <p className='flex items-center gap-2'><DoorOpen className='w-4 h-4' /> Gate entrance | <Circle className='w-3 h-3 fill-green-500 text-green-500' /> Vacant | <Circle className='w-3 h-3 fill-red-500 text-red-500' /> Occupied</p>
                                 </div>
                             </div>
 

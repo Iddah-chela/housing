@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
 import toast from 'react-hot-toast'
+import { GraduationCap, Building2 } from 'lucide-react'
 
 const AuthModal = ({ onClose, initialMode = 'login' }) => {
     const { setUser, setIsOwner } = useAppContext()
@@ -28,7 +29,7 @@ const AuthModal = ({ onClose, initialMode = 'login' }) => {
                 id: Date.now().toString(),
                 fullName: formData.username,
                 emailAddresses: [{ emailAddress: formData.email }],
-                imageUrl: 'https://avatar.iran.liara.run/public',
+                imageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.username || 'U')}&background=6366f1&color=fff&bold=true`,
                 role: formData.role,
                 credentials: {
                     email: formData.email,
@@ -162,7 +163,7 @@ const AuthModal = ({ onClose, initialMode = 'login' }) => {
                                     }`}
                                 >
                                     <div className='text-center'>
-                                        <div className='text-2xl mb-2'>🎓</div>
+                                        <GraduationCap className='w-7 h-7 mx-auto mb-2 text-indigo-500' />
                                         <div className='font-medium'>Student</div>
                                         <div className='text-xs text-gray-500 mt-1'>Looking for rentals</div>
                                     </div>
@@ -177,7 +178,7 @@ const AuthModal = ({ onClose, initialMode = 'login' }) => {
                                     }`}
                                 >
                                     <div className='text-center'>
-                                        <div className='text-2xl mb-2'>🏢</div>
+                                        <Building2 className='w-7 h-7 mx-auto mb-2 text-indigo-500' />
                                         <div className='font-medium'>Landlord/Caretaker</div>
                                         <div className='text-xs text-gray-500 mt-1'>List properties</div>
                                     </div>

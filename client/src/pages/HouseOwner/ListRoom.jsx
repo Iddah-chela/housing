@@ -136,14 +136,14 @@ const ListRoom = () => {
          <div className='grid gap-6'>
            {properties.map((property) => {
              return (
-               <div key={property._id} className='border border-gray-200 rounded-xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow'>
-                 <div className='flex justify-between items-start mb-4'>
-                  <div>
+               <div key={property._id} className='border border-gray-200 rounded-xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden'>
+                 <div className='flex flex-col sm:flex-row justify-between items-start gap-3 mb-4'>
+                  <div className='min-w-0'>
                      <h4 className='text-2xl font-bold text-gray-800'>{property.name}</h4>
                      <p className='text-sm text-gray-600 mt-1'>{property.address}, {property.estate}</p>
                      <p className='text-sm text-gray-500'>{property.place} • {property.propertyType}</p>
                    </div>
-               <div className='flex gap-2'>
+               <div className='flex gap-2 flex-wrap flex-shrink-0'>
                      <button 
                        onClick={() => {setEditingProperty(property); setShowPropertyModal(true)}}
                        className='flex items-center gap-1.5 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100'

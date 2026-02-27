@@ -53,7 +53,7 @@ export const protect = async (req, res, next)=>{
                 _id: userId,
                 username: 'User',
                 email: decoded.email || `${userId}@temp.clerk.dev`,
-                image: 'https://avatar.iran.liara.run/public',
+                image: `https://ui-avatars.com/api/?name=User&background=6366f1&color=fff&bold=true`,
                 role: 'user'
             });
             console.log('✅ Created minimal user record for:', userId);

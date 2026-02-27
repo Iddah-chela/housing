@@ -12,12 +12,12 @@ const userPassSchema = new mongoose.Schema({
     },
     passType: {
         type: String,
-        enum: ['7day', '30day'],
+        enum: ['1day', '7day'],
         required: true
     },
     amount: {
         type: Number,
-        required: true  // 0 (free trial), 200 (7-day), 400 (30-day)
+        required: true  // 0 (free trial), 100 (1-day), 300 (7-day)
     },
     isFree: {
         type: Boolean,
@@ -37,8 +37,8 @@ const userPassSchema = new mongoose.Schema({
         unique: true,
         sparse: true
     },
-    payHeroOrderId: {
-        type: String,
+    invoiceId: {
+        type: String,  // IntaSend invoice_id — used to verify payment status
         sparse: true
     },
     expiresAt: {

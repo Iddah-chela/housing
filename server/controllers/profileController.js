@@ -35,6 +35,31 @@ export const uploadProfilePicture = async (req, res) => {
     }
 };
 
+// Set Avatar (pick from preset cartoon avatars)
+export const setAvatar = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { avatarUrl } = req.body;
+
+        if (!avatarUrl || typeof avatarUrl !== 'string') {
+            return res.json({ success: false, message: 'Invalid avatar URL' });
+        }
+
+        // Only allow known avatar origins
+        const allowed = ['api.dicebear.com', 'avatar.iran.liara.run', 'ui-avatars.com'];
+        const isAllowed = allowed.some(origin => avatarUrl.includes(origin));
+        if (!isAllowed) {
+            return res.json({ success: false, message: 'Avatar URL not allowed' });
+        }
+
+        await User.findByIdAndUpdate(userId, { image: avatarUrl });
+
+        res.json({ success: true, imageUrl: avatarUrl, message: 'Avatar updated' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
 // Get User Profile
 export const getUserProfile = async (req, res) => {
     try {

@@ -73,7 +73,30 @@ const userSchema = mongoose.Schema({
     recentSearchedPlaces: [{
         type: String,
         required: false,
-    }]
+    }],
+    
+    // Referral system
+    referralCode: {
+        type: String,
+        unique: true,
+        sparse: true  // allow null/undefined but enforce unique when set
+    },
+    referredBy: {
+        type: String,  // userId of referrer
+        default: null
+    },
+    referralCount: {
+        type: Number,
+        default: 0  // how many people signed up with this user's code
+    },
+    referralUnlocks: {
+        type: Number,
+        default: 0  // free unlocks earned from referrals (max 5)
+    },
+    referralUnlocksUsed: {
+        type: Number,
+        default: 0  // how many referral unlocks have been redeemed
+    }
     
 },{timestamps: true});
 

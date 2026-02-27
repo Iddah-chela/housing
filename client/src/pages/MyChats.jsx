@@ -91,9 +91,10 @@ const MyChats = () => {
               >
                 <div className="flex items-start gap-4">
                   <img
-                    src={otherUser.image}
+                    src={otherUser.image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(otherUser.username || 'U') + '&background=6366f1&color=fff'}
                     alt={otherUser.username}
-                    className="w-14 h-14 rounded-full"
+                    onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(otherUser.username || 'U') + '&background=6366f1&color=fff' }}
+                    className="w-14 h-14 rounded-full object-cover"
                   />
                   <div className="flex-1">
                     <div className="flex justify-between items-start">

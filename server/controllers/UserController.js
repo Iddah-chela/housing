@@ -5,8 +5,9 @@ export const getUserData = async (req, res) => {
     try {
         const role = req.user.role || 'user';
         const recentSearchedPlaces = req.user.recentSearchedPlaces || [];
+        const image = req.user.image || null;
         console.log('User role:', role, 'User ID:', req.user._id);
-        res.json({success: true, role, recentSearchedPlaces})
+        res.json({success: true, role, recentSearchedPlaces, image})
     } catch (error) {
         res.json({success: false, message: error.message})
     }

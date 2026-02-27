@@ -1,31 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { toast } from 'react-hot-toast';
+import { AlertTriangle, Ban, Trash2, ShieldOff, Eye, ExternalLink, UserCheck, Send, ChevronDown, ChevronUp } from 'lucide-react';
 
 const AdminReports = () => {
   const { axios, getToken } = useAppContext();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
-  const [actionNote, setActionNote] = useState('');
-  const [activeReport, setActiveReport] = useState(null);
+  const [expandedReport, setExpandedReport] = useState(null);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
     fetchReports();
   }, [filter]);
 
   const fetchReports = async () => {
+    setLoading(true);
     try {
       const token = await getToken();
-      const { data } = await axios.get(`/api/reports/all?status=${filter}`, {
+      const { data } = await axios.get(`/api/reports/all${filter ? `?status=${filter}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (data.success) {
-        setReports(data.reports);
-      } else {
-        toast.error(data.message);
-      }
+      if (data.success) setReports(data.reports);
+      else toast.error(data.message);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -33,24 +32,74 @@ const AdminReports = () => {
     }
   };
 
-  const handleUpdateStatus = async (reportId, status) => {
-    if (!actionNote.trim()) { toast.error('Please enter an action note'); return; }
+  const doAction = async (url, body, successMsg) => {
+    setActionLoading(body.reportId || body.userId || body.listingId);
     try {
       const token = await getToken();
-      const { data } = await axios.post('/api/reports/update-status', {
-        reportId, status,
-        actionTaken: actionNote,
-        adminNotes: actionNote
-      }, {
+      const { data } = await axios.post(url, body, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (data.success) {
-        toast.success('Report updated');
-        setActionNote('');
-        setActiveReport(null);
+        toast.success(data.message || successMsg);
         fetchReports();
       } else toast.error(data.message);
-    } catch (error) { toast.error(error.message); }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const resolveReport = async (reportId, actionTaken, statusOverride) => {
+    try {
+      const token = await getToken();
+      await axios.post('/api/reports/update-status', {
+        reportId,
+        status: statusOverride || 'resolved',
+        actionTaken,
+        adminNotes: adminNotes.trim() || `Action: ${actionTaken}`
+      }, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (e) { /* already toasted */ }
+  };
+
+  const handleWarnUser = (report) => {
+    if (!report.reportedUserId?._id) { toast.error('No reported user linked'); return; }
+    const reason = adminNotes.trim() || report.reason;
+    doAction('/api/reports/warn-user', { userId: report.reportedUserId._id, reason }, 'Warning sent');
+    resolveReport(report._id, 'warning');
+  };
+
+  const handleSuspendUser = (report) => {
+    if (!report.reportedUserId?._id) { toast.error('No reported user linked'); return; }
+    if (!confirm(`Suspend user ${report.reportedUserId.username}?`)) return;
+    const reason = adminNotes.trim() || report.reason;
+    doAction('/api/reports/suspend-user', { userId: report.reportedUserId._id, reason }, 'User suspended');
+    resolveReport(report._id, 'suspended');
+  };
+
+  const handleUnsuspendUser = (report) => {
+    if (!report.reportedUserId?._id) return;
+    doAction('/api/reports/unsuspend-user', { userId: report.reportedUserId._id }, 'User unsuspended');
+  };
+
+  const handleRemoveListing = (report) => {
+    if (!report.reportedItemId) { toast.error('No listing ID'); return; }
+    const listingType = report.listingInfo?.type || 'property';
+    if (!confirm(`Permanently delete this ${listingType}? This cannot be undone.`)) return;
+    doAction('/api/reports/remove-listing', { listingId: report.reportedItemId, listingType }, 'Listing removed');
+    resolveReport(report._id, 'removed');
+  };
+
+  const handleUnverifyListing = (report) => {
+    if (!report.reportedItemId) { toast.error('No listing ID'); return; }
+    const listingType = report.listingInfo?.type || 'property';
+    doAction('/api/reports/unverify-listing', { listingId: report.reportedItemId, listingType }, 'Listing unverified');
+    resolveReport(report._id, 'verified');
+  };
+
+  const handleDismiss = (report) => {
+    resolveReport(report._id, 'none', 'dismissed');
+    setTimeout(fetchReports, 500);
   };
 
   const reasonLabels = {
@@ -62,121 +111,261 @@ const AdminReports = () => {
     other: 'Other'
   };
 
-  return (
-    <div className="p-4 md:p-8">
-      <h1 className="text-2xl md:text-3xl font-semibold mb-6">Reports Management</h1>
+  const actionBadge = {
+    none: 'bg-gray-100 text-gray-600',
+    warning: 'bg-yellow-100 text-yellow-800',
+    suspended: 'bg-red-100 text-red-800',
+    removed: 'bg-red-200 text-red-900',
+    verified: 'bg-green-100 text-green-800'
+  };
 
-      {/* Filter */}
+  const statusColors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    reviewed: 'bg-blue-100 text-blue-800',
+    resolved: 'bg-green-100 text-green-800',
+    dismissed: 'bg-gray-100 text-gray-600'
+  };
+
+  const isExpanded = (id) => expandedReport === id;
+
+  return (
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <h1 className="text-2xl md:text-3xl font-semibold mb-2">Reports Management</h1>
+      <p className="text-gray-500 text-sm mb-6">Review reports and take enforcement actions</p>
+
+      {/* Filter tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {['pending', 'reviewed', 'resolved', 'dismissed'].map((status) => (
+        {['pending', 'resolved', 'dismissed', 'all'].map((s) => (
           <button
-            key={status}
-            onClick={() => setFilter(status)}
-            className={`px-3 py-1.5 rounded-lg font-medium text-sm ${filter === status ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            key={s}
+            onClick={() => setFilter(s === 'all' ? '' : s)}
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              (s === 'all' ? filter === '' : filter === s)
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
+            {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <p>Loading reports...</p>
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
       ) : reports.length === 0 ? (
-        <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <p className="text-gray-500">No {filter} reports</p>
+        <div className="bg-gray-50 rounded-xl p-12 text-center">
+          <AlertTriangle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">No {filter || ''} reports</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {reports.map((report) => (
-            <div key={report._id} className="bg-white rounded-lg border border-gray-200 p-4 md:p-5">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
-                <div>
-                  <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
-                    {reasonLabels[report.reason]}
-                  </span>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Reported by: {report.reportedBy?.username} ({report.reportedBy?.email})
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">{new Date(report.createdAt).toLocaleString()}</p>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium self-start ${
-                  report.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                  report.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                  'bg-gray-100 text-gray-600'
-                }`}>
-                  {report.status}
-                </span>
-              </div>
-
-              <div className="mb-3">
-                <p className="text-sm font-medium mb-1">Description:</p>
-                <p className="text-gray-700 text-sm">{report.description}</p>
-              </div>
-
-              {/* Link to reported listing if available */}
-              {report.propertyId && (
-                <a
-                  href={`/rooms/${report.propertyId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-xs font-medium mb-3"
-                >
-                  View Reported Listing ↗
-                </a>
-              )}
-
-              {report.reportedUserId && (
-                <div className="mb-3 p-2 bg-gray-50 rounded text-sm">
-                  <span className="font-medium">Reported user:</span> {report.reportedUserId?.username}
-                </div>
-              )}
-
-              {/* Admin notes if already resolved */}
-              {report.adminNotes && (
-                <div className="mb-3 p-2 bg-blue-50 rounded text-xs text-blue-700">
-                  <span className="font-semibold">Action taken:</span> {report.adminNotes}
-                </div>
-              )}
-
-              {report.status === 'pending' && (
-                activeReport === report._id ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={actionNote}
-                      onChange={e => setActionNote(e.target.value)}
-                      placeholder="Describe what action was taken (required)..."
-                      rows={2}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleUpdateStatus(report._id, 'resolved')}
-                        className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
-                      >
-                        Resolve
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(report._id, 'dismissed')}
-                        className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700"
-                      >
-                        Dismiss
-                      </button>
-                      <button
-                        onClick={() => { setActiveReport(null); setActionNote(''); }}
-                        className="px-3 py-1.5 bg-white text-gray-600 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
+            <div key={report._id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              {/* Report header */}
+              <div
+                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => { setExpandedReport(isExpanded(report._id) ? null : report._id); setAdminNotes(report.adminNotes || ''); }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full font-medium">
+                        {reasonLabels[report.reason] || report.reason}
+                      </span>
+                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusColors[report.status]}`}>
+                        {report.status}
+                      </span>
+                      {report.actionTaken && report.actionTaken !== 'none' && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${actionBadge[report.actionTaken]}`}>
+                          {report.actionTaken}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400">
+                        {report.reportType === 'listing' ? 'Listing' : 'User'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 truncate">{report.description}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-gray-400">
+                      <span>By: {report.reportedBy?.username || 'Unknown'}</span>
+                      {report.reportedUserId && (
+                        <span>Against: <strong className={report.reportedUserId.isSuspended ? 'text-red-600' : 'text-gray-600'}>
+                          {report.reportedUserId.username}{report.reportedUserId.isSuspended ? ' (SUSPENDED)' : ''}
+                        </strong></span>
+                      )}
+                      <span>{new Date(report.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setActiveReport(report._id)}
-                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
-                  >
-                    Take Action
-                  </button>
-                )
+                  {isExpanded(report._id) ? <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />}
+                </div>
+              </div>
+
+              {/* Expanded details + actions */}
+              {isExpanded(report._id) && (
+                <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-4">
+                  {/* Full description */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Description</h4>
+                    <p className="text-sm text-gray-800 bg-white rounded-lg p-3 border border-gray-100">{report.description}</p>
+                  </div>
+
+                  {/* Reporter + Reported user */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-white rounded-lg p-3 border border-gray-100">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Reporter</h4>
+                      <div className="flex items-center gap-2">
+                        <img src={report.reportedBy?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(report.reportedBy?.username || 'U')}&background=6366f1&color=fff&bold=true`} alt="" className="w-8 h-8 rounded-full bg-gray-100" onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(report.reportedBy?.username || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }} />
+                        <div>
+                          <p className="text-sm font-medium">{report.reportedBy?.username}</p>
+                          <p className="text-xs text-gray-400">{report.reportedBy?.email}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {report.reportedUserId && (
+                      <div className="bg-white rounded-lg p-3 border border-gray-100">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Reported User</h4>
+                        <div className="flex items-center gap-2">
+                          <img src={report.reportedUserId.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(report.reportedUserId.username || 'U')}&background=6366f1&color=fff&bold=true`} alt="" className="w-8 h-8 rounded-full bg-gray-100" onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(report.reportedUserId.username || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }} />
+                          <div>
+                            <p className="text-sm font-medium">
+                              {report.reportedUserId.username}
+                              {report.reportedUserId.isSuspended && <span className="ml-2 text-xs text-red-600 font-semibold">SUSPENDED</span>}
+                            </p>
+                            <p className="text-xs text-gray-400">{report.reportedUserId.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Listing info + View link */}
+                  {report.reportType === 'listing' && (
+                    <div className="bg-white rounded-lg p-3 border border-gray-100">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Reported Listing</h4>
+                      {report.listingInfo ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium">
+                              {report.listingInfo.type === 'property'
+                                ? `${report.listingInfo.name} — ${report.listingInfo.place}, ${report.listingInfo.estate}`
+                                : `${report.listingInfo.roomType} — Ksh ${report.listingInfo.pricePerMonth}/mo`
+                              }
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {report.listingInfo.isVerified ? 'Verified' : 'Not verified'}
+                              {' · ID: '}{report.reportedItemId}
+                            </p>
+                          </div>
+                          <a
+                            href={report.listingInfo.type === 'property'
+                              ? `/rooms/${report.reportedItemId}`
+                              : `/rooms/${report.reportedItemId}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-sm font-medium bg-indigo-50 px-3 py-1.5 rounded-lg flex-shrink-0"
+                          >
+                            <Eye className="w-4 h-4" /> View
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Listing ID: {report.reportedItemId} (may have been deleted)</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Previous admin notes (on resolved reports) */}
+                  {report.adminNotes && report.status !== 'pending' && (
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                      <h4 className="text-xs font-semibold text-blue-600 uppercase mb-1">Admin Notes</h4>
+                      <p className="text-sm text-blue-800">{report.adminNotes}</p>
+                    </div>
+                  )}
+
+                  {/* Action panel — only for pending */}
+                  {report.status === 'pending' && (
+                    <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-3">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase">Take Action</h4>
+
+                      <textarea
+                        value={adminNotes}
+                        onChange={e => setAdminNotes(e.target.value)}
+                        placeholder="Admin notes (optional)..."
+                        rows={2}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      />
+
+                      <div className="flex flex-wrap gap-2">
+                        {/* Warn user */}
+                        {report.reportedUserId && (
+                          <button
+                            onClick={() => handleWarnUser(report)}
+                            disabled={!!actionLoading}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 disabled:opacity-50 transition-all"
+                          >
+                            <Send className="w-3.5 h-3.5" /> Warn User
+                          </button>
+                        )}
+
+                        {/* Suspend user */}
+                        {report.reportedUserId && !report.reportedUserId.isSuspended && (
+                          <button
+                            onClick={() => handleSuspendUser(report)}
+                            disabled={!!actionLoading}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
+                          >
+                            <Ban className="w-3.5 h-3.5" /> Suspend User
+                          </button>
+                        )}
+
+                        {/* Unsuspend user */}
+                        {report.reportedUserId?.isSuspended && (
+                          <button
+                            onClick={() => handleUnsuspendUser(report)}
+                            disabled={!!actionLoading}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-all"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" /> Unsuspend
+                          </button>
+                        )}
+
+                        {/* Unverify listing */}
+                        {report.reportType === 'listing' && report.listingInfo?.isVerified && (
+                          <button
+                            onClick={() => handleUnverifyListing(report)}
+                            disabled={!!actionLoading}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-all"
+                          >
+                            <ShieldOff className="w-3.5 h-3.5" /> Unverify Listing
+                          </button>
+                        )}
+
+                        {/* Remove listing */}
+                        {report.reportType === 'listing' && report.listingInfo && (
+                          <button
+                            onClick={() => handleRemoveListing(report)}
+                            disabled={!!actionLoading}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-red-800 text-white rounded-lg text-sm font-medium hover:bg-red-900 disabled:opacity-50 transition-all"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete Listing
+                          </button>
+                        )}
+
+                        {/* Dismiss */}
+                        <button
+                          onClick={() => handleDismiss(report)}
+                          disabled={!!actionLoading}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 disabled:opacity-50 transition-all ml-auto"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ))}

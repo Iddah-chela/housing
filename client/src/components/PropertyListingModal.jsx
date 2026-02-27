@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { assets, Places } from '../assets/assets'
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
+import { HardHat, Save, Home, Check, X as XIcon, GripVertical } from 'lucide-react';
 
 const PropertyListingModal = ({ onClose, existingProperty = null }) => {
   const { user, navigate, getToken, axios } = useAppContext()
@@ -14,7 +15,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
     whatsappNumber: existingProperty.whatsappNumber || '',
     place: existingProperty.place,
     estate: existingProperty.estate,
-    propertyType: existingProperty.propertyType
+    propertyType: existingProperty.propertyType,
+    googleMapsUrl: existingProperty.googleMapsUrl || ''
   } : {
     name: '',
     address: '',
@@ -22,7 +24,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
     whatsappNumber: '',
     place: '',
     estate: '',
-    propertyType: ''
+    propertyType: '',
+    googleMapsUrl: ''
   })
 
   // Grid State - Start with 1 row (1-story building) with 5 columns
@@ -71,9 +74,95 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
   const [images, setImages] = useState({ 1: null, 2: null, 3: null, 4: null })
   const [loading, setLoading] = useState(false)
   const [selectMode, setSelectMode] = useState(false) // Multi-select mode
-  const [compoundGate, setCompoundGate] = useState(existingProperty?.compoundGate || { side: 'bottom' })
+  const [compoundGate, setCompoundGate] = useState(existingProperty?.compoundGate || { side: 'bottom', layout: 'row' })
+  const [quickSetup, setQuickSetup] = useState({ rooms: '', roomType: 'BedSitter', price: '', floors: 1 })
+  const [dragPrice, setDragPrice] = useState(3500)
+  const dragDataRef = useRef(null)
+
+  // Drag-and-drop palette items
+  const paletteItems = [
+    { type: 'room', roomType: 'BedSitter', label: 'BedSitter', color: 'bg-emerald-100 border-emerald-400 text-emerald-800' },
+    { type: 'room', roomType: 'One-Bedroom', label: '1-Bedroom', color: 'bg-blue-100 border-blue-400 text-blue-800' },
+    { type: 'room', roomType: 'Self-Contain', label: 'Self-Contain', color: 'bg-purple-100 border-purple-400 text-purple-800' },
+    { type: 'common', roomType: '', label: 'Common Area', color: 'bg-gray-200 border-gray-400 text-gray-700' },
+    { type: 'empty', roomType: '', label: 'Empty', color: 'bg-white border-gray-300 text-gray-500' },
+  ]
+
+  const handleDragStart = (item) => {
+    dragDataRef.current = item
+  }
+
+  const handleDrop = (rowIndex, colIndex) => {
+    const item = dragDataRef.current
+    if (!item) return
+    const newBuildings = [...buildings]
+    const building = newBuildings[activeBuilding]
+    const cellData = {
+      type: item.type,
+      roomType: item.roomType,
+      pricePerMonth: item.type === 'room' ? parseInt(dragPrice) || 0 : 0,
+      amenities: [],
+      isVacant: true
+    }
+    building.grid[rowIndex][colIndex] = cellData
+    setBuildings(newBuildings)
+    dragDataRef.current = null
+  }
 
   // Grid manipulation functions
+  const handleQuickSetup = () => {
+    const numRooms = parseInt(quickSetup.rooms)
+    const numFloors = parseInt(quickSetup.floors) || 1
+    if (!numRooms || numRooms < 1 || numRooms > 100) {
+      toast.error('Enter a valid number of rooms (1-100)')
+      return
+    }
+    if (!quickSetup.price || parseFloat(quickSetup.price) < 100) {
+      toast.error('Enter a valid rent amount (min Ksh 100)')
+      return
+    }
+
+    const roomsPerFloor = Math.ceil(numRooms / numFloors)
+    const cols = roomsPerFloor
+    const rows = numFloors
+
+    const grid = []
+    let roomCount = 0
+    for (let r = 0; r < rows; r++) {
+      const row = []
+      for (let c = 0; c < cols; c++) {
+        if (roomCount < numRooms) {
+          row.push({
+            type: 'room',
+            roomType: quickSetup.roomType,
+            pricePerMonth: parseFloat(quickSetup.price),
+            amenities: [],
+            isVacant: true
+          })
+          roomCount++
+        } else {
+          row.push({ type: 'empty', roomType: '', pricePerMonth: 0, amenities: [], isVacant: true })
+        }
+      }
+      grid.push(row)
+    }
+
+    const newBuilding = {
+      id: 'building_1',
+      name: 'Main Building',
+      rows,
+      cols,
+      grid,
+      gatePosition: { row: rows - 1, col: 0 }
+    }
+
+    setBuildings([newBuilding])
+    setActiveBuilding(0)
+    setSelectedCell(null)
+    setSelectedCells([])
+    toast.success(`Generated ${numRooms} rooms across ${numFloors} floor${numFloors > 1 ? 's' : ''}!`)
+  }
+
   const addStory = () => {
     const newBuildings = [...buildings]
     const building = newBuildings[activeBuilding]
@@ -255,24 +344,37 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
     toast.success(`Applied to all cells in ${building.name}!`)
   }
 
-  const getCellDisplay = (cell) => {
-    const fs = Math.max(7, Math.floor(baseCellPx * 0.20))
+  // Compute room number for a cell position in a building grid
+  const getRoomNumber = (grid, rowIndex, colIndex) => {
+    let count = 0
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[r].length; c++) {
+        if (grid[r][c].type === 'room') {
+          count++
+          if (r === rowIndex && c === colIndex) return count
+        }
+      }
+    }
+    return 0
+  }
+
+  const getCellDisplay = (cell, roomNum) => {
+    const fontSize = Math.max(7, Math.floor(baseCellPx * 0.18))
+    const numSize = Math.max(8, Math.floor(baseCellPx * 0.22))
     if (cell.type === 'room') {
       return (
-        <div className="relative w-full flex flex-col items-center justify-center h-full" style={{ fontSize: fs + 'px', padding: Math.max(2, Math.floor(baseCellPx * 0.05)) + 'px' }}>
-          <div className="font-semibold leading-tight text-center truncate w-full text-center">{cell.roomType}</div>
-          <div className="leading-tight opacity-80">Ksh {cell.pricePerMonth}</div>
-          {!cell.isVacant && <div className="text-red-600 leading-tight">Occupied</div>}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ width: '20%', height: '18%', background: '#7c2d12', borderRadius: '2px 2px 0 0', minHeight: '5px', minWidth: '6px' }}></div>
+        <div className='relative w-full flex flex-col items-center justify-center h-full'>
+          {roomNum > 0 && <span style={{ fontSize: numSize + 'px', lineHeight: '1' }} className='text-gray-700 font-extrabold absolute top-0.5 left-1'>R{roomNum}</span>}
+          <span style={{ fontSize: Math.max(12, Math.floor(baseCellPx * 0.32)) + 'px', lineHeight: '1' }}>🚪</span>
         </div>
       )
     }
 
     if (cell.type === 'common') {
-      return <div style={{ fontSize: fs + 'px' }} className="text-gray-500">Common</div>
+      return <div style={{ fontSize: fontSize + 'px' }} className='text-gray-500 font-medium'>Common</div>
     }
 
-    return <div style={{ fontSize: fs + 'px' }} className="text-gray-400">Empty</div>
+    return <div style={{ fontSize: fontSize + 'px' }} className='text-gray-400'>·</div>
   }
 
   const onSubmitHandler = async (e) => {
@@ -360,7 +462,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
 
   return (
     <div onClick={onClose} className='fixed inset-0 z-[100] flex items-center justify-center bg-black/70 overflow-y-auto p-4'>
-      <form onSubmit={onSubmitHandler} onClick={(e) => e.stopPropagation()} className='bg-white rounded-xl max-w-6xl w-full my-auto max-h-[95vh] overflow-y-auto p-6 md:p-8 relative'>
+      <form onSubmit={onSubmitHandler} onClick={(e) => e.stopPropagation()} className='bg-white rounded-xl max-w-6xl w-full my-auto max-h-[95vh] overflow-y-auto overflow-x-hidden p-6 md:p-8 relative'>
         
         <img src={assets.closeIcon} alt="" className='absolute top-4 right-4 h-5 w-5 cursor-pointer hover:opacity-70' onClick={onClose} />
 
@@ -387,6 +489,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
               <option value="">Select Location *</option>
               {Places.map((place) => (<option key={place} value={place}>{place}</option>))}
             </select>
+            <input type="url" placeholder='Google Maps Link (paste from Maps share button)' className='border border-gray-300 rounded px-3 py-2 outline-indigo-500 md:col-span-2' value={propertyInfo.googleMapsUrl} onChange={(e) => setPropertyInfo({ ...propertyInfo, googleMapsUrl: e.target.value })} />
           </div>
         </div>
 
@@ -405,9 +508,71 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
           </div>
         </div>
 
+        {/* Quick Setup */}
+        <div className='border-l-4 border-green-500 pl-4 mb-6'>
+          <h2 className='text-xl font-semibold mb-3'>Quick Setup</h2>
+          <p className='text-sm text-gray-500 mb-3'>Enter the number of rooms and we'll auto-generate the building layout for you.</p>
+          <div className='flex gap-2 flex-wrap items-end'>
+            <div>
+              <label className='text-xs text-gray-600 font-medium'>Number of Rooms</label>
+              <input
+                type='number'
+                min='1'
+                max='100'
+                placeholder='e.g. 10'
+                value={quickSetup.rooms}
+                onChange={(e) => setQuickSetup({ ...quickSetup, rooms: e.target.value })}
+                className='border px-3 py-2 rounded w-28 outline-indigo-500 block'
+              />
+            </div>
+            <div>
+              <label className='text-xs text-gray-600 font-medium'>Floors</label>
+              <input
+                type='number'
+                min='1'
+                max='10'
+                placeholder='1'
+                value={quickSetup.floors}
+                onChange={(e) => setQuickSetup({ ...quickSetup, floors: e.target.value })}
+                className='border px-3 py-2 rounded w-20 outline-indigo-500 block'
+              />
+            </div>
+            <div>
+              <label className='text-xs text-gray-600 font-medium'>Room Type</label>
+              <select
+                value={quickSetup.roomType}
+                onChange={(e) => setQuickSetup({ ...quickSetup, roomType: e.target.value })}
+                className='border px-3 py-2 rounded outline-indigo-500 block'
+              >
+                <option value='BedSitter'>BedSitter</option>
+                <option value='One-Bedroom'>One-Bedroom</option>
+                <option value='Self-Contain'>Self-Contain</option>
+              </select>
+            </div>
+            <div>
+              <label className='text-xs text-gray-600 font-medium'>Rent (Ksh/month)</label>
+              <input
+                type='number'
+                min='100'
+                placeholder='e.g. 3500'
+                value={quickSetup.price}
+                onChange={(e) => setQuickSetup({ ...quickSetup, price: e.target.value })}
+                className='border px-3 py-2 rounded w-32 outline-indigo-500 block'
+              />
+            </div>
+            <button
+              type='button'
+              onClick={handleQuickSetup}
+              className='bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-medium text-sm'
+            >
+              Generate Layout
+            </button>
+          </div>
+        </div>
+
         {/* Grid Editor */}
         <div className='border-l-4 border-purple-500 pl-4 mb-6'>
-          <h2 className='text-xl font-semibold mb-3'>Building Layout 🏗️</h2>
+          <h2 className='text-xl font-semibold mb-3 flex items-center gap-2'>Building Layout <HardHat className='w-5 h-5 text-purple-500' /></h2>
 
           {/* Action buttons */}
           <div className='flex gap-2 mb-3 flex-wrap text-sm'>
@@ -441,8 +606,38 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
             </button>
           </div>
 
+          {/* Drag & Drop Palette */}
+          <div className='mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg'>
+            <p className='text-xs font-semibold text-indigo-700 mb-2 flex items-center gap-1.5'>
+              <GripVertical className='w-3.5 h-3.5' /> Drag & Drop — drag a room type onto the grid
+            </p>
+            <div className='flex gap-2 flex-wrap items-end'>
+              {paletteItems.map((item) => (
+                <div
+                  key={item.label}
+                  draggable
+                  onDragStart={() => handleDragStart(item)}
+                  className={`px-3 py-1.5 rounded border-2 text-xs font-semibold cursor-grab active:cursor-grabbing select-none ${item.color} hover:shadow-md transition-all`}
+                >
+                  {item.label}
+                </div>
+              ))}
+              <div className='flex items-center gap-1.5 ml-2'>
+                <label className='text-[10px] text-gray-600 font-medium whitespace-nowrap'>Default rent:</label>
+                <input
+                  type='number'
+                  min='100'
+                  value={dragPrice}
+                  onChange={(e) => setDragPrice(e.target.value)}
+                  className='border border-indigo-300 rounded px-2 py-1 w-24 text-xs outline-indigo-500'
+                  placeholder='Ksh'
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Gate side selector — 8 positions */}
-          <div className='mb-3'>
+          <div className='mb-2'>
             <span className='text-gray-600 font-medium text-xs'>Gate position:</span>
             <div className='flex flex-wrap gap-1.5 mt-1'>
               {[
@@ -455,43 +650,121 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
                 { id: 'bottom-left', label: '↙ Bot-Left' },
                 { id: 'bottom-right', label: '↘ Bot-Right' },
               ].map(({ id, label }) => (
-                <button key={id} type="button" onClick={() => setCompoundGate({ side: id })}
+                <button key={id} type="button" onClick={() => setCompoundGate(g => ({ ...g, side: id }))}
                   className={`px-2 py-1 rounded text-xs font-medium transition-all ${compoundGate.side === id ? 'bg-amber-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
                   {label}
                 </button>
               ))}
             </div>
           </div>
+          {/* Building arrangement — row (side by side) or col (stacked) */}
+          <div className='mb-3 flex items-center gap-2'>
+            <span className='text-gray-600 font-medium text-xs'>Building arrangement:</span>
+            {[{ id: 'row', label: '↔ Side by Side' }, { id: 'col', label: '↕ Stacked' }].map(({ id, label }) => (
+              <button key={id} type='button' onClick={() => setCompoundGate(g => ({ ...g, layout: id }))}
+                className={`px-2 py-1 rounded text-xs font-medium transition-all ${(compoundGate.layout || 'row') === id ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
 
           {/* Compound — all buildings in ONE fenced compound, ONE gate */}
           <div className='overflow-x-auto mb-3'>
             <div className='inline-block'>
               <div className='relative'>
-                {/* Compound fence */}
-                <div className='border-2 border-dashed border-gray-500 p-5 bg-gradient-to-br from-green-50 to-slate-100'>
-
-                  {/* Buildings side by side */}
-                  <div className='flex gap-6 items-end flex-wrap'>
+                {/* Compound fence — gate-connected path network */}
+                {(() => {
+                  const gs = compoundGate.side
+                  const isColLayout = (compoundGate.layout || 'row') === 'col'
+                  // Build list of trunk strips to render
+                  const trunkList = []
+                  if (!isColLayout) {
+                    trunkList.push({ dir: 'h', pos: ['top','top-left','top-right'].includes(gs) ? 'top' : 'bottom' })
+                    if (gs === 'left')  trunkList.push({ dir: 'v', pos: 'left' })
+                    if (gs === 'right') trunkList.push({ dir: 'v', pos: 'right' })
+                  } else {
+                    trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                    if (['top','top-left','top-right'].includes(gs))          trunkList.push({ dir: 'h', pos: 'top' })
+                    if (['bottom','bottom-left','bottom-right'].includes(gs)) trunkList.push({ dir: 'h', pos: 'bottom' })
+                  }
+                  const cornerClip = {
+                    'top-left':     'polygon(48px 0, 100% 0, 100% 100%, 0 100%, 0 48px)',
+                    'top-right':    'polygon(0 0, calc(100% - 48px) 0, 100% 48px, 100% 100%, 0 100%)',
+                    'bottom-left':  'polygon(0 0, 100% 0, 100% 100%, 48px 100%, 0 calc(100% - 48px))',
+                    'bottom-right': 'polygon(0 0, 100% 0, 100% calc(100% - 48px), calc(100% - 48px) 100%, 0 100%)',
+                  }[gs]
+                  // Extra padding pushes buildings away from the chamfered corner
+                  const cornerPad = {
+                    'top-left':     { paddingTop: 40, paddingLeft: 40 },
+                    'top-right':    { paddingTop: 40, paddingRight: 40 },
+                    'bottom-left':  { paddingBottom: 40, paddingLeft: 40 },
+                    'bottom-right': { paddingBottom: 40, paddingRight: 40 },
+                  }[gs] || {}
+                  return (
+                <div className='border-2 border-dashed border-gray-500 p-3 bg-gradient-to-br from-green-50 to-slate-100 relative'
+                  style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad }}>
+                  {/* Trunk strips — grey path towards gate, corridors bleed into them creating T-junctions */}
+                  {trunkList.map((t, i) => t.dir === 'h' ? (
+                    <div key={i} className='absolute left-0 right-0 overflow-hidden'
+                      style={t.pos === 'top'
+                        ? { top: 0, height: 14, background: '#6b7280', zIndex: 1 }
+                        : { bottom: 0, height: 14, background: '#6b7280', zIndex: 1 }}>
+                      <div className='absolute inset-0 flex items-center' style={{ padding: '0 6px' }}>
+                        <div style={{ borderTop: '2px dashed rgba(255,255,255,0.55)', width: '100%' }}></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={i} className='absolute top-0 bottom-0 overflow-hidden'
+                      style={t.pos === 'left'
+                        ? { left: 0, width: 14, background: '#6b7280', zIndex: 1 }
+                        : { right: 0, width: 14, background: '#6b7280', zIndex: 1 }}>
+                      <div className='absolute inset-0 flex justify-center'>
+                        <div style={{ borderLeft: '2px dashed rgba(255,255,255,0.55)', height: '100%' }}></div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className={`relative flex ${isColLayout ? 'flex-col items-start' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
                     {buildings.map((building, buildingIndex) => {
                       const isActive = buildingIndex === activeBuilding
                       return (
+                        <React.Fragment key={building.id}>
+                          {/* Corridor pathway between buildings */}
+                          {buildingIndex > 0 && (isColLayout ? (
+                            /* Horizontal corridor for stacked buildings — bleeds to left+right fence */
+                            <div style={{ height: 14, alignSelf: 'stretch', flexShrink: 0, marginLeft: '-12px', marginRight: '-12px' }} className='my-1.5 relative'>
+                              <div className='h-full w-full' style={{ background: '#6b7280' }}>
+                                <div className='absolute inset-0 flex items-center px-2'>
+                                  <div style={{ borderTop: '2px dashed rgba(255,255,255,0.6)', width: '100%' }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            /* Vertical corridor for side-by-side buildings — bleeds to top+bottom fence */
+                            <div style={{ width: 18, alignSelf: 'stretch', flexShrink: 0, marginTop: '-12px', marginBottom: '-12px' }} className='flex items-stretch mx-1.5 relative'>
+                              <div className='w-full h-full' style={{ background: '#6b7280' }}>
+                                <div className='absolute inset-0 flex justify-center'>
+                                  <div style={{ borderLeft: '2px dashed rgba(255,255,255,0.6)', height: '100%' }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         <div
-                          key={building.id}
                           onClick={() => { if (!isActive) { setActiveBuilding(buildingIndex); setSelectedCell(null); setSelectedCells([]) } }}
-                          className={`relative transition-all duration-200 ${isActive ? 'cursor-default' : 'opacity-60 cursor-pointer hover:opacity-80'}`}
+                          className={`relative transition-all duration-200 mx-2 my-2 ${isActive ? 'cursor-default' : 'opacity-60 cursor-pointer hover:opacity-80'}`}
                           style={{ transform: isActive ? 'scale(1)' : 'scale(0.88)', transformOrigin: 'bottom center' }}
                         >
                           {/* Building label */}
                           <div className={`text-center text-xs font-semibold mb-1 ${isActive ? 'text-indigo-700' : 'text-gray-500'}`}>{building.name}</div>
 
-                          {/* Roof */}
-                          <div className='flex justify-center'>
-                            <svg width={building.cols * baseCellPx} height="26">
-                              <polygon
-                                points={`0,26 ${(building.cols * baseCellPx) / 2},0 ${building.cols * baseCellPx},26`}
-                                fill={isActive ? '#7c3aed' : '#9ca3af'}
-                                stroke={isActive ? '#4c1d95' : '#6b7280'}
-                                strokeWidth="2"
+                          {/* Roof — outlined triangle with overhang, no bottom border */}
+                          <div className='flex justify-center' style={{ marginLeft: -Math.round(baseCellPx * 0.15), marginRight: -Math.round(baseCellPx * 0.15) }}>
+                            <svg width={building.cols * baseCellPx + Math.round(baseCellPx * 0.3)} height="28">
+                              <polyline
+                                points={`0,28 ${(building.cols * baseCellPx + Math.round(baseCellPx * 0.3)) / 2},2 ${building.cols * baseCellPx + Math.round(baseCellPx * 0.3)},28`}
+                                fill={isActive ? '#f5f3ff' : '#f9fafb'}
+                                stroke={isActive ? '#4f46e5' : '#9ca3af'}
+                                strokeWidth={isActive ? '3.5' : '2'}
+                                strokeLinejoin='round'
                               />
                             </svg>
                           </div>
@@ -507,17 +780,34 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
                                     <div
                                       key={colIndex}
                                       onClick={(e) => { if (isActive) { e.stopPropagation(); handleCellClick(rowIndex, colIndex) } }}
+                                      onDragOver={(e) => { if (isActive) e.preventDefault() }}
+                                      onDrop={(e) => { if (isActive) { e.preventDefault(); handleDrop(rowIndex, colIndex) } }}
                                       style={{ width: baseCellPx + 'px', height: baseCellPx + 'px' }}
-                                      className={`border border-gray-300 flex items-center justify-center transition-all overflow-hidden ${
-                                        isSelected ? 'ring-4 ring-indigo-500 bg-indigo-50 cursor-pointer' :
-                                        isMultiSelected ? 'ring-2 ring-yellow-400 bg-yellow-50 cursor-pointer' :
-                                        isActive && cell.type === 'room' ? 'bg-blue-50 hover:bg-blue-100 cursor-pointer' :
-                                        isActive && cell.type === 'common' ? 'bg-green-50 hover:bg-green-100 cursor-pointer' :
+                                      className={`group relative border border-gray-300 flex items-center justify-center transition-all ${
+                                        isSelected ? 'ring-4 ring-indigo-500 bg-indigo-200 cursor-pointer' :
+                                        isMultiSelected ? 'ring-2 ring-yellow-400 bg-yellow-100 cursor-pointer' :
+                                        isActive && cell.type === 'room' && !cell.isVacant ? 'bg-red-200 border-red-400 hover:bg-red-300 cursor-pointer' :
+                                        isActive && cell.type === 'room' ? 'bg-emerald-200 border-emerald-400 hover:bg-emerald-300 cursor-pointer' :
+                                        isActive && cell.type === 'common' ? 'bg-gray-200 border-gray-400 hover:bg-gray-300 cursor-pointer' :
                                         isActive ? 'bg-gray-50 hover:bg-gray-100 cursor-pointer' :
-                                        cell.type === 'room' ? 'bg-blue-50' : cell.type === 'common' ? 'bg-green-50' : 'bg-gray-50'
+                                        cell.type === 'room' && !cell.isVacant ? 'bg-red-200 border-red-400' :
+                                        cell.type === 'room' ? 'bg-emerald-200 border-emerald-400' :
+                                        cell.type === 'common' ? 'bg-gray-200 border-gray-400' : 'bg-gray-50'
                                       }`}
                                     >
-                                      {getCellDisplay(cell)}
+                                      {getCellDisplay(cell, cell.type === 'room' ? getRoomNumber(building.grid, rowIndex, colIndex) : 0)}
+                                      {cell.type === 'room' && (
+                                        <div className='hidden group-hover:flex flex-col absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none items-center'>
+                                          <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl text-left'>
+                                            <div className='font-bold text-[11px]'>R{getRoomNumber(building.grid, rowIndex, colIndex)} · {cell.roomType || 'Room'}</div>
+                                            {cell.pricePerMonth && <div className='text-[10px] text-gray-300 mt-0.5'>Ksh {cell.pricePerMonth?.toLocaleString()}/mo</div>}
+                                            <div className={`text-[10px] font-medium mt-0.5 ${cell.isVacant ? 'text-green-300' : 'text-red-300'}`}>
+                                              {cell.isVacant ? '● Vacant' : '● Occupied'}
+                                            </div>
+                                          </div>
+                                          <div className='w-2 h-2 bg-gray-900 rotate-45 -mt-1 shrink-0'></div>
+                                        </div>
+                                      )}
                                     </div>
                                   )
                                 })}
@@ -528,30 +818,43 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
                           {/* Foundation */}
                           <div className='h-2 bg-gradient-to-b from-gray-300 to-gray-500 rounded-b'></div>
                         </div>
+                        </React.Fragment>
                       )
                     })}
                   </div>
-
-                  {/* Ground path */}
-                  <div className='h-3 mt-3 bg-amber-100 border-t border-amber-200 rounded-sm w-full'></div>
                 </div>
+                  )
+                })()}
 
-                {/* Gate — 8-position compound gate */}
+                {/* Gate — 8-position compound gate with rotation */}
                 {(() => {
-                  const gatePos = {
-                    'top':          'absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2',
-                    'bottom':       'absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2',
-                    'left':         'absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2',
-                    'right':        'absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2',
-                    'top-left':     'absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2',
-                    'top-right':    'absolute top-0 right-0 translate-x-1/2 -translate-y-1/2',
-                    'bottom-left':  'absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2',
-                    'bottom-right': 'absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2',
-                  }
-                  const cls = gatePos[compoundGate.side] || gatePos['bottom']
+                  const gs = compoundGate.side
+                  const posClass = {
+                    'top':          'absolute top-0 left-1/2',
+                    'bottom':       'absolute bottom-0 left-1/2',
+                    'left':         'absolute left-0 top-1/2',
+                    'right':        'absolute right-0 top-1/2',
+                    'top-left':     'absolute top-0 left-0',
+                    'top-right':    'absolute top-0 right-0',
+                    'bottom-left':  'absolute bottom-0 left-0',
+                    'bottom-right': 'absolute bottom-0 right-0',
+                  }[gs] || 'absolute bottom-0 left-1/2'
+                  const gateTransform = {
+                    'top':          'translate(-50%, -50%)',
+                    'bottom':       'translate(-50%, 50%)',
+                    'left':         'translate(-50%, -50%) rotate(-90deg)',
+                    'right':        'translate(50%, -50%) rotate(-90deg)',
+                    'top-left':     'translate(calc(-50% + 24px), calc(-50% + 24px)) rotate(-45deg)',
+                    'top-right':    'translate(calc(50% - 24px), calc(-50% + 24px)) rotate(45deg)',
+                    'bottom-left':  'translate(calc(-50% + 24px), calc(50% - 24px)) rotate(45deg)',
+                    'bottom-right': 'translate(calc(50% - 24px), calc(50% - 24px)) rotate(-45deg)',
+                  }[gs] || 'translate(-50%, 50%)'
                   return (
-                    <div className={`${cls} bg-amber-50 border border-amber-400 rounded px-1.5 py-0.5 flex items-center gap-0.5 z-10`}>
-                      <svg className='w-3.5 h-3.5 text-amber-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M9 3v18m6-18v18' /></svg>
+                    <div className={`${posClass} bg-amber-50 border border-amber-400 rounded px-2 py-0.5 flex items-center gap-1 z-10`}
+                      style={{ transform: gateTransform }}>
+                      <svg className='w-3 h-3 text-amber-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M9 3v18' /></svg>
+                      <span className='text-[9px] font-bold text-amber-800 uppercase tracking-wide'>Gate</span>
+                      <svg className='w-3 h-3 text-amber-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M9 3v18' /></svg>
                     </div>
                   )
                 })()}
@@ -592,7 +895,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
                         : 'bg-red-50 text-red-700 border-red-500 hover:bg-red-100'
                     }`}
                   >
-                    {roomConfig.isVacant ? '✓ Vacant' : '✗ Occupied'}
+                    <span className='flex items-center gap-1'>{roomConfig.isVacant ? <><Check className='w-4 h-4' /> Vacant</> : <><XIcon className='w-4 h-4' /> Occupied</>}</span>
                   </button>
                 </>)}
               </div>
@@ -617,7 +920,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
 
         {/* Submit */}
         <button type="submit" className='bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-10 py-3 rounded-lg font-semibold text-lg w-full transition-all shadow-lg' disabled={loading}>
-          {loading ? 'Creating Listing...' : existingProperty ? '💾 Update Property' : '🏠 List Property'}
+          {loading ? 'Creating Listing...' : existingProperty ? <span className='flex items-center justify-center gap-2'><Save className='w-5 h-5' /> Update Property</span> : <span className='flex items-center justify-center gap-2'><Home className='w-5 h-5' /> List Property</span>}
         </button>
       </form>
     </div>

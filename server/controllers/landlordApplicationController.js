@@ -114,7 +114,8 @@ export const getAllApplications = async (req, res) => {
         const applications = await LandlordApplication.find(filter)
             .populate('userId', 'username email image')
             .populate('reviewedBy', 'username email')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
         
         res.status(200).json({
             success: true,
@@ -168,24 +169,19 @@ export const approveApplication = async (req, res) => {
             isIdVerified: true
         });
         
-        // Update user role in Clerk publicMetadata
-        try {
-            await clerkClient.users.updateUser(application.userId, {
-                publicMetadata: {
-                    role: 'houseOwner'
-                }
-            });
-            console.log('✅ Updated Clerk role to houseOwner for:', application.userId);
-        } catch (clerkError) {
-            console.error('❌ Error updating Clerk metadata:', clerkError);
-            // Continue even if Clerk update fails - MongoDB is source of truth
-        }
-        
+        // Respond immediately — don't block on the Clerk API call
         res.status(200).json({
             success: true,
             message: 'Application approved! User is now a landlord.',
             application
         });
+
+        // Update Clerk metadata in background (non-blocking)
+        clerkClient.users.updateUser(application.userId, {
+            publicMetadata: { role: 'houseOwner' }
+        })
+            .then(() => console.log('✅ Updated Clerk role to houseOwner for:', application.userId))
+            .catch((err) => console.error('❌ Error updating Clerk metadata:', err.message));
         
     } catch (error) {
         console.error('Error approving application:', error);

@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import { X, MapPin, Coins } from 'lucide-react'
 
 const CheckBox = ({label, selected = false, onChange =() =>{}}) => {
     return(
@@ -238,7 +239,7 @@ const AllRooms = () => {
                 onClick={() => setSearchQuery('')}
                 className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600'
               >
-                ✕
+                <X className='w-4 h-4' />
               </button>
             )}
           </div>
@@ -247,14 +248,14 @@ const AllRooms = () => {
             <div className='flex flex-wrap gap-2 mt-2'>
               {urlLocation && (
                 <span className='flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded-full font-medium'>
-                  📍 {urlLocation}
-                  <button onClick={() => { clearURLParam('location'); setSearchQuery(''); }} className='ml-1 hover:text-indigo-900 font-bold'>✕</button>
+                  <MapPin className='w-3.5 h-3.5' /> {urlLocation}
+                  <button onClick={() => { clearURLParam('location'); setSearchQuery(''); }} className='ml-1 hover:text-indigo-900 font-bold'><X className='w-3 h-3' /></button>
                 </span>
               )}
               {(urlMinPrice || urlMaxPrice) && (
                 <span className='flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded-full font-medium'>
-                  💰 Ksh {urlMinPrice || '0'} – {urlMaxPrice || '∞'}
-                  <button onClick={() => { clearURLParam('minPrice'); clearURLParam('maxPrice'); }} className='ml-1 hover:text-indigo-900 font-bold'>✕</button>
+                  <Coins className='w-3.5 h-3.5' /> Ksh {urlMinPrice || '0'} – {urlMaxPrice || '∞'}
+                  <button onClick={() => { clearURLParam('minPrice'); clearURLParam('maxPrice'); }} className='ml-1 hover:text-indigo-900 font-bold'><X className='w-3 h-3' /></button>
                 </span>
               )}
               <button onClick={clearAllFilters} className='text-xs text-gray-500 underline hover:text-gray-700 px-1'>Clear all</button>
@@ -276,11 +277,22 @@ const AllRooms = () => {
               src={property.images[0]} 
               alt="" 
               title='View Property Details' 
-              className='max-h-65 md:w-1/2 rounded-xl shadow-lg object-cover cursor-pointer hover:shadow-2xl transition-shadow'
+              className='max-h-65 md:w-1/2 rounded-xl shadow-lg object-cover cursor-pointer hover:shadow-2xl transition-shadow relative'
             />
 
             <div className='md:w-1/2 flex flex-col gap-2'>
-              <p className='text-gray-500'>{property.place}</p>
+              <div className='flex items-center gap-2'>
+                <p className='text-gray-500'>{property.place}</p>
+                {property.isVerified && (
+                  <span className='bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>VERIFIED</span>
+                )}
+                {(() => {
+                  const d = property.createdAt ? Math.floor((Date.now() - new Date(property.createdAt)) / 86400000) : null
+                  return d !== null && d <= 7 ? (
+                    <span className='bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>NEW</span>
+                  ) : null
+                })()}
+              </div>
               <p 
                 onClick={() => {navigate(`/rooms/${property._id}`), scrollTo(0,0)}}
                 className='text-gray-800 text-3xl font-playfair cursor-pointer hover:text-indigo-600 transition-colors'
@@ -338,6 +350,10 @@ const AllRooms = () => {
                   `Ksh ${property.minPrice.toLocaleString()} - ${property.maxPrice.toLocaleString()}/Month`
                 )}
               </p>
+              {property.createdAt && (() => {
+                const d = Math.floor((Date.now() - new Date(property.createdAt)) / 86400000)
+                return <p className='text-xs text-gray-400'>{d === 0 ? 'Listed today' : `Listed ${d} day${d === 1 ? '' : 's'} ago`}</p>
+              })()}
               
               <button 
                 onClick={() => {navigate(`/rooms/${property._id}`), scrollTo(0,0)}}

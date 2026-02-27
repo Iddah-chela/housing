@@ -8,6 +8,7 @@ const ChatInterface = ({ room, houseOwner, propertyId, onClose, existingChatId }
   const [chat, setChat] = useState(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -77,8 +78,9 @@ const ChatInterface = ({ room, houseOwner, propertyId, onClose, existingChatId }
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || sending) return;
 
+    setSending(true);
     try {
       const token = await getToken();
       const { data } = await axios.post('/api/chat/send', {
@@ -96,6 +98,8 @@ const ChatInterface = ({ room, houseOwner, propertyId, onClose, existingChatId }
       }
     } catch (error) {
       toast.error(error.message);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -106,8 +110,8 @@ const ChatInterface = ({ room, houseOwner, propertyId, onClose, existingChatId }
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-        <div className="bg-white rounded-lg p-8">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-lg p-8 shadow-lg">
           <p>Loading chat...</p>
         </div>
       </div>
@@ -115,15 +119,16 @@ const ChatInterface = ({ room, houseOwner, propertyId, onClose, existingChatId }
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[600px] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-3">
             <img 
-              src={houseOwner.image} 
+              src={houseOwner.image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(houseOwner.username || 'U') + '&background=6366f1&color=fff'} 
               alt={houseOwner.username} 
-              className="w-10 h-10 rounded-full"
+              onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(houseOwner.username || 'U') + '&background=6366f1&color=fff' }}
+              className="w-10 h-10 rounded-full object-cover"
             />
             <div>
               <h3 className="font-semibold">{houseOwner.username}</h3>
@@ -190,10 +195,10 @@ const ChatInterface = ({ room, houseOwner, propertyId, onClose, existingChatId }
             />
             <button
               type="submit"
-              disabled={!message.trim()}
+              disabled={!message.trim() || sending}
               className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dull transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Send
+              {sending ? '...' : 'Send'}
             </button>
           </div>
         </form>

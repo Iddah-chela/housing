@@ -112,7 +112,8 @@ const MyViewings = () => {
       confirmed: { text: 'Confirmed', color: 'bg-green-100 text-green-800' },
       declined: { text: 'Declined', color: 'bg-red-100 text-red-800' },
       completed: { text: 'Completed', color: 'bg-blue-100 text-blue-800' },
-      expired: { text: 'Expired', color: 'bg-gray-100 text-gray-800' }
+      expired: { text: 'Expired', color: 'bg-gray-100 text-gray-800' },
+      booked: { text: 'Booked', color: 'bg-indigo-100 text-indigo-800' }
     };
     return badges[status] || badges.pending;
   };
@@ -166,9 +167,10 @@ const MyViewings = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <img
-                        src={otherUser.image}
+                        src={otherUser.image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(otherUser.username || 'U') + '&background=6366f1&color=fff'}
                         alt={otherUser.username}
-                        className="w-12 h-12 rounded-full"
+                        onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(otherUser.username || 'U') + '&background=6366f1&color=fff' }}
+                        className="w-12 h-12 rounded-full object-cover"
                       />
                       <div>
                         <h3 className="font-medium">{otherUser.username}</h3>
@@ -230,7 +232,7 @@ const MyViewings = () => {
                       </div>
                     )}
 
-                    {/* Book This Room — renter only, after viewing is confirmed or completed */}
+                    {/* Book This Room — renter only, after viewing is confirmed or completed (not already booked) */}
                     {isRenter && (viewing.status === 'confirmed' || viewing.status === 'completed') && (
                       bookingViewingId === viewing._id ? (
                         <div className="flex flex-col items-end gap-2 bg-indigo-50 border border-indigo-200 rounded-lg p-3 mt-1">

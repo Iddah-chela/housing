@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { toast } from 'react-hot-toast';
+import { Check } from 'lucide-react';
 
 const AdminListings = () => {
   const { axios, getToken } = useAppContext();
@@ -59,6 +60,18 @@ const AdminListings = () => {
     } catch (error) { toast.error(error.message); }
   };
 
+  const handleUnverify = async (propertyId) => {
+    if (!confirm('Remove verification from this property?')) return;
+    try {
+      const token = await getToken();
+      const { data } = await axios.post('/api/admin/unverify-property', { propertyId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (data.success) { toast.success(data.message); fetchProperties(); }
+      else toast.error(data.message);
+    } catch (error) { toast.error(error.message); }
+  };
+
   const filtered = properties.filter(p => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -106,7 +119,7 @@ const AdminListings = () => {
                     </div>
                     <div className="flex flex-wrap gap-1.5 shrink-0">
                       {property.isVerified && (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">✓ Verified</span>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-0.5"><Check className='w-3 h-3' /> Verified</span>
                       )}
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${property.isExpired ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                         {property.isExpired ? 'Delisted' : 'Live'}
@@ -118,7 +131,7 @@ const AdminListings = () => {
                   </div>
 
                   <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                    <img src={property.owner?.image || 'https://avatar.iran.liara.run/public'} alt="" className="w-5 h-5 rounded-full" />
+                    <img src={property.owner?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(property.owner?.username || 'U')}&background=6366f1&color=fff&bold=true&size=40`} alt="" className="w-5 h-5 rounded-full" onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(property.owner?.username || 'U')}&background=6366f1&color=fff&bold=true&size=40`; if (e.target.src !== fb) e.target.src = fb }} />
                     <span>{property.owner?.username || 'Unknown'} · {property.owner?.email}</span>
                   </div>
 
@@ -133,10 +146,15 @@ const AdminListings = () => {
                       className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs hover:bg-gray-50">
                       View Listing ↗
                     </a>
-                    {!property.isVerified && (
+                    {!property.isVerified ? (
                       <button onClick={() => handleVerify(property._id)}
                         className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs hover:bg-indigo-700">
                         Verify
+                      </button>
+                    ) : (
+                      <button onClick={() => handleUnverify(property._id)}
+                        className="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-xs hover:bg-yellow-600">
+                        Unverify
                       </button>
                     )}
                     {property.isExpired ? (

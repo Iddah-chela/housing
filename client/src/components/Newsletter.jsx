@@ -3,6 +3,7 @@ import { assets } from '../assets/assets'
 import Title from './Title'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import { PartyPopper } from 'lucide-react'
 
 const Newsletter = () => {
   const [email, setEmail] = useState('')
@@ -36,7 +37,7 @@ const Newsletter = () => {
 
         {subscribed ? (
           <div className="mt-6 flex flex-col items-center gap-2">
-            <div className="text-3xl">🎉</div>
+            <PartyPopper className='w-8 h-8 text-green-400' />
             <p className="text-green-400 font-medium text-lg">You're subscribed!</p>
             <p className="text-gray-400 text-sm text-center">We'll email you whenever new listings go live.</p>
           </div>

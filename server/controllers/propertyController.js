@@ -7,7 +7,7 @@ import { sendNewListingAlert } from "../utils/mailer.js";
 // Create a new property with buildings and grid layout
 export const createProperty = async (req, res) => {
   try {
-    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate } = req.body;
+    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl } = req.body;
     const owner = req.user._id;
 
     console.log('Received property data:', { name, address, buildings: buildings?.length, images: images?.length });
@@ -46,13 +46,14 @@ export const createProperty = async (req, res) => {
       place,
       estate,
       propertyType,
+      googleMapsUrl: googleMapsUrl || '',
       buildings: parsedBuildings,
       images: uploadedImageUrls,
       compoundGate: compoundGate || { side: 'bottom' }
     });
 
     // Populate owner details
-    await property.populate('owner', 'fullName email imageUrl');
+    await property.populate('owner', 'username email image');
 
     // Notify newsletter subscribers (non-blocking)
     Subscriber.find({}).then(subscribers => {
@@ -76,7 +77,7 @@ export const createProperty = async (req, res) => {
 export const getAllProperties = async (req, res) => {
   try {
     const properties = await Property.find({ vacantRooms: { $gt: 0 }, isExpired: { $ne: true } })
-      .populate('owner', 'fullName email imageUrl isVerified')
+      .populate('owner', 'username email image isVerified')
       .sort({ createdAt: -1 });
     
     res.json({ success: true, properties });
@@ -90,7 +91,7 @@ export const getPropertyById = async (req, res) => {
   try {
     const { id } = req.params;
     const property = await Property.findById(id)
-      .populate('owner', 'fullName email imageUrl isVerified');
+      .populate('owner', 'username email image isVerified');
     
     if (!property) {
       return res.json({ success: false, message: "Property not found" });
@@ -107,7 +108,7 @@ export const getOwnerProperties = async (req, res) => {
   try {
     const owner = req.user._id;
     const properties = await Property.find({ owner })
-      .populate('owner', 'fullName email imageUrl')
+      .populate('owner', 'username email image')
       .sort({ createdAt: -1 });
     
     res.json({ success: true, properties });
@@ -120,7 +121,7 @@ export const getOwnerProperties = async (req, res) => {
 export const updateProperty = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate } = req.body;
+    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl } = req.body;
     const owner = req.user._id;
 
     // Verify ownership
@@ -170,6 +171,7 @@ export const updateProperty = async (req, res) => {
       place: place || existing.place,
       estate: estate || existing.estate,
       propertyType: propertyType || existing.propertyType,
+      googleMapsUrl: googleMapsUrl !== undefined ? googleMapsUrl : (existing.googleMapsUrl || ''),
       images: updatedImages,
       totalRooms,
       vacantRooms,

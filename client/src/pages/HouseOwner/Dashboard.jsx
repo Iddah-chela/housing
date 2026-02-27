@@ -1,105 +1,262 @@
 import React, { useEffect, useState } from 'react'
-import Title from '../../components/Title'
-import { assets } from '../../assets/assets'
 import { useAppContext } from '../../context/AppContext'
-
-
+import { Home, Users, Eye, CalendarCheck, DollarSign, Clock, Building2, CheckCircle, XCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const Dashboard = () => {
+    const { user, getToken, toast, axios } = useAppContext()
+    const navigate = useNavigate()
 
-    const {currency, user, getToken, toast, axios} = useAppContext();
-
-    const [dashboardData, setDashboardData] = useState({
-        bookings: [],
+    const [stats, setStats] = useState({
+        totalProperties: 0,
+        totalRooms: 0,
+        vacantRooms: 0,
+        occupiedRooms: 0,
+        bookedRooms: 0,
         totalBookings: 0,
         totalRevenue: 0,
+        pendingViewings: 0,
+        confirmedViewings: 0,
+        recentBookings: [],
+        recentViewings: [],
+        properties: []
     })
+    const [loading, setLoading] = useState(true)
 
-    const fetchDashboardData = async ()=>{
+    const fetchDashboard = async () => {
         try {
-            const {data} = await axios.get('/api/bookings/house', {headers: {Authorization: `Bearer ${await getToken()}`}})
-            if(data.success){
-                const totalRevenue = data.bookings.reduce((sum, b) => sum + (b.roomDetails?.pricePerMonth || 0), 0)
-                setDashboardData({
-                    bookings: data.bookings,
-                    totalBookings: data.totalBookings,
-                    totalRevenue
+            const token = await getToken()
+            const headers = { Authorization: `Bearer ${token}` }
+
+            const [bookingsRes, propertiesRes, viewingsRes] = await Promise.all([
+                axios.get('/api/bookings/property', { headers }),
+                axios.get('/api/properties/owner/my-properties', { headers }),
+                axios.get('/api/viewing/owner', { headers }).catch(() => ({ data: { success: false } }))
+            ])
+
+            let totalRooms = 0, vacantRooms = 0, occupiedRooms = 0, bookedRooms = 0
+            let monthlyRevenue = 0
+            const properties = propertiesRes.data?.properties || []
+
+            properties.forEach(prop => {
+                (prop.buildings || []).forEach(building => {
+                    (building.grid || []).forEach(row => {
+                        row.forEach(cell => {
+                            if (cell.type === 'room') {
+                                totalRooms++
+                                if (cell.isBooked) {
+                                    bookedRooms++
+                                    monthlyRevenue += (cell.pricePerMonth || 0)
+                                } else if (cell.isVacant) {
+                                    vacantRooms++
+                                } else {
+                                    // Occupied (moved-in tenant)
+                                    occupiedRooms++
+                                    monthlyRevenue += (cell.pricePerMonth || 0)
+                                }
+                            }
+                        })
+                    })
                 })
-            }else{
-                toast.error(data.message)
-            }
+            })
+
+            const bookings = bookingsRes.data?.bookings || []
+            const totalRevenue = monthlyRevenue
+
+            const viewings = viewingsRes.data?.viewingRequests || []
+            const pendingViewings = viewings.filter(v => v.status === 'pending').length
+            const confirmedViewings = viewings.filter(v => v.status === 'confirmed').length
+
+            setStats({
+                totalProperties: properties.length,
+                totalRooms,
+                vacantRooms,
+                occupiedRooms,
+                bookedRooms,
+                totalBookings: bookings.length,
+                totalRevenue,
+                pendingViewings,
+                confirmedViewings,
+                recentBookings: bookings.slice(0, 5),
+                recentViewings: viewings.filter(v => v.status === 'pending').slice(0, 5),
+                properties
+            })
         } catch (error) {
-            toast.error(error.message)
+            console.error('Dashboard fetch error:', error)
+        } finally {
+            setLoading(false)
         }
     }
 
-    useEffect(()=> {
-        if(user){
-            fetchDashboardData();
-        }
-    },[user])
+    useEffect(() => {
+        if (user) fetchDashboard()
+    }, [user])
 
-  return (
-    <div className='pb-20'>
-        <Title align='left' font='outfit' title='Dashboard' subTitle='Monitor your room listings, track bookings and analyze revenue-all in one place. Stay updated with real-time insights to ensure smooth operations'/>
-
-        <div className='flex gap-4 my-8'>
-            {/*total bookings*/}
-            <div className='bg-primary/3 border border-primary/10 rounded flex p-4 pr-8'>
-                <img src={assets.totalBookingIcon} alt=""  className='max-sm:hidden h-10'/>
-                <div className='flex flex-col sm:ml-4 font-medium'>
-                    <p className='text-blue-500 text-lg'>Total Bookings</p>
-                    <p className='text-neutral-400 text-base'>{dashboardData.totalBookings}</p>
-                </div>
+    if (loading) {
+        return (
+            <div className='flex items-center justify-center py-20'>
+                <div className='animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full'></div>
             </div>
-              {/*total revenue*/}
-              <div className='bg-primary/3 border border-primary/10 rounded flex p-4 pr-8'>
-                <img src={assets.totalRevenueIcon} alt=""  className='max-sm:hidden h-10'/>
-                <div className='flex flex-col sm:ml-4 font-medium'>
-                    <p className='text-blue-500 text-lg'>Total Revenue</p>
-                    <p className='text-neutral-400 text-base'>{currency} {dashboardData.totalRevenue}</p>
-                </div>
+        )
+    }
+
+    const statCards = [
+        { label: 'Properties', value: stats.totalProperties, icon: Building2, color: 'bg-indigo-50 text-indigo-600', iconBg: 'bg-indigo-100' },
+        { label: 'Total Rooms', value: stats.totalRooms, icon: Home, color: 'bg-blue-50 text-blue-600', iconBg: 'bg-blue-100' },
+        { label: 'Vacant', value: stats.vacantRooms, icon: CheckCircle, color: 'bg-green-50 text-green-600', iconBg: 'bg-green-100' },
+        { label: 'Occupied', value: stats.occupiedRooms, icon: XCircle, color: 'bg-red-50 text-red-600', iconBg: 'bg-red-100' },
+        { label: 'Booked', value: stats.bookedRooms, icon: CalendarCheck, color: 'bg-yellow-50 text-yellow-600', iconBg: 'bg-yellow-100' },
+        { label: 'Total Bookings', value: stats.totalBookings, icon: Users, color: 'bg-purple-50 text-purple-600', iconBg: 'bg-purple-100' },
+        { label: 'Monthly Revenue', value: `Ksh ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'bg-emerald-50 text-emerald-600', iconBg: 'bg-emerald-100' },
+        { label: 'Pending Viewings', value: stats.pendingViewings, icon: Eye, color: 'bg-orange-50 text-orange-600', iconBg: 'bg-orange-100', onClick: () => navigate('/owner/viewing-requests') },
+    ]
+
+    return (
+        <div className='pb-10'>
+            <div className='mb-6'>
+                <h1 className='text-2xl font-bold text-gray-900'>Dashboard</h1>
+                <p className='text-gray-500 text-sm mt-1'>Overview of your properties, bookings, and viewings</p>
             </div>
-        </div>
 
-        {/* Recent Bookings*/}
-            <h2 className='text-xl text-blue-950/70 font-medium mb-5'>Recent Bookings</h2>
-            <div className='w-full max-w-3xl text-left border border-gray-300 rounded-lg max-h-80 overflow-y-scroll'>
+            {/* Stats Grid */}
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-8'>
+                {statCards.map((card, i) => (
+                    <div
+                        key={i}
+                        onClick={card.onClick}
+                        className={`${card.color} rounded-xl p-4 transition-all hover:shadow-md ${card.onClick ? 'cursor-pointer' : ''}`}
+                    >
+                        <div className='flex items-center justify-between mb-3'>
+                            <div className={`${card.iconBg} w-10 h-10 rounded-lg flex items-center justify-center`}>
+                                <card.icon className='w-5 h-5' />
+                            </div>
+                            {card.onClick && <span className='text-xs opacity-60'>Click to view</span>}
+                        </div>
+                        <p className='text-2xl font-bold'>{card.value}</p>
+                        <p className='text-sm opacity-70 mt-0.5'>{card.label}</p>
+                    </div>
+                ))}
+            </div>
 
-                <table className='w-full'>
-                    <thead className='bg-gray-50'>
-                        <tr>
-                            <th className='py-3 px-4 text-gray-800 font-medium'>User Name</th>
-                            <th className='py-3 px-4 text-gray-800 font-medium max-sm:hidden'>Room Name</th>
-                            <th className='py-3 px-4 text-gray-800 font-medium text-center'>Total Amount</th>
-                            <th className='py-3 px-4 text-gray-800 font-medium text-center'>Payment Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className='text-sm'>
-                            {dashboardData.bookings.map((item, index)=>(
-                                <tr key={index}>
-                                    <td className='py-3 px-4 text-gray-700 border-t border-gray-300'>
-                                        {item.user?.username || item.user?.fullName || 'Tenant'}
-                                    </td>
-                                    <td className='py-3 px-4 text-gray-700 border-t border-gray-300 max-sm:hidden'>
-                                        {item.roomDetails?.roomType} - {item.roomDetails?.buildingName}
-                                    </td>
-                                    <td className='py-3 px-4 text-gray-700 border-t border-gray-300 text-center'>
-                                       {currency} {item.roomDetails?.pricePerMonth?.toLocaleString()}/mo
-                                    </td>
-                                    <td className='py-3 px-4 border-t border-gray-300 flex'>
-                                        <button className={`py-1 px-3 text-xs rounded-full mx-auto ${item.status === 'confirmed' ? 'bg-green-200 text-green-600' : item.status === 'pending' ? 'bg-amber-200 text-yellow-600' : 'bg-gray-200 text-gray-600'}`}>
-                                            {item.status === 'confirmed' ? 'Confirmed' : item.status === 'pending' ? 'Pending' : item.status}
-                                        </button>
-                                    </td>
-                                </tr>
+            <div className='grid lg:grid-cols-2 gap-6'>
+                {/* Recent Bookings */}
+                <div className='bg-white border border-gray-200 rounded-xl overflow-hidden'>
+                    <div className='px-5 py-4 border-b border-gray-100 flex items-center justify-between'>
+                        <h2 className='font-semibold text-gray-900 flex items-center gap-2'>
+                            <CalendarCheck className='w-4 h-4 text-indigo-500' /> Recent Bookings
+                        </h2>
+                        <span className='text-xs text-gray-400'>{stats.totalBookings} total</span>
+                    </div>
+                    {stats.recentBookings.length === 0 ? (
+                        <div className='p-8 text-center text-gray-400'>
+                            <Users className='w-8 h-8 mx-auto mb-2 opacity-40' />
+                            <p>No bookings yet</p>
+                        </div>
+                    ) : (
+                        <div className='divide-y divide-gray-100'>
+                            {stats.recentBookings.map((booking, i) => (
+                                <div key={i} className='px-5 py-3 flex items-center justify-between hover:bg-gray-50'>
+                                    <div className='flex items-center gap-3'>
+                                        <img
+                                            src={booking.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(booking.user?.username || 'U')}&background=6366f1&color=fff&bold=true`}
+                                            alt=''
+                                            className='w-8 h-8 rounded-full object-cover'
+                                            onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(booking.user?.username || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }}
+                                        />
+                                        <div>
+                                            <p className='text-sm font-medium text-gray-800'>{booking.user?.username || 'Tenant'}</p>
+                                            <p className='text-xs text-gray-500'>{booking.roomDetails?.roomType} — {booking.roomDetails?.buildingName}</p>
+                                        </div>
+                                    </div>
+                                    <div className='text-right'>
+                                        <p className='text-sm font-medium text-gray-700'>Ksh {booking.roomDetails?.pricePerMonth?.toLocaleString()}/mo</p>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                            booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                            booking.status === 'moved-in' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-gray-100 text-gray-600'
+                                        }`}>
+                                            {booking.status === 'confirmed' ? 'Confirmed' : booking.status === 'moved-in' ? 'Moved In' : booking.status}
+                                        </span>
+                                    </div>
+                                </div>
                             ))}
-                    </tbody>
-                </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Pending Viewing Requests */}
+                <div className='bg-white border border-gray-200 rounded-xl overflow-hidden'>
+                    <div className='px-5 py-4 border-b border-gray-100 flex items-center justify-between'>
+                        <h2 className='font-semibold text-gray-900 flex items-center gap-2'>
+                            <Eye className='w-4 h-4 text-orange-500' /> Pending Viewings
+                        </h2>
+                        <button onClick={() => navigate('/owner/viewing-requests')} className='text-xs text-indigo-600 hover:underline'>View all</button>
+                    </div>
+                    {stats.recentViewings.length === 0 ? (
+                        <div className='p-8 text-center text-gray-400'>
+                            <Eye className='w-8 h-8 mx-auto mb-2 opacity-40' />
+                            <p>No pending viewings</p>
+                        </div>
+                    ) : (
+                        <div className='divide-y divide-gray-100'>
+                            {stats.recentViewings.map((viewing, i) => (
+                                <div key={i} className='px-5 py-3 flex items-center justify-between hover:bg-gray-50'>
+                                    <div className='flex items-center gap-3'>
+                                        <img
+                                            src={viewing.renter?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(viewing.renter?.username || 'U')}&background=6366f1&color=fff&bold=true`}
+                                            alt=''
+                                            className='w-8 h-8 rounded-full object-cover'
+                                            onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(viewing.renter?.username || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }}
+                                        />
+                                        <div>
+                                            <p className='text-sm font-medium text-gray-800'>{viewing.renter?.username || 'Tenant'}</p>
+                                            <p className='text-xs text-gray-500'>{viewing.roomDetails?.roomType} — {new Date(viewing.viewingDate).toLocaleDateString('en-KE', { month: 'short', day: 'numeric' })}</p>
+                                        </div>
+                                    </div>
+                                    <span className='bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1'>
+                                        <Clock className='w-3 h-3' /> Pending
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
-    </div>
-  )
+            {/* Property Overview */}
+            {stats.properties.length > 0 && (
+                <div className='mt-8'>
+                    <h2 className='font-semibold text-gray-900 mb-4 flex items-center gap-2'>
+                        <Building2 className='w-4 h-4 text-indigo-500' /> Your Properties
+                    </h2>
+                    <div className='grid sm:grid-cols-2 lg:grid-cols-3 gap-4'>
+                        {stats.properties.map((prop, i) => {
+                            const rooms = []
+                            ;(prop.buildings || []).forEach(b => (b.grid || []).forEach(r => r.forEach(c => { if (c.type === 'room') rooms.push(c) })))
+                            const vacant = rooms.filter(r => r.isVacant && !r.isBooked).length
+                            const booked = rooms.filter(r => r.isBooked).length
+                            return (
+                                <div key={i} onClick={() => navigate(`/rooms/${prop._id}`)} className='bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer'>
+                                    {prop.images?.[0] && (
+                                        <img src={prop.images[0]} alt='' className='w-full h-32 object-cover' />
+                                    )}
+                                    <div className='p-4'>
+                                        <h3 className='font-semibold text-gray-800 truncate'>{prop.name}</h3>
+                                        <p className='text-xs text-gray-500 mt-0.5'>{prop.estate}, {prop.place}</p>
+                                        <div className='flex gap-2 mt-3'>
+                                            <span className='text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full'>{vacant} vacant</span>
+                                            <span className='text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full'>{booked} booked</span>
+                                            <span className='text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full'>{rooms.length} total</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
 }
 
 export default Dashboard

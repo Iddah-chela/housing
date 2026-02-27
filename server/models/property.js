@@ -71,10 +71,15 @@ const propertySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  googleMapsUrl: {
+    type: String,
+    default: ''
+  },
   buildings: [buildingSchema],
   images: [String], // Cloudinary URLs
   compoundGate: {
-    side: { type: String, enum: ['top', 'bottom', 'left', 'right'], default: 'bottom' }
+    side: { type: String, enum: ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'], default: 'bottom' },
+    layout: { type: String, enum: ['row', 'col'], default: 'row' }
   },
   isVerified: {
     type: Boolean,

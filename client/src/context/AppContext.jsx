@@ -31,26 +31,27 @@ export const AppProvider = ({children})=>{
     const [rooms, setRooms] = useState([])
     const [properties, setProperties] = useState([]) // For featured listings
     const [authLoading, setAuthLoading] = useState(true) // Track if auth is still loading
+    const [dbImage, setDbImage] = useState(null) // Profile picture from DB (custom uploads)
 
     // Get token from Clerk
     const getToken = async () => {
         try {
             if (!clerkUser) {
-                console.log('⚠️  No Clerk user, cannot get token');
+                console.log('??  No Clerk user, cannot get token');
                 return null;
             }
             
             const token = await clerkGetToken();
             
             if (!token) {
-                console.warn('⚠️  Clerk returned null token despite user being logged in');
+                console.warn('??  Clerk returned null token despite user being logged in');
             } else {
-                console.log('✅ Token retrieved successfully');
+                console.log('? Token retrieved successfully');
             }
             
             return token;
         } catch (error) {
-            console.error('❌ Error getting token:', error)
+            console.error('? Error getting token:', error)
             return null
         }
     }
@@ -71,21 +72,21 @@ export const AppProvider = ({children})=>{
 
     const fetchUser = async () => {
         try {
-            console.log('🔍 Attempting to fetch user data...');
+            console.log('?? Attempting to fetch user data...');
             console.log('   clerkLoaded:', clerkLoaded);
             console.log('   clerkUser exists:', !!clerkUser);
             console.log('   clerkUser ID:', clerkUser?.id);
             
             const token = await getToken()
             if (!token) {
-                console.log('⚠️  No token available, skipping user fetch');
+                console.log('??  No token available, skipping user fetch');
                 setIsOwner(false);
                 setIsAdmin(false);
                 setAuthLoading(false);
                 return;
             }
             
-            console.log('📤 Sending request to /api/user with token...');
+            console.log('?? Sending request to /api/user with token...');
             
             const {data} = await axios.get('/api/user', {
                 headers: {Authorization: `Bearer ${token}`}
@@ -93,7 +94,7 @@ export const AppProvider = ({children})=>{
             
             // Check if response is JSON (not HTML from ngrok)
             if (typeof data === 'string' || !data.success) {
-                console.error('❌ Invalid API response:', typeof data === 'string' ? 'HTML received' : data.message);
+                console.error('? Invalid API response:', typeof data === 'string' ? 'HTML received' : data.message);
                 if (typeof data === 'string') {
                     toast.error('Connection error. Please check if backend is running.');
                 }
@@ -103,25 +104,45 @@ export const AppProvider = ({children})=>{
                 return;
             }
             
-            console.log('✅ Fetched user data:', data);
+            console.log('? Fetched user data:', data);
             const ownerStatus = data.role === "houseOwner" || data.role === "admin";
             const adminStatus = data.role === "admin";
             console.log('Setting isOwner to:', ownerStatus, 'isAdmin to:', adminStatus);
             setIsOwner(ownerStatus);
             setIsAdmin(adminStatus);
             setSearchedPlaces(data.recentSearchedPlaces || [])
+            setDbImage(data.image || null)
             setAuthLoading(false);
+
+            // Apply referral code if stored in localStorage (captured from ?ref= URL)
+            const pendingRef = localStorage.getItem('CampusCrib_referral');
+            if (pendingRef) {
+                try {
+                    const refRes = await axios.post('/api/payment/apply-referral',
+                        { referralCode: pendingRef },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    if (refRes.data.success) {
+                        localStorage.removeItem('CampusCrib_referral');
+                        if (!refRes.data.alreadyReferred) {
+                            console.log('? Referral applied successfully');
+                        }
+                    }
+                } catch (refErr) {
+                    console.error('Referral apply error:', refErr.message);
+                }
+            }
         } catch (error) {
            // Only log actual errors, not 401s for unauthenticated users
            if (error.response?.status === 401) {
-               console.log('ℹ️  User not authenticated (401)');
+               console.log('??  User not authenticated (401)');
                setIsOwner(false);
                setIsAdmin(false);
                setAuthLoading(false);
                return;
            }
            
-           console.error('❌ Error fetching user:', error.message);
+           console.error('? Error fetching user:', error.message);
            if (error.response) {
                console.error('Response status:', error.response.status);
                console.error('Response data:', error.response.data);
@@ -148,14 +169,14 @@ export const AppProvider = ({children})=>{
 
     // Fetch user data when Clerk user is loaded
     useEffect(() =>{
-        console.log('🔄 Auth state changed - clerkLoaded:', clerkLoaded, 'clerkUser:', !!clerkUser);
+        console.log('?? Auth state changed - clerkLoaded:', clerkLoaded, 'clerkUser:', !!clerkUser);
         
         if(clerkLoaded){
             if(clerkUser) {
-                console.log('👤 User logged in, fetching user data...');
+                console.log('?? User logged in, fetching user data...');
                 fetchUser();
             } else {
-                console.log('👤 No user logged in, resetting states');
+                console.log('?? No user logged in, resetting states');
                 // User not logged in - reset states
                 setIsOwner(false);
                 setIsAdmin(false);
@@ -187,7 +208,10 @@ export const AppProvider = ({children})=>{
         setRooms,
         properties, // Expose properties for featured listings
         setProperties,
-        logout
+        logout,
+        dbImage,
+        setDbImage,
+        fetchUser
     }
     return(
         <AppContext.Provider value={value}>

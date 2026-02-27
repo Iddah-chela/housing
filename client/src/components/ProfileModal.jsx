@@ -1,12 +1,22 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
+import { getAvatarFallback, onAvatarError } from '../utils/avatarFallback'
+
+// Preset cartoon avatars — DiceBear adventurer style
+const AVATAR_SEEDS = [
+    'Felix', 'Lily', 'Max', 'Luna', 'Oscar', 'Bella', 'Leo', 'Chloe', 'Milo', 'Zoe',
+    'Jack', 'Sophie', 'Charlie', 'Nala', 'Rocky', 'Daisy', 'Buddy', 'Ruby', 'Bear', 'Rosie',
+]
+
+const makeAvatarUrl = (seed) =>
+    `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(seed)}`
 
 const ProfileModal = ({ onClose }) => {
-    const { user, navigate, isOwner, logout, getToken, axios } = useAppContext()
-    const [uploading, setUploading] = useState(false)
-    const fileInputRef = useRef(null)
+    const { user, navigate, isOwner, isAdmin, logout, getToken, axios, dbImage, setDbImage } = useAppContext()
+    const [showPicker, setShowPicker] = useState(false)
+    const [saving, setSaving] = useState(false)
 
     const handleLogout = () => {
         logout()
@@ -18,55 +28,34 @@ const ProfileModal = ({ onClose }) => {
         onClose()
     }
 
-    const handleImageClick = () => {
-        fileInputRef.current?.click()
-    }
-
-    const handleImageChange = async (e) => {
-        const file = e.target.files[0]
-        if (!file) return
-
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-            toast.error('Please upload an image file')
-            return
-        }
-
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error('Image size should be less than 5MB')
-            return
-        }
-
-        setUploading(true)
+    const handleSelectAvatar = async (seed) => {
+        const url = makeAvatarUrl(seed)
+        setSaving(true)
         try {
             const token = await getToken()
-            const formData = new FormData()
-            formData.append('profilePicture', file)
-
-            const { data } = await axios.post('/api/profile/upload-picture', formData, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'multipart/form-data'
-                }
-            })
-
+            const { data } = await axios.post(
+                '/api/profile/set-avatar',
+                { avatarUrl: url },
+                { headers: { Authorization: `Bearer ${token}` } }
+            )
             if (data.success) {
-                toast.success('Profile picture updated!')
-                // Reload to refresh user data
-                window.location.reload()
+                setDbImage(url)
+                toast.success('Avatar updated!')
+                setShowPicker(false)
             } else {
-                toast.error(data.message)
+                toast.error(data.message || 'Failed to update avatar')
             }
-        } catch (error) {
-            console.error('Upload error:', error)
-            toast.error('Failed to upload image')
+        } catch (err) {
+            console.error(err)
+            toast.error('Failed to update avatar')
         } finally {
-            setUploading(false)
+            setSaving(false)
         }
     }
 
     if (!user) return null
+
+    const currentAvatar = dbImage || user.imageUrl
 
     return (
         <div 
@@ -88,33 +77,27 @@ const ProfileModal = ({ onClose }) => {
                     <div className='flex flex-col items-center'>
                         <div className='relative group'>
                             <img 
-                                src={user.imageUrl} 
+                                src={currentAvatar}
                                 alt={user.fullName}
-                                className='w-24 h-24 rounded-full border-4 border-white shadow-lg'
+                                className='w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover bg-indigo-100'
+                                onError={(e) => onAvatarError(e, user.fullName)}
                             />
-                            <button 
-                                onClick={handleImageClick}
-                                disabled={uploading}
+                            <button
+                                onClick={() => setShowPicker(v => !v)}
                                 className='absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer'
+                                title='Change avatar'
                             >
-                                {uploading ? (
-                                    <div className='w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin'></div>
-                                ) : (
-                                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                )}
+                                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 0l.172.172a2 2 0 010 2.828L12 16H9v-3z" />
+                                </svg>
                             </button>
-                            <input 
-                                ref={fileInputRef}
-                                type="file" 
-                                accept="image/*"
-                                onChange={handleImageChange}
-                                className='hidden'
-                            />
                         </div>
-                        <p className='text-white/60 text-xs mt-2'>Click photo to change</p>
+                        <button
+                            onClick={() => setShowPicker(v => !v)}
+                            className='mt-2 text-white/80 text-xs hover:text-white transition-colors underline underline-offset-2'
+                        >
+                            {showPicker ? 'Close picker' : 'Change avatar'}
+                        </button>
                         <h2 className='text-white text-2xl font-semibold mt-2'>{user.fullName}</h2>
                         <p className='text-white/80 text-sm mt-1'>{user.emailAddresses[0].emailAddress}</p>
                         {isOwner && (
@@ -125,10 +108,55 @@ const ProfileModal = ({ onClose }) => {
                     </div>
                 </div>
 
+                {/* Avatar Picker */}
+                {showPicker && (
+                    <div className='p-4 border-b border-gray-100 bg-gray-50'>
+                        <p className='text-sm font-semibold text-gray-700 mb-3 text-center'>
+                            Choose your cartoon avatar
+                        </p>
+                        {saving && (
+                            <p className='text-xs text-center text-indigo-500 mb-2 animate-pulse'>Saving…</p>
+                        )}
+                        <div className='grid grid-cols-5 gap-2'>
+                            {AVATAR_SEEDS.map((seed, idx) => {
+                                const url = makeAvatarUrl(seed)
+                                const isSelected = currentAvatar === url
+                                return (
+                                    <button
+                                        key={seed}
+                                        onClick={() => handleSelectAvatar(seed)}
+                                        disabled={saving}
+                                        title={seed}
+                                        className={`relative rounded-xl overflow-hidden border-2 transition-all hover:scale-105 focus:outline-none ${
+                                            isSelected
+                                                ? 'border-indigo-500 ring-2 ring-indigo-300'
+                                                : 'border-transparent hover:border-indigo-300'
+                                        }`}
+                                    >
+                                        <img
+                                            src={url}
+                                            alt={seed}
+                                            className='w-full h-auto bg-indigo-50'
+                                            loading='lazy'
+                                            onError={(e) => onAvatarError(e, seed)}
+                                        />
+                                        {isSelected && (
+                                            <div className='absolute inset-0 flex items-center justify-center bg-indigo-500/20'>
+                                                <svg className='w-5 h-5 text-indigo-700 drop-shadow' fill='currentColor' viewBox='0 0 20 20'>
+                                                    <path fillRule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clipRule='evenodd' />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 {/* Content */}
                 <div className='p-6'>
                     <div className='flex flex-col gap-2'>
-                        {/* Navigation Items */}
                         <button 
                             onClick={() => handleNavigation('/my-viewings')}
                             className='flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-all text-left'
@@ -172,9 +200,20 @@ const ProfileModal = ({ onClose }) => {
                             </button>
                         )}
 
+                        {isAdmin && (
+                            <button 
+                                onClick={() => handleNavigation('/admin')}
+                                className='flex items-center gap-3 p-3 hover:bg-indigo-50 rounded-lg transition-all text-left'
+                            >
+                                <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                                <span className='text-indigo-700 font-medium'>Admin Panel</span>
+                            </button>
+                        )}
+
                         <hr className='my-2' />
 
-                        {/* Logout Button */}
                         <button 
                             onClick={handleLogout}
                             className='flex items-center gap-3 p-3 hover:bg-red-50 rounded-lg transition-all text-left text-red-600'
@@ -192,3 +231,4 @@ const ProfileModal = ({ onClose }) => {
 }
 
 export default ProfileModal
+

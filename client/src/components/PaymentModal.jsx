@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import { useAppContext } from '../context/AppContext'
+import { Gift, Unlock, PartyPopper, Smartphone, Check, ArrowLeft } from 'lucide-react'
 
-const PaymentModal = ({ property, onClose, onSuccess }) => {
+const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo }) => {
     const { axios, getToken, user } = useAppContext()
     const [phoneNumber, setPhoneNumber] = useState('')
-    const [passType, setPassType] = useState('7day')
+    const [passType, setPassType] = useState('1day')
     const [loading, setLoading] = useState(false)
     const [checking, setChecking] = useState(true) // checking if first unlock
     const [isFreeUnlock, setIsFreeUnlock] = useState(false)
@@ -13,8 +14,8 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
     const [unlockId, setUnlockId] = useState(null)
 
     const PASS_OPTIONS = [
-        { value: '7day',  label: '7 Days',  price: 200, color: 'indigo' },
-        { value: '30day', label: '30 Days', price: 400, color: 'purple' },
+        { value: '1day',  label: '1 Day',   price: 100, color: 'indigo' },
+        { value: '7day',  label: '7 Days',  price: 300, color: 'purple' },
     ]
 
     // On mount: check if this is user's first unlock (free)
@@ -41,7 +42,7 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
             const token = await getToken()
             const { data } = await axios.post('/api/payment/initiate-unlock', {
                 phoneNumber: '0000',
-                passType: '7day'
+                passType: freeReason === 'referral' ? '1day' : '7day'
             }, { headers: { Authorization: `Bearer ${token}` } })
 
             if (data.success) {
@@ -122,7 +123,7 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 overflow-y-auto">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md my-8 overflow-hidden">
 
                 {/* Header */}
@@ -130,10 +131,14 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
                     <div className="flex justify-between items-start">
                         <div>
                             <h2 className="text-xl font-bold mb-0.5">
-                                {checking ? '...' : isFreeUnlock ? '🎁 Your First Unlock is FREE!' : '🔓 Unlock Property'}
+                                {checking ? '...' : isFreeUnlock ? <span className='flex items-center gap-2'><Gift className='w-5 h-5' /> {freeReason === 'referral' ? 'Referral Unlock!' : 'Free Unlock!'}</span> : <span className='flex items-center gap-2'><Unlock className='w-5 h-5' /> Unlock Property</span>}
                             </h2>
                             <p className="text-white/80 text-xs">
-                                {isFreeUnlock ? 'No payment needed — enjoy your free access' : 'Get landlord contact details via M-Pesa'}
+                                {isFreeUnlock 
+                                  ? (freeReason === 'referral' 
+                                    ? 'Use your referral credit — 24hr access, no payment' 
+                                    : 'Your first 2 property views are free — no payment needed')
+                                  : 'Get landlord contact details via M-Pesa'}
                             </p>
                         </div>
                         <button onClick={onClose} className="text-white hover:text-gray-200 text-2xl leading-none">×</button>
@@ -152,15 +157,21 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
                             </div>
 
                             <div className="mb-5 p-4 bg-green-50 border-2 border-green-200 rounded-lg text-center">
-                                <div className="text-4xl mb-2">🎉</div>
-                                <p className="font-semibold text-green-800 mb-1">First unlock is on us!</p>
-                                <p className="text-xs text-green-700">Get the landlord's phone number, WhatsApp, and address — completely free. Future unlocks are Ksh 200.</p>
+                                <PartyPopper className='w-10 h-10 text-green-600 mx-auto mb-2' />
+                                <p className="font-semibold text-green-800 mb-1">
+                                  {freeReason === 'referral' ? 'Referral unlock — earned from a friend!' : 'Free unlock — on us!'}
+                                </p>
+                                <p className="text-xs text-green-700">
+                                  {freeReason === 'referral' 
+                                    ? `You have ${referralInfo?.referralUnlocksAvailable || 1} free day pass${(referralInfo?.referralUnlocksAvailable || 1) > 1 ? 'es' : ''} available — earned by referring friends (every 5 referrals = 1 free day).`
+                                    : "Get the landlord's phone, WhatsApp, and address free. Your first 2 property views are free; from the 3rd, Ksh 100/day or Ksh 300/week. Refer a friend to earn a free day."}
+                                </p>
                             </div>
 
                             <div className="mb-4 space-y-1.5 text-xs text-gray-700">
-                                {["Landlord's phone number", "Direct WhatsApp link", "Exact address", "7-day access"].map(item => (
+                                {["Landlord's phone number", "Direct WhatsApp link", "Exact address", "24-hour access"].map(item => (
                                     <div key={item} className="flex items-center gap-2">
-                                        <span className="text-green-600">✓</span>
+                                        <Check className='w-3.5 h-3.5 text-green-600' />
                                         <span>{item}</span>
                                     </div>
                                 ))}
@@ -171,9 +182,11 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
                                 disabled={loading}
                                 className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 text-sm"
                             >
-                                {loading ? 'Unlocking...' : '🎁 Claim Free Access'}
+                                {loading ? 'Unlocking...' : <span className='flex items-center justify-center gap-2'><Gift className='w-4 h-4' /> {freeReason === 'referral' ? 'Use Referral Unlock' : 'Claim Free Access'}</span>}
                             </button>
-                            <p className="text-xs text-gray-400 text-center mt-2">No credit card or M-Pesa needed</p>
+                            <p className="text-xs text-gray-400 text-center mt-2">
+                              {freeReason === 'referral' ? '24-hour access · Earned via referral' : 'No credit card or M-Pesa needed'}
+                            </p>
                         </>
                     ) : !paymentInitiated ? (
                         /* ── PAID FLOW — phone number input ──────────────── */
@@ -184,9 +197,11 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
                             </div>
 
                             <div className="mb-4 space-y-1.5 text-xs text-gray-700">
-                                {["Landlord's phone number", "Direct WhatsApp link", "Exact address & plot number", "7-day access"].map(item => (
+                                {["Landlord's phone number", "Direct WhatsApp link", "Exact address & plot number",
+                                  passType === '7day' ? '7-day access to all properties' : '24-hour access to all properties'
+                                ].map(item => (
                                     <div key={item} className="flex items-center gap-2">
-                                        <span className="text-green-600">✓</span>
+                                        <Check className='w-3.5 h-3.5 text-green-600' />
                                         <span>{item}</span>
                                     </div>
                                 ))}
@@ -229,14 +244,14 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
                                     disabled={loading}
                                     className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 text-sm"
                                 >
-                                    {loading ? 'Processing...' : `Pay Ksh ${passType === '30day' ? 400 : 200} via M-Pesa`}
+                                    {loading ? 'Processing...' : `Pay Ksh ${passType === '7day' ? 300 : 100} via M-Pesa`}
                                 </button>
                             </form>
                         </>
                     ) : (
                         /* ── PAID FLOW — awaiting confirmation ───────────── */
-                        <div className="text-center py-4">
-                            <div className="text-5xl mb-3">📱</div>
+                            <div className="text-center py-4">
+                            <Smartphone className='w-12 h-12 text-indigo-600 mx-auto mb-3' />
                             <h3 className="text-lg font-semibold text-gray-800 mb-2">Check Your Phone</h3>
                             <p className="text-gray-600 mb-4 text-sm">
                                 M-Pesa prompt sent to <span className="font-medium">{phoneNumber}</span>
@@ -245,8 +260,8 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
                                 <p className="text-xs font-semibold text-gray-700 mb-1">Steps:</p>
                                 <ol className="text-xs text-gray-600 list-decimal list-inside space-y-0.5">
                                     <li>Enter your M-Pesa PIN</li>
-                                    <li>Confirm the Ksh {passType === '30day' ? 400 : 200} payment</li>
-                                    <li>Click "I've Paid" below</li>
+                                    <li>Confirm the Ksh {passType === '7day' ? 300 : 100} payment</li>
+                                    <li>Click "Verify Payment" below</li>
                                 </ol>
                             </div>
                             <button
@@ -254,13 +269,13 @@ const PaymentModal = ({ property, onClose, onSuccess }) => {
                                 disabled={loading}
                                 className="w-full bg-green-600 text-white py-2.5 rounded-lg font-semibold hover:bg-green-700 transition-all disabled:opacity-50 mb-2 text-sm"
                             >
-                                {loading ? 'Verifying...' : `✓ I've Paid — Activate ${passType === '30day' ? '30' : '7'}-Day Pass`}
+                                {loading ? 'Verifying with M-Pesa...' : <span className='flex items-center justify-center gap-2'><Check className='w-4 h-4' /> Verify Payment — Activate {passType === '7day' ? '7-Day' : '1-Day'} Pass</span>}
                             </button>
                             <button
                                 onClick={() => setPaymentInitiated(false)}
-                                className="w-full text-gray-500 hover:text-gray-700 text-xs"
+                                className="w-full text-gray-500 hover:text-gray-700 text-xs flex items-center justify-center gap-1"
                             >
-                                ← Try different number
+                                <ArrowLeft className='w-3 h-3' /> Try different number
                             </button>
                         </div>
                     )}

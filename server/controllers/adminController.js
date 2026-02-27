@@ -244,12 +244,28 @@ export const verifyProperty = async (req, res) => {
     }
 };
 
+// Unverify a property
+export const unverifyProperty = async (req, res) => {
+    try {
+        const { propertyId } = req.body;
+        const property = await Property.findById(propertyId);
+        if (!property) return res.json({ success: false, message: 'Property not found' });
+        property.isVerified = false;
+        await property.save();
+        res.json({ success: true, message: 'Property unverified' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
 // Get dashboard stats
 export const getDashboardStats = async (req, res) => {
     try {
         const totalUsers = await User.countDocuments();
         const totalOwners = await User.countDocuments({ role: 'houseOwner' });
-        const totalRooms = await Room.countDocuments();
+        const totalProperties = await Property.countDocuments();
+        const activeListings = await Property.countDocuments({ isExpired: { $ne: true } });
+        const verifiedListings = await Property.countDocuments({ isVerified: true });
         const totalReports = await Report.countDocuments({ status: 'pending' });
         const suspendedUsers = await User.countDocuments({ isSuspended: true });
 
@@ -258,7 +274,9 @@ export const getDashboardStats = async (req, res) => {
             stats: {
                 totalUsers,
                 totalOwners,
-                totalRooms,
+                totalProperties,
+                activeListings,
+                verifiedListings,
                 pendingReports: totalReports,
                 suspendedUsers
             }

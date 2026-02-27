@@ -1,20 +1,54 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import toast from 'react-hot-toast';
+import { X, Check, XCircle } from 'lucide-react';
 
 const AdminApplications = () => {
   const { axios, getToken } = useAppContext();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [filter, setFilter] = useState('pending'); // pending, approved, rejected, all
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // Open a document — handles both Cloudinary URLs and base64 data: URLs
+  const openDocument = (url) => {
+    if (!url) return;
+    if (url.startsWith('data:')) {
+      // Convert base64 data URL to a blob and open
+      try {
+        const [header, base64] = url.split(',');
+        const mimeType = header.match(/:(.*?);/)[1];
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: mimeType });
+        const blobUrl = URL.createObjectURL(blob);
+        const win = window.open(blobUrl, '_blank');
+        // Revoke after a short delay to free memory
+        if (win) setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      } catch (e) {
+        console.error('Failed to open document:', e);
+      }
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  // Returns true if a URL represents an image
+  const isImageUrl = (url) => {
+    if (!url) return false;
+    if (url.startsWith('data:image/')) return true;
+    return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(url.split('?')[0]);
+  };
 
   useEffect(() => {
     fetchApplications();
   }, [filter]);
 
   const fetchApplications = async () => {
+    setLoading(true);
     try {
       const token = await getToken();
       const url = filter === 'all'
@@ -40,6 +74,7 @@ const AdminApplications = () => {
       return;
     }
 
+    setActionLoading(true);
     try {
       const token = await getToken();
       const { data } = await axios.put(
@@ -50,11 +85,13 @@ const AdminApplications = () => {
 
       if (data.success) {
         toast.success(data.message);
-        fetchApplications();
         setSelectedApplication(null);
+        fetchApplications();
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to approve application');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -64,6 +101,7 @@ const AdminApplications = () => {
       return;
     }
 
+    setActionLoading(true);
     try {
       const token = await getToken();
       const { data } = await axios.put(
@@ -74,12 +112,14 @@ const AdminApplications = () => {
 
       if (data.success) {
         toast.success(data.message);
-        fetchApplications();
         setSelectedApplication(null);
         setRejectionReason('');
+        fetchApplications();
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to reject application');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -98,7 +138,12 @@ const AdminApplications = () => {
   };
 
   if (loading) {
-    return <div className="p-8">Loading applications...</div>;
+    return (
+      <div className="p-8 flex items-center gap-3 text-gray-500">
+        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <span>Loading applications...</span>
+      </div>
+    );
   }
 
   return (
@@ -174,8 +219,9 @@ const AdminApplications = () => {
                       <div className="flex-shrink-0 h-10 w-10">
                         <img 
                           className="h-10 w-10 rounded-full" 
-                          src={app.userId?.image || 'https://avatar.iran.liara.run/public'} 
+                          src={app.userId?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.fullName || 'U')}&background=6366f1&color=fff&bold=true`} 
                           alt="" 
+                          onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(app.fullName || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }}
                         />
                       </div>
                       <div className="ml-4">
@@ -242,7 +288,7 @@ const AdminApplications = () => {
                   onClick={() => setSelectedApplication(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  ✕
+                  <X className='w-5 h-5' />
                 </button>
               </div>
             </div>
@@ -296,26 +342,50 @@ const AdminApplications = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500 mb-2">ID Document</p>
-                    <a 
-                      href={selectedApplication.idDocument} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-indigo-600 hover:underline"
-                    >
-                      View ID Document →
-                    </a>
+                    {isImageUrl(selectedApplication.idDocument) ? (
+                      <div>
+                        <img
+                          src={selectedApplication.idDocument}
+                          alt="ID Document"
+                          className="w-full max-h-48 object-contain rounded border border-gray-200 mb-1 cursor-pointer"
+                          onClick={() => openDocument(selectedApplication.idDocument)}
+                        />
+                        <button onClick={() => openDocument(selectedApplication.idDocument)} className="text-xs text-indigo-600 hover:underline">
+                          Open full size →
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => openDocument(selectedApplication.idDocument)}
+                        className="text-indigo-600 hover:underline text-sm"
+                      >
+                        View ID Document →
+                      </button>
+                    )}
                   </div>
                   {selectedApplication.ownershipProof && (
                     <div>
                       <p className="text-sm text-gray-500 mb-2">Ownership Proof</p>
-                      <a 
-                        href={selectedApplication.ownershipProof} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:underline"
-                      >
-                        View Ownership Proof →
-                      </a>
+                      {isImageUrl(selectedApplication.ownershipProof) ? (
+                        <div>
+                          <img
+                            src={selectedApplication.ownershipProof}
+                            alt="Ownership Proof"
+                            className="w-full max-h-48 object-contain rounded border border-gray-200 mb-1 cursor-pointer"
+                            onClick={() => openDocument(selectedApplication.ownershipProof)}
+                          />
+                          <button onClick={() => openDocument(selectedApplication.ownershipProof)} className="text-xs text-indigo-600 hover:underline">
+                            Open full size →
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => openDocument(selectedApplication.ownershipProof)}
+                          className="text-indigo-600 hover:underline text-sm"
+                        >
+                          View Ownership Proof →
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -352,9 +422,12 @@ const AdminApplications = () => {
                   <div className="flex gap-4">
                     <button
                       onClick={() => handleApprove(selectedApplication._id)}
-                      className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-all font-medium"
+                      disabled={actionLoading}
+                      className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-all font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      ✓ Approve Application
+                      <span className='flex items-center justify-center gap-1'>
+                        {actionLoading ? 'Processing...' : <><Check className='w-4 h-4' /> Approve Application</>}
+                      </span>
                     </button>
                     
                     <div className="flex-1">
@@ -364,12 +437,16 @@ const AdminApplications = () => {
                         placeholder="Enter rejection reason..."
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2"
                         rows="2"
+                        disabled={actionLoading}
                       />
                       <button
                         onClick={() => handleReject(selectedApplication._id)}
-                        className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-all font-medium"
+                        disabled={actionLoading}
+                        className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        ✗ Reject Application
+                        <span className='flex items-center justify-center gap-1'>
+                          {actionLoading ? 'Processing...' : <><XCircle className='w-4 h-4' /> Reject Application</>}
+                        </span>
                       </button>
                     </div>
                   </div>

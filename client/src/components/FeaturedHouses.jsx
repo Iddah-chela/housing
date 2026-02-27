@@ -2,6 +2,7 @@ import React from 'react'
 import Title from './Title'
 import { useAppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import { Check } from 'lucide-react'
 
 const FeaturedHouses = () => {
     const { properties } = useAppContext();
@@ -30,10 +31,16 @@ const FeaturedHouses = () => {
                   className='w-full h-full object-cover'
                 />
                 {property.isVerified && (
-                  <div className='absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full'>
-                    ✓ Verified
+                  <div className='absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1'>
+                    <Check className='w-3 h-3' /> Verified
                   </div>
                 )}
+                {(() => {
+                  const d = property.createdAt ? Math.floor((Date.now() - new Date(property.createdAt)) / 86400000) : null
+                  return d !== null && d <= 7 ? (
+                    <span className='absolute top-2 left-2 bg-green-300 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>NEW</span>
+                  ) : null
+                })()}
               </div>
               <div className='p-4'>
                 <h3 className='font-semibold text-lg mb-1 truncate'>{property.name}</h3>
@@ -44,6 +51,10 @@ const FeaturedHouses = () => {
                   </span>
                   <span className='text-sm text-gray-500'>{property.propertyType}</span>
                 </div>
+                {property.createdAt && (() => {
+                  const d = Math.floor((Date.now() - new Date(property.createdAt)) / 86400000)
+                  return <p className='text-xs text-gray-400 mt-1.5'>{d === 0 ? 'Listed today' : `Listed ${d} day${d === 1 ? '' : 's'} ago`}</p>
+                })()}
               </div>
             </div>
            ))} 

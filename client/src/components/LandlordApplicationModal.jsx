@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
 import toast from 'react-hot-toast'
+import { Check, FileText } from 'lucide-react'
 
 const LandlordApplicationModal = ({ onClose }) => {
     const { getToken, user, axios } = useAppContext()
@@ -340,7 +341,7 @@ const LandlordApplicationModal = ({ onClose }) => {
                                     required={!formData.idDocument}
                                 />
                                 {formData.idDocument && (
-                                    <p className='text-sm text-green-600 mt-1'>✓ Uploaded</p>
+                                    <p className='text-sm text-green-600 mt-1 flex items-center gap-1'><Check className='w-4 h-4' /> Uploaded</p>
                                 )}
                             </div>
                             
@@ -355,7 +356,7 @@ const LandlordApplicationModal = ({ onClose }) => {
                                     className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
                                 />
                                 {formData.ownershipProof && (
-                                    <p className='text-sm text-green-600 mt-1'>✓ Uploaded</p>
+                                    <p className='text-sm text-green-600 mt-1 flex items-center gap-1'><Check className='w-4 h-4' /> Uploaded</p>
                                 )}
                                 <p className='text-xs text-gray-500 mt-1'>Land title, lease agreement, etc.</p>
                             </div>
@@ -447,7 +448,7 @@ const LandlordApplicationModal = ({ onClose }) => {
                         disabled={loading}
                         className='w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
                     >
-                        {loading ? 'Submitting Application...' : '📝 Submit Application'}
+                        {loading ? 'Submitting Application...' : <span className='flex items-center justify-center gap-2'><FileText className='w-5 h-5' /> Submit Application</span>}
                     </button>
                 </form>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Title from '../../components/Title'
 import { assets, Places } from '../../assets/assets'
 import { useAppContext } from '../../context/AppContext';
@@ -26,7 +26,8 @@ const [propertyInfo, setPropertyInfo] = useState({
   whatsappNumber: '',
   place: '',
   estate: '',
-  propertyType: ''
+  propertyType: '',
+  googleMapsUrl: ''
 })
 
 // Grid State - Start with 1 row (1-story building) with 5 columns
@@ -64,6 +65,37 @@ const [images, setImages] = useState({
 })
 
 const [loading, setLoading] = useState(false)
+const [dragPrice, setDragPrice] = useState(3500)
+const dragDataRef = useRef(null)
+
+// Drag-and-drop palette items
+const paletteItems = [
+  { type: 'room', roomType: 'BedSitter', label: 'BedSitter', color: 'bg-emerald-100 border-emerald-400 text-emerald-800' },
+  { type: 'room', roomType: 'One-Bedroom', label: '1-Bedroom', color: 'bg-blue-100 border-blue-400 text-blue-800' },
+  { type: 'room', roomType: 'Self-Contain', label: 'Self-Contain', color: 'bg-purple-100 border-purple-400 text-purple-800' },
+  { type: 'common', roomType: '', label: 'Common Area', color: 'bg-gray-200 border-gray-400 text-gray-700' },
+  { type: 'empty', roomType: '', label: 'Empty', color: 'bg-white border-gray-300 text-gray-500' },
+]
+
+const handleDragStart = (item) => {
+  dragDataRef.current = item
+}
+
+const handleDrop = (rowIndex, colIndex) => {
+  const item = dragDataRef.current
+  if (!item) return
+  const newBuildings = [...buildings]
+  const building = newBuildings[activeBuilding]
+  building.grid[rowIndex][colIndex] = {
+    type: item.type,
+    roomType: item.roomType,
+    pricePerMonth: item.type === 'room' ? parseInt(dragPrice) || 0 : 0,
+    amenities: [],
+    isVacant: true
+  }
+  setBuildings(newBuildings)
+  dragDataRef.current = null
+}
 
 // Add a new story (row) to current building
 const addStory = () => {
@@ -213,22 +245,40 @@ const applyRoomConfig = () => {
 }
 
 // Get cell display
-const getCellDisplay = (cell) => {
+// Compute room number for a cell position in a building grid
+const getRoomNumber = (grid, rowIndex, colIndex) => {
+  let count = 0
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      if (grid[r][c].type === 'room') {
+        count++
+        if (r === rowIndex && c === colIndex) return count
+      }
+    }
+  }
+  return 0
+}
+
+const getCellDisplay = (cell, roomNum) => {
+  const fontSize = Math.max(7, Math.floor(bCellWidth * 0.16))
+  const numSize = Math.max(8, Math.floor(bCellWidth * 0.22))
   if (cell.type === 'room') {
+    const label = !cell.isVacant ? 'Occupied' : 'Vacant'
+    const color = !cell.isVacant ? 'text-red-700' : 'text-green-800'
     return (
-      <div className="text-xs flex flex-col items-center justify-center h-full p-1">
-        <div className="font-semibold">{cell.roomType}</div>
-        <div className="text-[10px]">Ksh {cell.pricePerMonth}</div>
-        {!cell.isVacant && <div className="text-[10px] text-red-600">Occupied</div>}
+      <div className='relative w-full flex flex-col items-center justify-center h-full'>
+        {roomNum > 0 && <span style={{ fontSize: numSize + 'px', lineHeight: '1' }} className='text-gray-700 font-extrabold absolute top-0.5 left-1'>R{roomNum}</span>}
+        <span style={{ fontSize: fontSize + 'px', lineHeight: '1.1' }} className={`${color} font-semibold text-center leading-tight`}>{label}</span>
+        <div className='absolute bottom-0 left-1/2 -translate-x-1/2' style={{ width: '30%', height: '22%', background: '#7c2d12', borderRadius: '3px 3px 0 0', minHeight: '6px', minWidth: '8px' }}></div>
       </div>
     )
   }
   
   if (cell.type === 'common') {
-    return <div className="text-xs">Common Area</div>
+    return <div style={{ fontSize: fontSize + 'px' }} className='text-gray-500 font-medium'>Common</div>
   }
   
-  return <div className="text-gray-400 text-xs">Empty</div>
+  return <div className='text-gray-400 text-lg'>·</div>
 }
 
   const onSubmitHandler = async (e) => {
@@ -455,6 +505,18 @@ const getCellDisplay = (cell) => {
               ))}
             </select>
           </div>
+
+          <div className='md:col-span-2'>
+            <label className='font-medium text-gray-700 text-sm'>Google Maps Link</label>
+            <input 
+              type="url" 
+              placeholder='Paste link from Google Maps share button' 
+              className='border border-gray-300 rounded w-full px-3 py-2.5 mt-1 outline-indigo-500' 
+              value={propertyInfo.googleMapsUrl}
+              onChange={(e) => setPropertyInfo({...propertyInfo, googleMapsUrl: e.target.value})}
+            />
+            <p className='text-xs text-gray-400 mt-1'>Open Google Maps → Find your property → Share → Copy link</p>
+          </div>
         </div>
       </div>
 
@@ -496,6 +558,34 @@ const getCellDisplay = (cell) => {
             <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5' /></svg>
             Add Building
           </button>
+        </div>
+
+        {/* Drag & Drop Palette */}
+        <div className='mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg'>
+          <p className='text-xs font-semibold text-indigo-700 mb-2'>Drag & Drop — drag a room type onto the grid</p>
+          <div className='flex gap-2 flex-wrap items-end'>
+            {paletteItems.map((item) => (
+              <div
+                key={item.label}
+                draggable
+                onDragStart={() => handleDragStart(item)}
+                className={`px-3 py-1.5 rounded border-2 text-xs font-semibold cursor-grab active:cursor-grabbing select-none ${item.color} hover:shadow-md transition-all`}
+              >
+                {item.label}
+              </div>
+            ))}
+            <div className='flex items-center gap-1.5 ml-2'>
+              <label className='text-[10px] text-gray-600 font-medium whitespace-nowrap'>Default rent:</label>
+              <input
+                type='number'
+                min='100'
+                value={dragPrice}
+                onChange={(e) => setDragPrice(e.target.value)}
+                className='border border-indigo-300 rounded px-2 py-1 w-24 text-xs outline-indigo-500'
+                placeholder='Ksh'
+              />
+            </div>
+          </div>
         </div>
 
         {/* Gate Side Selector */}
@@ -547,20 +637,15 @@ const getCellDisplay = (cell) => {
                   {/* Compound — dashed fence all 4 sides */}
                   <div className='relative inline-block'>
                     <div className={`border-2 border-dashed ${isActive ? 'border-indigo-500' : 'border-gray-400'} p-4 bg-gradient-to-br from-gray-50 to-slate-100`}>
-                      {/* Roof */}
-                      <div className='flex justify-center mb-1'>
-                        <svg width={building.cols * bCellWidth} height='28' className='drop-shadow-sm'>
-                          <defs>
-                            <linearGradient id={`addRoofGrad${buildingIdx}`} x1='0%' y1='0%' x2='0%' y2='100%'>
-                              <stop offset='0%' style={{ stopColor: '#7c3aed', stopOpacity: 1 }} />
-                              <stop offset='100%' style={{ stopColor: '#5b21b6', stopOpacity: 1 }} />
-                            </linearGradient>
-                          </defs>
-                          <polygon
-                            points={`0,28 ${(building.cols * bCellWidth) / 2},0 ${building.cols * bCellWidth},28`}
-                            fill={`url(#addRoofGrad${buildingIdx})`}
-                            stroke='#4c1d95'
-                            strokeWidth='2'
+                      {/* Roof — outlined triangle with overhang, no bottom border */}
+                      <div className='flex justify-center mb-1' style={{ marginLeft: -Math.round(bCellWidth * 0.15), marginRight: -Math.round(bCellWidth * 0.15) }}>
+                        <svg width={building.cols * bCellWidth + Math.round(bCellWidth * 0.3)} height='28' className='drop-shadow-sm'>
+                          <polyline
+                            points={`0,28 ${(building.cols * bCellWidth + Math.round(bCellWidth * 0.3)) / 2},2 ${building.cols * bCellWidth + Math.round(bCellWidth * 0.3)},28`}
+                            fill={isActive ? '#f5f3ff' : '#f9fafb'}
+                            stroke={isActive ? '#4f46e5' : '#9ca3af'}
+                            strokeWidth={isActive ? '3.5' : '2'}
+                            strokeLinejoin='round'
                           />
                         </svg>
                       </div>
@@ -575,14 +660,17 @@ const getCellDisplay = (cell) => {
                                 <div
                                   key={colIndex}
                                   onClick={(e) => { e.stopPropagation(); isActive && handleCellClick(rowIndex, colIndex) }}
+                                  onDragOver={(e) => { if (isActive) e.preventDefault() }}
+                                  onDrop={(e) => { if (isActive) { e.preventDefault(); handleDrop(rowIndex, colIndex) } }}
                                   className={`${bCell} border border-gray-300 flex items-center justify-center cursor-pointer transition-all text-xs ${
-                                    isSelected ? 'ring-4 ring-indigo-500 bg-indigo-50' :
-                                    cell.type === 'room' ? 'bg-blue-50 hover:bg-blue-100' :
-                                    cell.type === 'common' ? 'bg-green-50 hover:bg-green-100' :
+                                    isSelected ? 'ring-4 ring-indigo-500 bg-indigo-200' :
+                                    cell.type === 'room' && !cell.isVacant ? 'bg-red-200 border-red-400 hover:bg-red-300' :
+                                    cell.type === 'room' ? 'bg-emerald-200 border-emerald-400 hover:bg-emerald-300' :
+                                    cell.type === 'common' ? 'bg-gray-200 border-gray-400 hover:bg-gray-300' :
                                     'bg-gray-50 hover:bg-gray-100'
                                   }`}
                                 >
-                                  {getCellDisplay(cell)}
+                                  {getCellDisplay(cell, cell.type === 'room' ? getRoomNumber(building.grid, rowIndex, colIndex) : 0)}
                                 </div>
                               )
                             })}
@@ -595,16 +683,32 @@ const getCellDisplay = (cell) => {
                     </div>
 
                     {/* Gate — small icon on fence border */}
-                    <div className={`absolute bg-amber-50 border border-amber-400 rounded px-1.5 py-0.5 flex items-center z-10
-                      ${gateSide === 'bottom' ? 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2' : ''}
-                      ${gateSide === 'top' ? 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2' : ''}
-                      ${gateSide === 'left' ? 'left-0 top-1/2 -translate-y-1/2 -translate-x-1/2' : ''}
-                      ${gateSide === 'right' ? 'right-0 top-1/2 -translate-y-1/2 translate-x-1/2' : ''}
-                    `}>
-                      <svg className='w-3.5 h-3.5 text-amber-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M9 3v18m6-18v18' />
+                    {(() => {
+                      const posClass = {
+                        'top':    'absolute top-0 left-1/2',
+                        'bottom': 'absolute bottom-0 left-1/2',
+                        'left':   'absolute left-0 top-1/2',
+                        'right':  'absolute right-0 top-1/2',
+                      }[gateSide] || 'absolute bottom-0 left-1/2'
+                      const gateTransform = {
+                        'top':    'translate(-50%, -50%)',
+                        'bottom': 'translate(-50%, 50%)',
+                        'left':   'translate(-50%, -50%) rotate(-90deg)',
+                        'right':  'translate(50%, -50%) rotate(-90deg)',
+                      }[gateSide] || 'translate(-50%, 50%)'
+                      return (
+                    <div className={`${posClass} bg-amber-50 border border-amber-400 rounded px-2 py-0.5 flex items-center gap-1 z-10`}
+                      style={{ transform: gateTransform }}>
+                      <svg className='w-3 h-3 text-amber-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M9 3v18' />
+                      </svg>
+                      <span className='text-[9px] font-bold text-amber-800 uppercase tracking-wide'>Gate</span>
+                      <svg className='w-3 h-3 text-amber-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M9 3v18' />
                       </svg>
                     </div>
+                      )
+                    })()}
                   </div>
                 </div>
               )

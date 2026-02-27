@@ -33,7 +33,7 @@ const viewingRequestSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["pending", "confirmed", "declined", "completed", "expired"],
+        enum: ["pending", "confirmed", "declined", "completed", "expired", "booked"],
         default: "pending"
     },
     message: {
