@@ -1,12 +1,12 @@
-const CACHE_NAME = 'patakeja-v4';
+const CACHE_NAME = 'patakeja-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/icons/icon-192-2.png',
+  '/icons/icon-192.png',
   '/manifest.json',
 ];
 
-// Install — cache shell assets
+// Install ï¿½ cache shell assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -14,7 +14,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate ï¿½ clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -37,10 +37,10 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET and cross-origin requests entirely
   if (request.method !== 'GET' || url.origin !== location.origin) return;
 
-  // API calls — let the browser handle these directly, no SW involvement
+  // API calls ï¿½ let the browser handle these directly, no SW involvement
   if (url.pathname.startsWith('/api')) return;
 
-  // HTML navigations — always go to network so Vite/server can return fresh index.html.
+  // HTML navigations ï¿½ always go to network so Vite/server can return fresh index.html.
   // Never cache these: every path is just an alias for index.html and Vite rewrites
   // script hashes on each restart, so a cached nav response causes blank pages on reload.
   if (request.mode === 'navigate') {
@@ -52,7 +52,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (JS, CSS, images, fonts) — cache-first
+  // Static assets (JS, CSS, images, fonts) ï¿½ cache-first
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -77,8 +77,8 @@ self.addEventListener('push', (event) => {
     const defaultActions = [{ action: 'open', title: 'Open' }, { action: 'dismiss', title: 'Dismiss' }];
     const options = {
       body: data.body || '',
-      icon: data.icon || '/icons/icon-192-2.png',
-      badge: '/icons/icon-192-2.png',
+      icon: data.icon || '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
       tag: data.tag || undefined,
       data: { url: data.url || '/', actionUrls: data.actionUrls || {} },
       vibrate: [100, 50, 100],
@@ -93,7 +93,7 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('PataKeja', {
         body: event.data.text(),
-        icon: '/icons/icon-192-2.png'
+        icon: '/icons/icon-192.png'
       })
     );
   }
@@ -115,14 +115,14 @@ self.addEventListener('notificationclick', (event) => {
         .then(() => {
           const messages = {
             'bg-yes':     { title: '? Done',     body: "Confirmed! We'll update your record." },
-            'bg-no':      { title: 'Noted',      body: "No worries — you can update later in the app." },
+            'bg-no':      { title: 'Noted',      body: "No worries ï¿½ you can update later in the app." },
             'bg-confirm': { title: '? Accepted', body: 'Viewing confirmed. The renter will be notified.' },
             'bg-decline': { title: 'Declined',   body: 'Request declined. The renter will be notified.' },
           };
           const msg = messages[event.action] || { title: '? Done', body: 'Action recorded.' };
           return self.registration.showNotification(msg.title, {
             body: msg.body,
-            icon: '/icons/icon-192-2.png',
+            icon: '/icons/icon-192.png',
             tag: 'bg-action-done',
             vibrate: [100]
           });
@@ -130,7 +130,7 @@ self.addEventListener('notificationclick', (event) => {
         .catch(() => {
           return self.registration.showNotification('Error', {
             body: 'Could not complete the action. Please try in the app.',
-            icon: '/icons/icon-192-2.png'
+            icon: '/icons/icon-192.png'
           });
         })
     );
