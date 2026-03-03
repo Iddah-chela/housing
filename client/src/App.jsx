@@ -27,6 +27,7 @@ import UnlockPolicy from './pages/UnlockPolicy'
 import Safety from './pages/Safety'
 import ManagedProperties from './pages/ManagedProperties'
 import ViewingAction from './pages/ViewingAction'
+import OwnerBookings from './pages/HouseOwner/OwnerBookings'
 import FeedbackModal from './components/FeedbackModal'
 import {Toaster} from 'react-hot-toast'
 import { useAppContext } from './context/AppContext'
@@ -101,6 +102,7 @@ const App = () => {
               <Route path='viewing-requests' element={<ViewingRequests/>}/>
               <Route path='add-room' element={<AddRoom/>}/>
               <Route path='list-room' element={<ListRoom/>}/>
+              <Route path='bookings' element={<OwnerBookings/>}/>
           </Route>
           <Route path='/admin' element={<AdminLayout/>}>
               <Route index element={<AdminDashboard/>}/>
