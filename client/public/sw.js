@@ -1,7 +1,5 @@
-const CACHE_NAME = 'patakeja-v6';
+const CACHE_NAME = 'patakeja-v7';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/icons/icon-192.png',
   '/manifest.json',
 ];

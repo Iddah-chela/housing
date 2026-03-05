@@ -120,7 +120,7 @@ const Navbar = () => {
                         )}
                     </button>
                     <button onClick={() => navigate('/rooms')} className="focus:outline-none">
-                        <img src={assets.searchIcon} alt="search" className={`h-7 transition-all duration-500 cursor-pointer hover:scale-110 opacity-80 ${darkMode ? 'invert' : 'brightness-0'}`}/>
+                        <img src={assets.searchIcon} alt="search" className="h-7 transition-all duration-500 cursor-pointer hover:scale-110 opacity-80 brightness-0 dark:invert"/>
                     </button>
 
                 {user ? (
@@ -144,7 +144,7 @@ const Navbar = () => {
                             </button>
                         </SignInButton>
                         <SignUpButton mode="modal">
-                            <button className={`px-6 py-2 rounded-full transition-all duration-500 ${isScrolled ? "text-white bg-indigo-500 hover:bg-indigo-600" : heroLight ? "bg-gray-900 text-white hover:bg-gray-800" : "bg-white text-gray-900 hover:bg-gray-100"}`}>
+                            <button className={`px-6 py-2 rounded-full transition-all duration-500 ${isScrolled ? "text-white bg-indigo-500 hover:bg-indigo-600" : heroLight ? "bg-gray-900 text-white hover:bg-gray-800" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}>
                                 Sign Up
                             </button>
                         </SignUpButton>
