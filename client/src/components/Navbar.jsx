@@ -155,6 +155,8 @@ const Navbar = () => {
                 {/* Mobile Menu Button */}
                 <div className="flex items-center gap-3 md:hidden">
                     {user && (
+                        <>
+                        <NotificationBell isScrolled={isScrolled} />
                         <img 
                             src={dbImage || user.imageUrl} 
                             alt={user.fullName}
@@ -162,6 +164,7 @@ const Navbar = () => {
                             className="w-8 h-8 rounded-full border-2 border-gray-800 cursor-pointer hover:border-indigo-500 transition-all"
                             onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }}
                         />
+                        </>
                     )}
                     <img onClick={() => setIsMenuOpen(!isMenuOpen)} src={assets.menuIcon} alt="" className={`h-4 cursor-pointer transition-all brightness-0${darkMode ? ' invert' : ''}`} />
                 </div>

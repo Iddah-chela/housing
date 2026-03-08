@@ -394,6 +394,7 @@ export const caretakerToggleRoom = async (req, res) => {
     }
 
     cell.isVacant = !cell.isVacant;
+    cell.isBooked = false; // clear any pending booking when caretaker manually toggles
     await property.save();
 
     res.json({

@@ -293,7 +293,8 @@ const AllRooms = () => {
                   <span className='bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>VERIFIED</span>
                 )}
                 {(() => {
-                  const d = property.createdAt ? Math.floor((Date.now() - new Date(property.createdAt)) / 86400000) : null
+                  const baseline = property.lastVerifiedAt || property.createdAt
+                  const d = baseline ? Math.floor((Date.now() - new Date(baseline)) / 86400000) : null
                   return d !== null && d <= 7 ? (
                     <span className='bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>NEW</span>
                   ) : null
@@ -356,9 +357,14 @@ const AllRooms = () => {
                   `Ksh ${property.minPrice.toLocaleString()} - ${property.maxPrice.toLocaleString()}/Month`
                 )}
               </p>
-              {property.createdAt && (() => {
-                const d = Math.floor((Date.now() - new Date(property.createdAt)) / 86400000)
-                return <p className='text-xs text-gray-400'>{d === 0 ? 'Listed today' : `Listed ${d} day${d === 1 ? '' : 's'} ago`}</p>
+              {(property.lastVerifiedAt || property.createdAt) && (() => {
+                const refreshed = property.lastVerifiedAt && property.lastVerifiedAt !== property.createdAt
+                const baseline = refreshed ? property.lastVerifiedAt : property.createdAt
+                const d = Math.floor((Date.now() - new Date(baseline)) / 86400000)
+                const label = refreshed
+                  ? (d === 0 ? 'Updated today' : `Updated ${d} day${d === 1 ? '' : 's'} ago`)
+                  : (d === 0 ? 'Listed today' : `Listed ${d} day${d === 1 ? '' : 's'} ago`)
+                return <p className='text-xs text-gray-400'>{label}</p>
               })()}
               
               <button 

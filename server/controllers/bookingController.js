@@ -262,15 +262,24 @@ export const confirmMoveInAsOwner = async (req, res) => {
 
 export const getPropertyBookings = async (req, res) => {
    try {
-     const properties = await Property.find({ owner: req.user._id }).select('_id');
-    if (!properties.length) {
+    const userEmail = req.user.email;
+    const [ownedProperties, caretakerProperties] = await Promise.all([
+      Property.find({ owner: req.user._id }).select('_id'),
+      Property.find({ caretakers: { $elemMatch: { $regex: new RegExp(`^${userEmail}$`, 'i') } } }).select('_id')
+    ]);
+    const propertyIds = [
+      ...ownedProperties.map(p => p._id),
+      ...caretakerProperties.map(p => p._id)
+    ];
+    if (!propertyIds.length) {
         return res.json({ success: true, totalBookings: 0, bookings: [] });
     }
-    const propertyIds = properties.map(p => p._id);
-     const bookings = await Booking.find({ property: { $in: propertyIds } }).populate('property user').sort({ createdAt: -1 });
-     const totalBookings = bookings.length;
-
-     res.json({ success: true, totalBookings, bookings });
+    const bookings = await Booking.find({
+      property: { $in: propertyIds },
+      status: { $ne: 'cancelled' }
+    }).populate('user', 'username image email').sort({ createdAt: -1 });
+    const totalBookings = bookings.length;
+    res.json({ success: true, totalBookings, bookings });
    } catch (error) {
     res.json({ success: false, message: 'Failed to fetch bookings' });
    } 

@@ -22,22 +22,13 @@ const Hero = () => {
 
   return (
     <div
-      className='relative flex flex-col items-start justify-center px-6 md:px-16 lg:px-24 xl:px-32 text-white h-screen overflow-hidden'
+      style={{ backgroundImage: `url(${heroImage})` }}
+      className='relative flex flex-col items-start justify-center px-6 md:px-16 lg:px-24 xl:px-32 text-white h-screen bg-cover bg-center bg-no-repeat'
     >
-        {/* Preloaded hero image — real <img> so browser fetches it immediately, improving LCP */}
-        <img
-          src={heroImage}
-          alt=""
-          aria-hidden="true"
-          width="1920"
-          height="1080"
-          fetchPriority="high"
-          decoding="async"
-          className='absolute inset-0 w-full h-full object-cover object-center'
-        />
-        {/* Content sits above the background image */}
+        {/* Preloaded hero image via CSS background */}
+        <div className='absolute inset-0 bg-black/20' aria-hidden="true" />
         <div className='relative z-10 flex flex-col items-start w-full'>
-          <p className='text-sm font-medium'>✓ Verified listings · No scams</p>
+          <p className='text-sm font-medium bg-green-500/50 px-3 py-1 rounded-full'>✓ Verified listings · No scams</p>
         <h1 className='font-medium text-3xl md:text-5xl lg:text-6xl max-w-2xl mt-6'>
           Find available houses for rent near you
         </h1>

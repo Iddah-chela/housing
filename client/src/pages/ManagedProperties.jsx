@@ -5,7 +5,6 @@ import { Shield, Building2, ArrowLeft, LayoutGrid, DollarSign, CheckCircle2, XCi
 import { ManagedPropertySkeleton } from '../components/Skeletons'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-import Footer from '../components/Footer'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -13,6 +12,7 @@ const ManagedProperties = () => {
   const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('availability')
+  const [bookingMap, setBookingMap] = useState({}) // key: `${propId}-${bid}-${row}-${col}` → booking
   // Rent tracker state
   const [trackerMonth, setTrackerMonth] = useState(new Date().getMonth() + 1)
   const [trackerYear, setTrackerYear] = useState(new Date().getFullYear())
@@ -26,10 +26,20 @@ const ManagedProperties = () => {
   const fetchManagedProperties = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/properties/managed', {
-        headers: { Authorization: `Bearer ${await getToken()}` }
-      })
-      if (response.data.success) setProperties(response.data.properties)
+      const token = await getToken()
+      const [propRes, bookRes] = await Promise.all([
+        axios.get('/api/properties/managed', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/bookings/property', { headers: { Authorization: `Bearer ${token}` } })
+      ])
+      if (propRes.data.success) setProperties(propRes.data.properties)
+      if (bookRes.data.success) {
+        const map = {}
+        bookRes.data.bookings.forEach(b => {
+          const key = `${b.property}-${b.roomDetails.buildingId}-${b.roomDetails.row}-${b.roomDetails.col}`
+          map[key] = b
+        })
+        setBookingMap(map)
+      }
     } catch {
       toast.error('Failed to load managed properties')
     } finally {
@@ -68,7 +78,23 @@ const ManagedProperties = () => {
       }, { headers: { Authorization: `Bearer ${await getToken()}` } })
       if (response.data.success) {
         toast.success(response.data.message)
-        fetchManagedProperties()
+        // Update only the toggled cell locally — no full refetch
+        setProperties(prev => prev.map(p => {
+          if (p._id !== propertyId) return p
+          return {
+            ...p,
+            buildings: p.buildings.map(b => {
+              if (b.id !== buildingId) return b
+              const newGrid = b.grid.map((r, ri) =>
+                r.map((cell, ci) => {
+                  if (ri === row && ci === col) return { ...cell, isVacant: !cell.isVacant, isBooked: false }
+                  return cell
+                })
+              )
+              return { ...b, grid: newGrid }
+            })
+          }
+        }))
       } else {
         toast.error(response.data.message)
       }
@@ -246,13 +272,28 @@ const ManagedProperties = () => {
                                         <span className='font-extrabold text-gray-700 dark:text-gray-200' style={{fontSize: '10px'}}>R{getRoomNumber(building.grid, rowIndex, colIndex)}</span>
                                       </div>
                                       <div className='absolute bottom-0 left-1/2 -translate-x-1/2' style={{width: '20%', height: '18%', background: '#7c2d12', borderRadius: '2px 2px 0 0', minHeight: '5px', minWidth: '6px'}}></div>
-                                      <button
-                                        onClick={() => toggleAvailability(property._id, building.id, rowIndex, colIndex)}
-                                        className={`absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-white font-bold ${cell.isVacant ? 'bg-green-600/85' : 'bg-red-600/85'}`}
-                                        style={{fontSize: '9px'}}
-                                      >
-                                        {cell.isVacant ? 'Mark\nOccupied' : 'Mark\nVacant'}
-                                      </button>
+                                      {/* Hover overlay: show who booked, or toggle */}
+                                      {cell.isBooked && bookingMap[`${property._id}-${building.id}-${rowIndex}-${colIndex}`] ? (() => {
+                                        const bk = bookingMap[`${property._id}-${building.id}-${rowIndex}-${colIndex}`]
+                                        return (
+                                          <div className='absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-yellow-700/90 text-white p-0.5 gap-0.5'>
+                                            {bk.user?.image && <img src={bk.user.image} className='w-5 h-5 rounded-full' alt=''/>}
+                                            <span style={{fontSize: '8px'}} className='font-bold text-center leading-tight line-clamp-1'>{bk.user?.username || 'Booked'}</span>
+                                            <button
+                                              onClick={() => toggleAvailability(property._id, building.id, rowIndex, colIndex)}
+                                              style={{fontSize: '7px'}} className='bg-white/20 rounded px-1 hover:bg-white/40 transition-all'
+                                            >Move in</button>
+                                          </div>
+                                        )
+                                      })() : (
+                                        <button
+                                          onClick={() => toggleAvailability(property._id, building.id, rowIndex, colIndex)}
+                                          className={`absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-white font-bold ${cell.isVacant ? 'bg-green-600/85' : 'bg-red-600/85'}`}
+                                          style={{fontSize: '9px'}}
+                                        >
+                                          {cell.isVacant ? 'Mark\nOccupied' : 'Mark\nVacant'}
+                                        </button>
+                                      )}
                                     </div>
                                   )
                                 })}
@@ -396,7 +437,6 @@ const ManagedProperties = () => {
           </div>
         )}
       </div>
-      <Footer />
     </>
   )
 }
