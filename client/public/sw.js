@@ -1,6 +1,7 @@
-const CACHE_NAME = 'patakeja-v7';
+const CACHE_NAME = 'patakeja-v8';
 const STATIC_ASSETS = [
   '/icons/icon-192.png',
+  '/icons/badge-mono.png',
   '/manifest.json',
 ];
 
@@ -76,7 +77,7 @@ self.addEventListener('push', (event) => {
     const options = {
       body: data.body || '',
       icon: data.icon || '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      badge: '/icons/badge-mono.png',
       tag: data.tag || undefined,
       data: { url: data.url || '/', actionUrls: data.actionUrls || {} },
       vibrate: [100, 50, 100],
@@ -91,7 +92,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('PataKeja', {
         body: event.data.text(),
-        icon: '/icons/icon-192.png'
+        icon: '/icons/icon-192.png',
+        badge: '/icons/badge-mono.png'
       })
     );
   }

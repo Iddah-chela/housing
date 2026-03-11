@@ -17,7 +17,7 @@ const Terms = () => {
           <h2 className='text-xl font-semibold mb-3'>1. Acceptance of Terms</h2>
           <p className='text-gray-700 leading-relaxed'>
             By accessing or using PataKeja ("the Platform"), you agree to be bound by these Terms of Service. 
-            PataKeja is a rental listing platform that connects tenants with landlords and property caretakers 
+            PataKeja is a rental listing platform that connects tenants with property owners and caretakers 
             in Kenya, primarily around university areas. If you do not agree with these terms, please do not use the Platform.
           </p>
         </section>
@@ -25,9 +25,9 @@ const Terms = () => {
         <section>
           <h2 className='text-xl font-semibold mb-3'>2. Description of Service</h2>
           <p className='text-gray-700 leading-relaxed'>
-            PataKeja provides an online marketplace where landlords can list rental properties and tenants can 
+            PataKeja provides an online marketplace where property owners can list rental properties and tenants can 
             browse, unlock contact details, request viewings, and book rooms. The Platform facilitates connections 
-            but is not a party to any rental agreement between landlords and tenants.
+            but is not a party to any rental agreement between property owners and tenants.
           </p>
         </section>
 
@@ -44,7 +44,7 @@ const Terms = () => {
         <section>
           <h2 className='text-xl font-semibold mb-3'>4. Listings & Property Information</h2>
           <ul className='list-disc pl-6 text-gray-700 space-y-2'>
-            <li>Landlords are solely responsible for the accuracy of their property listings.</li>
+            <li>Property owners are solely responsible for the accuracy of their property listings.</li>
             <li>PataKeja does not verify or guarantee the condition, legality, or availability of listed properties.</li>
             <li>Listings that expire (no updates in 60 days) are automatically delisted.</li>
             <li>PataKeja reserves the right to remove any listing that violates these terms or applicable laws.</li>
@@ -54,7 +54,7 @@ const Terms = () => {
         <section>
           <h2 className='text-xl font-semibold mb-3'>5. Payments & Unlocking</h2>
           <ul className='list-disc pl-6 text-gray-700 space-y-2'>
-            <li>Unlocking landlord contact details requires purchasing a browsing pass via M-Pesa (Ksh 100 for 1 day, Ksh 300 for 7 days). First 2 property views are free.</li>
+            <li>Unlocking owner contact details requires purchasing a browsing pass via M-Pesa (Ksh 100 for 1 day, Ksh 300 for 7 days). First 2 property views are free.</li>
             <li>Payments are processed through IntaSend, a licensed Kenyan payment service provider.</li>
             <li>Passes are non-refundable once activated, as they provide immediate access to contact information.</li>
             <li>Free trial unlocks may be available to new users, subject to change without notice.</li>
@@ -77,7 +77,7 @@ const Terms = () => {
           <h2 className='text-xl font-semibold mb-3'>7. Limitation of Liability</h2>
           <p className='text-gray-700 leading-relaxed'>
             PataKeja acts solely as an intermediary. We are not responsible for the quality of any rental property, 
-            the conduct of any user, or any disputes between landlords and tenants. Use the Platform at your own risk. 
+            the conduct of any user, or any disputes between property owners and tenants. Use the Platform at your own risk. 
             Our total liability shall not exceed the amount you have paid to us in the 12 months preceding any claim.
           </p>
         </section>

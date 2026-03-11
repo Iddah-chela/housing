@@ -95,6 +95,7 @@ export const confirmMoveIn = async (req, res) => {
             return res.json({ success: false, message: 'Booking must be confirmed first' });
 
         booking.hasMoved = true;
+        booking.status = 'completed';
         await booking.save();
 
         // Mark cell as occupied in property grid
@@ -137,6 +138,7 @@ export const handleMoveInAction = async (req, res) => {
                 return res.redirect(`${BASE}/my-bookings`);
             }
             booking.hasMoved = true;
+            booking.status = 'completed';
             await booking.save();
             // Update grid cell
             try {
@@ -174,6 +176,7 @@ export const handleMoveInAction = async (req, res) => {
         if (answer === 'owner-yes' && token && booking.moveInOwnerToken === token) {
             // Owner confirms renter moved in
             booking.hasMoved = true;
+            booking.status = 'completed';
             booking.moveInOwnerToken = null;
             await booking.save();
             try {
@@ -222,17 +225,26 @@ export const handleMoveInAction = async (req, res) => {
 };
 
 // Owner marks a tenant as moved-in (from OwnerBookings page)
+// Also allows caretakers of the property
 export const confirmMoveInAsOwner = async (req, res) => {
     try {
         const { bookingId } = req.body;
         const booking = await Booking.findById(bookingId).populate('property');
         if (!booking) return res.json({ success: false, message: 'Booking not found' });
         const property = booking.property;
-        if (!property || String(property.owner) !== String(req.user._id))
+
+        // Allow owner or caretaker
+        const isOwner = property && String(property.owner) === String(req.user._id);
+        const isCaretaker = property?.caretakers?.some(
+            e => e.toLowerCase() === req.user?.email?.toLowerCase()
+        );
+        if (!isOwner && !isCaretaker)
             return res.json({ success: false, message: 'Unauthorized' });
+
         if (booking.hasMoved) return res.json({ success: true, message: 'Already marked as moved in' });
 
         booking.hasMoved = true;
+        booking.status = 'completed';
         await booking.save();
 
         // Update grid cell
@@ -284,3 +296,109 @@ export const getPropertyBookings = async (req, res) => {
     res.json({ success: false, message: 'Failed to fetch bookings' });
    } 
 }
+
+// ─── MOVE-OUT FLOW ────────────────────────────────────────────────────────────
+
+// Tenant gives notice of intent to move out.
+// POST /api/bookings/give-notice
+// Body: { bookingId, moveOutDate }
+export const giveNotice = async (req, res) => {
+    try {
+        const { bookingId, moveOutDate } = req.body;
+        if (!moveOutDate) return res.json({ success: false, message: 'Move-out date is required' });
+
+        const booking = await Booking.findById(bookingId).populate('property');
+        if (!booking) return res.json({ success: false, message: 'Booking not found' });
+        if (String(booking.user) !== String(req.user._id))
+            return res.json({ success: false, message: 'Unauthorized' });
+        if (!booking.hasMoved)
+            return res.json({ success: false, message: 'You must have moved in before giving notice' });
+        if (booking.moveOutStatus !== 'none')
+            return res.json({ success: false, message: 'Move-out notice already submitted' });
+
+        booking.moveOutDate = new Date(moveOutDate);
+        booking.moveOutStatus = 'notice_given';
+        booking.moveOutInitiatedBy = req.user._id;
+        await booking.save();
+
+        // Notify property owner
+        const property = booking.property;
+        if (property) {
+            const renter = await User.findById(booking.user);
+            sendPushNotification(property.owner, {
+                title: 'Tenant giving notice',
+                body: `${renter?.username || 'A tenant'} has given notice to vacate their room at ${property.name} on ${new Date(moveOutDate).toDateString()}`,
+                url: '/owner/bookings',
+                tag: `move-out-notice-${booking._id}`
+            });
+        }
+
+        res.json({ success: true, message: 'Move-out notice submitted. The landlord has been notified.' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// Owner or caretaker confirms that tenant has moved out; room becomes vacant again.
+// POST /api/bookings/confirm-move-out
+// Body: { bookingId }
+export const confirmMoveOut = async (req, res) => {
+    try {
+        const { bookingId } = req.body;
+        const booking = await Booking.findById(bookingId).populate('property');
+        if (!booking) return res.json({ success: false, message: 'Booking not found' });
+
+        const property = booking.property;
+        const isOwner = property && String(property.owner) === String(req.user._id);
+        const isCaretaker = property?.caretakers?.some(
+            e => e.toLowerCase() === req.user?.email?.toLowerCase()
+        );
+        // Also allow the tenant themselves to confirm move-out if no notice flow was used
+        const isTenant = String(booking.user) === String(req.user._id);
+        if (!isOwner && !isCaretaker && !isTenant)
+            return res.json({ success: false, message: 'Unauthorized' });
+
+        if (booking.moveOutStatus === 'completed')
+            return res.json({ success: true, message: 'Move-out already confirmed' });
+
+        booking.moveOutStatus = 'completed';
+        if (!booking.moveOutDate) booking.moveOutDate = new Date();
+        await booking.save();
+
+        // Mark room as vacant again in the property grid
+        try {
+            if (property) {
+                const building = property.buildings?.find(b => b.id === booking.roomDetails.buildingId);
+                if (building?.grid?.[booking.roomDetails.row]?.[booking.roomDetails.col]) {
+                    building.grid[booking.roomDetails.row][booking.roomDetails.col].isVacant = true;
+                    building.grid[booking.roomDetails.row][booking.roomDetails.col].isBooked = false;
+                    property.markModified('buildings');
+                    await property.save();
+                }
+            }
+        } catch (_) {}
+
+        // Notify the other party
+        if (!isTenant) {
+            // Notify tenant
+            sendPushNotification(booking.user, {
+                title: 'Move-out confirmed',
+                body: `Your move-out from ${property?.name} has been recorded. Thank you for using PataKeja!`,
+                url: '/my-bookings',
+                tag: `move-out-confirmed-${booking._id}`
+            });
+        } else if (property) {
+            // Notify owner
+            sendPushNotification(property.owner, {
+                title: 'Tenant has moved out',
+                body: `A tenant has confirmed moving out from ${property.name}. The room is now vacant.`,
+                url: '/owner/bookings',
+                tag: `move-out-confirmed-${booking._id}`
+            });
+        }
+
+        res.json({ success: true, message: 'Move-out confirmed. Room is now marked as vacant.' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};

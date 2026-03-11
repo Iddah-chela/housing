@@ -16,7 +16,7 @@ const UnlockPolicy = () => {
         <section>
           <h2 className='text-xl font-semibold mb-3'>How It Works</h2>
           <p className='text-gray-700 leading-relaxed'>
-            PataKeja uses a browsing pass system. Once you purchase a pass, you can view landlord contact details 
+            PataKeja uses a browsing pass system. Once you purchase a pass, you can view owner contact details 
             (phone number, WhatsApp, exact address) for <strong>all properties</strong> on the Platform for the duration 
             of your pass.
           </p>
@@ -34,7 +34,7 @@ const UnlockPolicy = () => {
             <div className='flex items-start gap-4'>
               <div className='bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap'>1-Day Pass</div>
               <div>
-                <p className='text-gray-700'><strong>Ksh 100</strong> — Full access to all landlord contact details for 24 hours. Ideal for a quick search in one day.</p>
+                <p className='text-gray-700'><strong>Ksh 100</strong> — Full access to all owner contact details for 24 hours. Ideal for a quick search in one day.</p>
               </div>
             </div>
             <div className='flex items-start gap-4'>

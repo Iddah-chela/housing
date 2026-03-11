@@ -32,6 +32,20 @@ const rentPaymentSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Partial payment tracking
+  amountDue: {
+    type: Number,
+    default: null   // null = not set (simple paid/unpaid mode)
+  },
+  amountPaid: {
+    type: Number,
+    default: 0
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['unpaid', 'partial', 'full'],
+    default: 'unpaid'
+  },
   paidAt: {
     type: Date,
     default: null

@@ -55,11 +55,11 @@ const AdminUsers = () => {
   };
 
   const handleRevokeLandlord = async (userId) => {
-    if (!confirm('Revoke landlord status? All their listings will be delisted.')) return;
+    if (!confirm('Revoke house owner status? All their listings will be delisted.')) return;
     try {
       const token = await getToken();
       const { data } = await axios.post('/api/admin/revoke-landlord', { userId }, { headers: { Authorization: `Bearer ${token}` } });
-      if (data.success) { toast.success('Landlord status revoked'); fetchUsers(); }
+      if (data.success) { toast.success('House owner status revoked'); fetchUsers(); }
       else toast.error(data.message);
     } catch (error) { toast.error(error.message); }
   };
@@ -117,7 +117,7 @@ const AdminUsers = () => {
                         user.role === 'houseOwner' ? 'bg-blue-100 text-blue-800' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                        {user.role === 'houseOwner' ? 'Landlord' : user.role}
+                        {user.role === 'houseOwner' ? 'House Owner' : user.role}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -144,7 +144,7 @@ const AdminUsers = () => {
                           {user.role === 'houseOwner' && (
                             <button onClick={() => handleRevokeLandlord(user._id)}
                               className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200">
-                              Revoke Landlord
+                              Revoke Owner Status
                             </button>
                           )}
                           <button onClick={() => handleDelete(user._id, user.username)}

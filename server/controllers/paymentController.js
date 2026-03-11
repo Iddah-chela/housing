@@ -611,11 +611,21 @@ export const guestInitiateUnlock = async (req, res) => {
 // Confirm guest payment
 export const guestConfirmPayment = async (req, res) => {
     try {
-        const { unlockId } = req.body;
+        const { unlockId, phoneNumber } = req.body;
         if (!unlockId) return res.json({ success: false, message: 'Missing unlock ID' });
+        if (!phoneNumber) return res.json({ success: false, message: 'Phone number is required to confirm guest payment' });
 
         const pass = await UserPass.findById(unlockId);
         if (!pass) return res.json({ success: false, message: 'Pass record not found' });
+
+        // Verify the requesting phone matches the pass (prevents unlockId theft)
+        let formatted = (phoneNumber || '').replace(/\s/g, '');
+        if (formatted.startsWith('0')) formatted = '254' + formatted.substring(1);
+        else if (formatted.startsWith('+254')) formatted = formatted.substring(1);
+        else if (!formatted.startsWith('254')) formatted = '254' + formatted;
+        if (pass.phoneNumber !== formatted) {
+            return res.json({ success: false, message: 'Phone number does not match the payment record' });
+        }
 
         // Already activated
         if (pass.paymentStatus === 'completed') {

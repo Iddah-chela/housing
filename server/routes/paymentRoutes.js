@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { 
     initiateUnlock, 
     checkUnlockStatus, 
@@ -20,14 +21,23 @@ import { isAdmin } from '../controllers/adminController.js';
 
 const paymentRouter = express.Router();
 
+// Very strict limit for STK push endpoints to prevent M-Pesa spam to third parties
+const stkLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many payment attempts. Please wait before trying again.' },
+});
+
 // Check if first unlock is free
 paymentRouter.get('/is-first-unlock', protect, checkFirstUnlock);
 
 // Combined: pass-status + free-check + referral-info in one call
 paymentRouter.get('/property-unlock-info', protect, getPropertyUnlockInfo);
 
-// Initiate property unlock payment
-paymentRouter.post('/initiate-unlock', protect, initiateUnlock);
+// Initiate property unlock payment (STK push — limited)
+paymentRouter.post('/initiate-unlock', stkLimiter, protect, initiateUnlock);
 
 // Check if user has an active pass (global — no property ID needed)
 paymentRouter.get('/pass-status', protect, checkUnlockStatus);
@@ -37,8 +47,8 @@ paymentRouter.get('/unlock-status/:propertyId', protect, checkUnlockStatus);
 // PayHero webhook (no auth required - PayHero calls this)
 paymentRouter.post('/webhook', paymentWebhook);
 
-// Guest payment (no auth required)
-paymentRouter.post('/guest-unlock', guestInitiateUnlock);
+// Guest payment (no auth required — STK push limited)
+paymentRouter.post('/guest-unlock', stkLimiter, guestInitiateUnlock);
 paymentRouter.post('/guest-confirm', guestConfirmPayment);
 
 // Manual payment confirmation (for testing)

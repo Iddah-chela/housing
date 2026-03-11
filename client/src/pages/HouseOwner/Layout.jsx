@@ -5,13 +5,15 @@ import {useAppContext} from '../../context/AppContext'
 import { useEffect } from 'react'
 
 const Layout = () => {
-  const { isOwner, navigate, user, authLoading } = useAppContext()
+  const { isOwner, isAdmin, navigate, user, authLoading } = useAppContext()
+
+  const canAccess = isOwner || isAdmin
 
   useEffect(() => {
     if (authLoading) return
     if (!user) { navigate('/'); return }
-    if (!isOwner) { navigate('/'); return }
-  }, [isOwner, user, authLoading])
+    if (!canAccess) { navigate('/'); return }
+  }, [canAccess, user, authLoading])
 
   if (authLoading) {
     return (
@@ -24,7 +26,7 @@ const Layout = () => {
     )
   }
 
-  if (!user || !isOwner) return null
+  if (!user || !canAccess) return null
 
   return (
     <div className='flex pt-20 min-h-screen'>

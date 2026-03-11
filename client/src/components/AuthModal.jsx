@@ -179,7 +179,7 @@ const AuthModal = ({ onClose, initialMode = 'login' }) => {
                                 >
                                     <div className='text-center'>
                                         <Building2 className='w-7 h-7 mx-auto mb-2 text-indigo-500' />
-                                        <div className='font-medium'>Landlord/Caretaker</div>
+                                        <div className='font-medium'>House Owner / Caretaker</div>
                                         <div className='text-xs text-gray-500 dark:text-gray-400 mt-1'>List properties</div>
                                     </div>
                                 </button>

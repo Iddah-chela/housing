@@ -284,7 +284,7 @@ const ListRoom = () => {
                        )}
 
                        {/* Add Caretaker Input */}
-                       <div className='flex gap-2'>
+                       <div className='flex flex-col sm:flex-row gap-2'>
                          <input
                            type='email'
                            placeholder='Caretaker email address'
@@ -295,7 +295,7 @@ const ListRoom = () => {
                          />
                          <button
                            onClick={() => addCaretaker(property._id)}
-                           className='flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors'
+                           className='flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors'
                          >
                            <UserPlus className='w-4 h-4' />
                            Add

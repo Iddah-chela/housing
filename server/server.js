@@ -24,6 +24,7 @@ import profileRouter from "./routes/profileRoutes.js";
 import paymentRouter from "./routes/paymentRoutes.js";
 import newsletterRouter from "./routes/newsletterRoutes.js";
 import notificationRouter from "./routes/notificationRoutes.js";
+import utilityRouter from "./routes/utilityRoutes.js";
 import { expireViewingRequests } from "./utils/expirationHandler.js";
 import { checkListingFreshness, checkUnlockAutoRefunds, sendPostViewingNudges, sendViewingReminders, sendMoveInNudges } from "./utils/cronJobs.js";
 
@@ -81,6 +82,15 @@ const authLimiter = rateLimit({
     message: { success: false, message: 'Too many attempts, please try again later' },
 });
 
+// STK push routes: very strict (5 per 5 min) to prevent M-Pesa spam to third parties
+const stkLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many payment attempts. Please wait before trying again.' },
+});
+
 // ── Body parsing — small default, large only where needed ─────────────────────
 app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ limit: '1mb', extended: true }))
@@ -120,6 +130,7 @@ app.use('/api/viewing', generalLimiter, viewingRouter)
 app.use('/api/reports', authLimiter, reportRouter)
 app.use('/api/feedback', generalLimiter, feedbackRouter)
 app.use('/api/rent-payment', generalLimiter, rentPaymentRouter)
+app.use('/api/utility', generalLimiter, utilityRouter)
 app.use('/api/landlord-application', authLimiter, landlordApplicationRouter)
 app.use('/api/newsletter', generalLimiter, newsletterRouter)
 app.use('/api/notifications', generalLimiter, notificationRouter)

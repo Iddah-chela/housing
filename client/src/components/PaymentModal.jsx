@@ -111,11 +111,12 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
         setLoading(true)
         try {
             if (guestMode) {
-                // Guest confirm — no auth
-                const { data } = await axios.post('/api/payment/guest-confirm', { unlockId })
+                // Guest confirm — no auth, but must match phone for security
+                const { data } = await axios.post('/api/payment/guest-confirm', { unlockId, phoneNumber })
                 if (data.success) {
                     toast.success(data.message)
-                    onSuccess && onSuccess(data.unlock)
+                    // Include unlockId in the unlock record so PropertyDetails can pass it as x-guest-token
+                    onSuccess && onSuccess({ ...data.unlock, unlockId })
                     onClose()
                 } else {
                     toast.error(data.message)
@@ -157,7 +158,7 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
                                   ? (freeReason === 'referral' 
                                     ? 'Use your referral credit — 24hr access, no payment' 
                                     : 'Your first 2 property views are free — no payment needed')
-                                  : 'Get landlord contact details via M-Pesa'}
+                                  : 'Get owner contact details via M-Pesa'}
                             </p>
                         </div>
                         <button onClick={onClose} className="text-white hover:text-gray-200 text-2xl leading-none">×</button>
@@ -181,12 +182,12 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
                                 <p className="text-xs text-green-700 dark:text-green-300">
                                   {freeReason === 'referral' 
                                     ? `You have ${referralInfo?.referralUnlocksAvailable || 1} free day pass${(referralInfo?.referralUnlocksAvailable || 1) > 1 ? 'es' : ''} available — earned by referring friends.`
-                                    : "Get the landlord's phone, WhatsApp, and address free for this property. Your first 2 properties are free; from the 3rd, Ksh 100/day or Ksh 300/week. Refer a friend to earn a free day."}
+                                    : "Get the owner's phone, WhatsApp, and address free for this property. Your first 2 properties are free; from the 3rd, Ksh 100/day or Ksh 300/week. Refer a friend to earn a free day."}
                                 </p>
                             </div>
 
                             <div className="mb-4 space-y-1.5 text-xs text-gray-700 dark:text-gray-200">
-                                {["Landlord's phone number", "Direct WhatsApp link", "Exact address", "24-hour access to this property"].map(item => (
+                                {["Owner's phone number", "Direct WhatsApp link", "Exact address", "24-hour access to this property"].map(item => (
                                     <div key={item} className="flex items-center gap-2">
                                         <Check className='w-3.5 h-3.5 text-green-600' />
                                         <span>{item}</span>
@@ -214,7 +215,7 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
                             </div>
 
                             <div className="mb-4 space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
-                                {["Landlord's phone number", "Direct WhatsApp link", "Exact address & plot number",
+                                {["Owner's phone number", "Direct WhatsApp link", "Exact address & plot number",
                                   passType === '7day' ? '7-day access to all properties' : '24-hour access to all properties'
                                 ].map(item => (
                                     <div key={item} className="flex items-center gap-2">

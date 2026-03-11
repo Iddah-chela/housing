@@ -1,5 +1,5 @@
 import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect, optionalProtect } from "../middleware/authMiddleware.js";
 import { 
   createProperty, 
   getAllProperties, 
@@ -32,7 +32,7 @@ propertyRouter.post('/:id/caretakers', protect, addCaretaker);
 propertyRouter.delete('/:id/caretakers', protect, removeCaretaker);
 
 // Wildcard routes last
-propertyRouter.get('/:id', getPropertyById);
+propertyRouter.get('/:id', optionalProtect, getPropertyById);
 propertyRouter.put('/:id', protect, updateProperty);
 propertyRouter.delete('/:id', protect, deleteProperty);
 propertyRouter.post('/:id/verify', protect, verifyListing); // Landlord refreshes listing

@@ -8,6 +8,7 @@ const Sidebar = () => {
         {name: "Bookings", path: "/owner/bookings", icon: assets.totalBookingIcon},
         {name: "Viewing Requests", path: "/owner/viewing-requests", icon: assets.calenderIcon},
         {name: "My Listings", path: "/owner/list-room", icon: assets.listIcon},
+        {name: "Utilities", path: "/owner/utilities", icon: assets.listIcon},
         {name: "Messages", path: "/my-chats", icon: assets.addIcon},
     ]
     const linkClass = ({ isActive }) =>

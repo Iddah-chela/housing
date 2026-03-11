@@ -100,7 +100,7 @@ const Navbar = () => {
                         onClick={() => setShowLandlordApplicationModal(true)}
                     >
                         <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5' /></svg>
-                        Become a Landlord
+                        List Your Property
                     </button>
                 )}
                 </div>
@@ -208,7 +208,7 @@ const Navbar = () => {
                             onClick={() => { setIsMenuOpen(false); setShowLandlordApplicationModal(true); }}
                         >
                             <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5' /></svg>
-                            Become a Landlord
+                            List Your Property
                         </button>
                     )}
 

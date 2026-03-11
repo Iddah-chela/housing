@@ -36,7 +36,8 @@ const FeaturedHouses = () => {
                   </div>
                 )}
                 {(() => {
-                  const d = property.createdAt ? Math.floor((Date.now() - new Date(property.createdAt)) / 86400000) : null
+                  const ref = property.lastVerifiedAt || property.createdAt
+                  const d = ref ? Math.floor((Date.now() - new Date(ref)) / 86400000) : null
                   return d !== null && d <= 7 ? (
                     <span className='absolute top-2 left-2 bg-green-300 dark:bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>NEW</span>
                   ) : null
@@ -52,8 +53,10 @@ const FeaturedHouses = () => {
                   <span className='text-sm text-gray-500 dark:text-gray-400'>{property.propertyType}</span>
                 </div>
                 {property.createdAt && (() => {
-                  const d = Math.floor((Date.now() - new Date(property.createdAt)) / 86400000)
-                  return <p className='text-xs text-gray-400 mt-1.5'>{d === 0 ? 'Listed today' : `Listed ${d} day${d === 1 ? '' : 's'} ago`}</p>
+                  const refreshed = property.lastVerifiedAt && property.lastVerifiedAt !== property.createdAt
+                  const baseline = refreshed ? property.lastVerifiedAt : property.createdAt
+                  const d = Math.floor((Date.now() - new Date(baseline)) / 86400000)
+                  return <p className='text-xs text-gray-400 mt-1.5'>{d === 0 ? (refreshed ? 'Refreshed today' : 'Listed today') : refreshed ? `Refreshed ${d} day${d === 1 ? '' : 's'} ago` : `Listed ${d} day${d === 1 ? '' : 's'} ago`}</p>
                 })()}
               </div>
             </div>

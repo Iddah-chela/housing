@@ -38,8 +38,22 @@ const PropertyDetails = () => {
       const fetchProperty = async () => {
         try {
           setLoading(true)
-          
-          const response = await axios.get(`/api/properties/${id}`)
+
+          // Build optional headers so backend can decide whether to include contact info
+          const headers = {}
+          // 1) Auth token for logged-in users
+          const token = await getToken().catch(() => null)
+          if (token) headers['Authorization'] = `Bearer ${token}`
+          // 2) Stored guest unlock token
+          try {
+            const guestUnlocks = JSON.parse(localStorage.getItem('guestUnlocks') || '{}')
+            const guestData = guestUnlocks[id]
+            if (guestData?.unlockId && guestData?.expiresAt && new Date(guestData.expiresAt) > new Date()) {
+              headers['x-guest-token'] = guestData.unlockId
+            }
+          } catch (_) {}
+
+          const response = await axios.get(`/api/properties/${id}`, { headers })
           // using context axios (has correct baseURL)
           
           if(response.data.success) {
@@ -122,14 +136,14 @@ const PropertyDetails = () => {
     const handleShareWhatsApp = () => {
       if (!referralInfo?.referralCode) return
       const link = `${window.location.origin}/sign-up?ref=${referralInfo.referralCode}`
-      const text = `Hey! I found great rental houses on PataKeja. Sign up with my link and we both get free unlocks to view landlord contacts: ${link}`
+      const text = `Hey! I found great rental houses on PataKeja. Sign up with my link and we both get free unlocks to view owner contacts: ${link}`
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
     }
 
     const handlePaymentSuccess = (unlockRecord) => {
       setIsUnlocked(true)
       setUnlockData(unlockRecord)
-      // For guest users, persist unlock in localStorage
+      // For guest users, persist unlock in localStorage (include unlockId for re-auth on refresh)
       if (!user && property) {
         try {
           const guestUnlocks = JSON.parse(localStorage.getItem('guestUnlocks') || '{}')
@@ -268,7 +282,7 @@ const PropertyDetails = () => {
         {property.needsRefresh && (
           <div className='mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-200'>
             <svg className='w-4 h-4 shrink-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z'/></svg>
-            <span><strong>Heads up:</strong> This listing was last updated {daysSinceRefresh} days ago. Availability may have changed — confirm directly with the landlord.</span>
+            <span><strong>Heads up:</strong> This listing was last updated {daysSinceRefresh} days ago. Availability may have changed — confirm directly with the house owner.</span>
           </div>
         )}
         {/* Property Header */}
@@ -710,7 +724,7 @@ const PropertyDetails = () => {
                           /* Not logged in — two options: free sign-in OR pay without login */
                           <>
                             <Gift className='w-8 h-8 text-indigo-400 mx-auto mb-2' />
-                            <p className='text-sm font-semibold text-gray-800 mb-1'>Access landlord contact details</p>
+                            <p className='text-sm font-semibold text-gray-800 mb-1'>Access owner contact details</p>
                             <p className='text-xs text-gray-500 mb-4'>Phone number, WhatsApp & exact address</p>
 
                             {/* Option A: free with sign-in */}
@@ -750,7 +764,7 @@ const PropertyDetails = () => {
                           return (
                           <>
                             <div className='text-3xl mb-2'>{showFree ? <Gift className='w-8 h-8 text-green-500 mx-auto' /> : <Lock className='w-8 h-8 text-indigo-500 mx-auto' />}</div>
-                            <p className='text-sm text-gray-700 font-medium mb-1'>Unlock landlord contact details</p>
+                            <p className='text-sm text-gray-700 font-medium mb-1'>Unlock owner contact details</p>
                             <p className='text-xs text-gray-600 mb-3'>Phone number, WhatsApp & exact address</p>
                             {showFree ? (
                               <>
@@ -901,7 +915,7 @@ const PropertyDetails = () => {
             />
             <div className='flex-1'>
               <div className='flex items-center gap-2'>
-                <p className='text-lg font-medium'>{property.owner?.username || 'Property Owner'}</p>
+                <p className='text-lg font-medium'>{property.landlordName || property.owner?.username || 'Property Owner'}</p>
               </div>
               <p className='text-gray-600 dark:text-gray-400 text-sm mt-1'>Property Owner</p>
               {/* <p className='text-gray-500 text-sm mt-2'>

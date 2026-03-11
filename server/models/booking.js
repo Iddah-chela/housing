@@ -32,9 +32,17 @@ const bookingSchema = new mongoose.Schema({
     moveInOwnerToken: { type: String, default: null },
     status: {
         type: String,
-        enum: ["pending", "confirmed", "cancelled"],
+        enum: ["pending", "confirmed", "cancelled", "completed"],
         default: "pending"
     },
+    // Move-out tracking
+    moveOutDate: { type: Date, default: null },
+    moveOutStatus: {
+        type: String,
+        enum: ['none', 'notice_given', 'completed'],
+        default: 'none'
+    },
+    moveOutInitiatedBy: { type: String, ref: 'User', default: null },
     viewingRequestId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "ViewingRequest",

@@ -12,7 +12,7 @@ const AddRoom = () => {
   // Check if user is landlord
   useEffect(() => {
     if (!user || !isOwner) {
-      toast.error('Only landlords can list properties.')
+      toast.error('Only house owners can list properties.')
       navigate('/')
       return
     }

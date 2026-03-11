@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useAppContext } from '../context/AppContext'
 import toast from 'react-hot-toast'
-import { Shield, Building2, ArrowLeft, LayoutGrid, DollarSign, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Shield, Building2, ArrowLeft, LayoutGrid, DollarSign, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap } from 'lucide-react'
 import { ManagedPropertySkeleton } from '../components/Skeletons'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import UtilityManager from './HouseOwner/UtilityManager'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -201,6 +202,12 @@ const ManagedProperties = () => {
           >
             <DollarSign className='w-4 h-4' /> Rent Tracker
           </button>
+          <button
+            onClick={() => setActiveTab('utilities')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'utilities' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+          >
+            <Zap className='w-4 h-4' /> Utilities
+          </button>
         </div>
 
         {loading ? (
@@ -211,8 +218,10 @@ const ManagedProperties = () => {
           <div className='text-center py-20 bg-gray-50 dark:bg-gray-800 rounded-xl'>
             <Building2 className='w-12 h-12 text-gray-300 mx-auto mb-4' />
             <p className='text-gray-500 text-lg mb-2'>No managed properties</p>
-            <p className='text-gray-400 text-sm'>When a landlord adds your email as a caretaker, their properties will appear here.</p>
+            <p className='text-gray-400 text-sm'>When a house owner adds your email as a caretaker, their properties will appear here.</p>
           </div>
+        ) : activeTab === 'utilities' ? (
+          <UtilityManager initialProperties={properties} />
         ) : activeTab === 'availability' ? (
           /* ── Room Availability Tab ── */
           <div className='grid gap-6'>

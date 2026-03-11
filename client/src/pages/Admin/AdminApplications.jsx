@@ -70,7 +70,7 @@ const AdminApplications = () => {
   };
 
   const handleApprove = async (applicationId) => {
-    if (!confirm('Are you sure you want to approve this application? The user will become a landlord.')) {
+    if (!confirm('Are you sure you want to approve this application? The user will become a house owner.')) {
       return;
     }
 
@@ -149,8 +149,8 @@ const AdminApplications = () => {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold mb-2">Landlord Applications</h1>
-        <p className="text-gray-600">Review and manage landlord applications</p>
+        <h1 className="text-3xl font-semibold mb-2">House Owner Applications</h1>
+        <p className="text-gray-600">Review and manage house owner applications</p>
       </div>
 
       {/* Filters */}

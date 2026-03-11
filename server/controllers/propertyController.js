@@ -1,8 +1,54 @@
 import Property from "../models/property.js";
 import User from "../models/user.js";
+import UserPass from "../models/userPass.js";
 import {v2 as cloudinary} from "cloudinary";
 import Subscriber from "../models/subscriber.js";
 import { sendNewListingAlert } from "../utils/mailer.js";
+
+// Returns true if the requester has access to full property details (contact/whatsapp).
+// Access is granted to: active pass holder, property owner, or caretaker.
+// For guests: pass a completed, non-expired UserPass _id via x-guest-token header or guestToken query.
+const hasContactAccess = async (propertyId, req) => {
+  const userId = req.user?._id;
+  const userEmail = req.user?.email;
+
+  if (userId) {
+    // Owner or caretaker always see their own property
+    const prop = await Property.findById(propertyId).select('owner caretakers').lean();
+    if (!prop) return false;
+    if (prop.owner?.toString() === userId.toString()) return true;
+    if (prop.caretakers?.some(e => e.toLowerCase() === userEmail?.toLowerCase())) return true;
+
+    // Active pass (global or per-property)
+    const pass = await UserPass.findOne({
+      user: userId,
+      paymentStatus: 'completed',
+      expiresAt: { $gt: new Date() },
+      $or: [
+        { property: null },
+        { property: { $exists: false } },
+        { property: propertyId }
+      ]
+    });
+    if (pass) return true;
+  }
+
+  // Guest token
+  const guestToken = req.headers['x-guest-token'] || req.query.guestToken;
+  if (guestToken) {
+    try {
+      const guestPass = await UserPass.findById(guestToken).lean();
+      if (
+        guestPass &&
+        guestPass.paymentStatus === 'completed' &&
+        guestPass.expiresAt > new Date() &&
+        guestPass.property?.toString() === propertyId.toString()
+      ) return true;
+    } catch { /* invalid ObjectId — fall through */ }
+  }
+
+  return false;
+};
 
 // Create a new property with buildings and grid layout
 export const createProperty = async (req, res) => {
@@ -77,6 +123,7 @@ export const createProperty = async (req, res) => {
 export const getAllProperties = async (req, res) => {
   try {
     const properties = await Property.find({ vacantRooms: { $gt: 0 }, isExpired: { $ne: true } })
+      .select('-contact -whatsappNumber')
       .populate('owner', 'username image isVerified')
       .sort({ createdAt: -1 });
     
@@ -96,8 +143,16 @@ export const getPropertyById = async (req, res) => {
     if (!property) {
       return res.json({ success: false, message: "Property not found" });
     }
+
+    const propertyObj = property.toObject();
+
+    // Only reveal contact details to paying/authorised users
+    if (!await hasContactAccess(id, req)) {
+      delete propertyObj.contact;
+      delete propertyObj.whatsappNumber;
+    }
     
-    res.json({ success: true, property });
+    res.json({ success: true, property: propertyObj });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }

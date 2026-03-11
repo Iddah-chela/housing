@@ -92,3 +92,25 @@ export const protect = async (req, res, next)=>{
         return res.status(401).json({success: false, message: "Invalid or expired token"})
     }
 }
+
+// Optional auth — authenticates if token present but does NOT reject on missing/invalid token.
+// Sets req.user if valid, leaves it undefined otherwise.
+export const optionalProtect = async (req, _res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
+        const token = authHeader.substring(7);
+        let payload;
+        try {
+            payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
+        } catch {
+            return next();
+        }
+        if (!payload?.sub) return next();
+        const user = await User.findById(payload.sub);
+        if (user && !user.isSuspended) req.user = user;
+        next();
+    } catch {
+        next();
+    }
+}

@@ -51,7 +51,7 @@ const Safety = () => {
               <div className='w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center'>
                 <Shield className='w-5 h-5 text-green-600' />
               </div>
-              <h2 className='text-xl font-semibold text-gray-800 dark:text-gray-100'>For Landlords</h2>
+              <h2 className='text-xl font-semibold text-gray-800 dark:text-gray-100'>For House Owners</h2>
             </div>
 
             <ul className='list-disc pl-5 text-gray-700 dark:text-gray-300 space-y-1.5 text-sm'>

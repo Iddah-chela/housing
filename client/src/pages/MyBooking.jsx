@@ -11,6 +11,8 @@ const MyBooking = () => {
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)
     const [searchParams] = useSearchParams()
+    const [noticeDates, setNoticeDates] = useState({}) // bookingId -> date string
+    const [givingNotice, setGivingNotice] = useState(null)
 
     useEffect(() => {
         if (searchParams.get('moved') === '1') {
@@ -23,6 +25,22 @@ const MyBooking = () => {
             fetchBookings()
         }
     }, [user])
+
+    const handleGiveNotice = async (bookingId) => {
+        const moveOutDate = noticeDates[bookingId]
+        if (!moveOutDate) { toast.error('Please select your expected move-out date'); return }
+        if (!confirm(`Give notice to vacate on ${new Date(moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}?`)) return
+        setGivingNotice(bookingId)
+        try {
+            const token = await getToken();
+            const { data } = await axios.post('/api/bookings/give-notice', { bookingId, moveOutDate }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (data.success) { toast.success('Notice given. The house owner has been notified.'); fetchBookings(); }
+            else toast.error(data.message);
+        } catch { toast.error('Failed to give notice'); }
+        finally { setGivingNotice(null); }
+    };
 
     const handleMoveIn = async (bookingId) => {
         if (!confirm('Confirm that you have moved in?')) return;
@@ -145,6 +163,33 @@ const MyBooking = () => {
                                     </button>
                                 );
                             })()}
+                            {/* Give notice to vacate (only after moved in, no notice yet) */}
+                            {booking.hasMoved && booking.moveOutStatus === 'none' && (
+                                <div className='mt-3 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl'>
+                                    <p className='text-xs font-semibold text-orange-700 dark:text-orange-300 mb-2'>Planning to move out?</p>
+                                    <div className='flex gap-2 items-center'>
+                                        <input
+                                            type='date'
+                                            value={noticeDates[booking._id] || ''}
+                                            min={new Date().toISOString().split('T')[0]}
+                                            onChange={e => setNoticeDates(prev => ({ ...prev, [booking._id]: e.target.value }))}
+                                            className='flex-1 border border-orange-300 dark:border-orange-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 dark:text-gray-100 outline-orange-500'
+                                        />
+                                        <button
+                                            onClick={() => handleGiveNotice(booking._id)}
+                                            disabled={givingNotice === booking._id}
+                                            className='px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap'
+                                        >
+                                            {givingNotice === booking._id ? 'Sending…' : 'Give Notice'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {booking.moveOutStatus === 'notice_given' && (
+                                <div className='mt-3 p-2 bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 rounded-lg'>
+                                    <p className='text-xs text-orange-700 dark:text-orange-300 font-medium'>📋 Move-out notice sent — awaiting owner confirmation{booking.moveOutDate ? ` (${new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' })})` : ''}</p>
+                                </div>
+                            )}
                         </div>
 
                         {/*Booking Status*/}
@@ -152,6 +197,7 @@ const MyBooking = () => {
                             <span className={`px-3 py-1.5 rounded-full text-xs font-medium text-center ${
                                 booking.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
                                 booking.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' :
+                                booking.status === 'completed' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
                                 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                             }`}>
                                 {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { BookingRowSkeleton } from '../../components/Skeletons'
-import { MapPin, CalendarDays, User, CheckCircle2 } from 'lucide-react'
+import { MapPin, CalendarDays, User, CheckCircle2, LogOut } from 'lucide-react'
 
 const statusColors = {
-    confirmed: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
-    pending:   'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
-    cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    confirmed:  'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+    pending:    'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
+    cancelled:  'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    completed:  'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
 }
 
 const OwnerBookings = () => {
@@ -15,10 +16,32 @@ const OwnerBookings = () => {
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState('all')
     const [confirming, setConfirming] = useState(null) // bookingId being confirmed
+    const [movingOut, setMovingOut] = useState(null) // bookingId for move-out confirm
 
     useEffect(() => {
         fetchBookings()
     }, [])
+
+    const confirmMoveOut = async (bookingId) => {
+        if (!confirm('Confirm this tenant has vacated the room?')) return
+        setMovingOut(bookingId)
+        try {
+            const token = await getToken()
+            const { data } = await axios.post('/api/bookings/confirm-move-out', { bookingId }, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            if (data.success) {
+                toast.success('Move-out confirmed — room is now vacant')
+                setBookings(prev => prev.map(b => b._id === bookingId ? { ...b, moveOutStatus: 'completed' } : b))
+            } else {
+                toast.error(data.message)
+            }
+        } catch {
+            toast.error('Failed to confirm move-out')
+        } finally {
+            setMovingOut(null)
+        }
+    }
 
     const fetchBookings = async () => {
         try {
@@ -65,7 +88,7 @@ const OwnerBookings = () => {
                     <p className='text-sm text-gray-500 dark:text-gray-400 mt-0.5'>{bookings.length} total booking{bookings.length !== 1 ? 's' : ''}</p>
                 </div>
                 <div className='flex gap-2 flex-wrap'>
-                    {['all','confirmed','pending','cancelled'].map(f => (
+                    {['all','confirmed','pending','completed','cancelled'].map(f => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
@@ -167,6 +190,17 @@ const OwnerBookings = () => {
                                         >
                                             <CheckCircle2 className='w-3.5 h-3.5' />
                                             {confirming === booking._id ? 'Confirming…' : 'Confirm Tenant Moved In'}
+                                        </button>
+                                    )}
+                                    {/* Owner action: confirm move-out when tenant has given notice */}
+                                    {booking.moveOutStatus === 'notice_given' && (
+                                        <button
+                                            onClick={() => confirmMoveOut(booking._id)}
+                                            disabled={movingOut === booking._id}
+                                            className='mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition-colors'
+                                        >
+                                            <LogOut className='w-3.5 h-3.5' />
+                                            {movingOut === booking._id ? 'Confirming…' : `Confirm Tenant Vacated${booking.moveOutDate ? ' · ' + new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' }) : ''}`}
                                         </button>
                                     )}
 

@@ -110,6 +110,21 @@ const propertySchema = new mongoose.Schema({
   caretakers: {
     type: [String],   // array of email addresses
     default: []
+  },
+  // ── Admin-managed listings (landlord doesn't have an account) ─────────
+  landlordName: {
+    type: String,
+    default: ''       // shown to tenants who unlock contact info, instead of owner username
+  },
+  // ── Utility billing settings ──────────────────────────────────────────
+  utilitySettings: {
+    waterPaidBy:       { type: String, enum: ['owner', 'tenant'], default: 'tenant' },
+    electricityPaidBy: { type: String, enum: ['owner', 'tenant'], default: 'tenant' },
+    // Per-unit cost (optional — for token/prepay systems)
+    electricityRatePerUnit: { type: Number, default: null },
+    waterRatePerUnit:       { type: Number, default: null },
+    // Free-text reminder that gets prepended to all utility reminders sent
+    reminderNote: { type: String, default: '', maxlength: 300 }
   }
 }, { timestamps: true });
 

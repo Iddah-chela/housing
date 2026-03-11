@@ -83,3 +83,59 @@ export const toggleRentPayment = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+// POST /api/rent-payment/set-amount
+// Record exact amounts (for partial payments, cash receipts, etc.)
+// Body: { propertyId, buildingId, row, col, month, year, amountDue, amountPaid, note }
+export const setPaymentAmount = async (req, res) => {
+  try {
+    const { propertyId, buildingId, row, col, month, year, amountDue, amountPaid, note } = req.body;
+
+    const userEmail = req.user?.email;
+    const userId = req.user?._id;
+
+    if (!propertyId || buildingId == null || row == null || col == null) {
+      return res.json({ success: false, message: 'Missing required fields' });
+    }
+
+    const m = month || new Date().getMonth() + 1;
+    const y = year  || new Date().getFullYear();
+
+    const allowed = await canManageProperty(propertyId, userEmail, userId);
+    if (!allowed) return res.json({ success: false, message: 'Access denied' });
+
+    const due  = amountDue  != null ? Number(amountDue)  : null;
+    const paid = amountPaid != null ? Number(amountPaid) : 0;
+
+    let paymentStatus = 'unpaid';
+    if (due !== null) {
+      if (paid >= due) paymentStatus = 'full';
+      else if (paid > 0) paymentStatus = 'partial';
+    }
+
+    let payment = await RentPayment.findOne({ property: propertyId, buildingId, row, col, month: m, year: y });
+    if (!payment) {
+      payment = await RentPayment.create({
+        property: propertyId, buildingId, row, col, month: m, year: y,
+        paid: paymentStatus === 'full',
+        paidAt: paymentStatus === 'full' ? new Date() : null,
+        amountDue: due, amountPaid: paid, paymentStatus,
+        note: note || '',
+        recordedBy: userId
+      });
+    } else {
+      if (due !== null) payment.amountDue = due;
+      payment.amountPaid = paid;
+      payment.paymentStatus = paymentStatus;
+      payment.paid = paymentStatus === 'full';
+      payment.paidAt = paymentStatus === 'full' ? (payment.paidAt || new Date()) : null;
+      if (note !== undefined) payment.note = note;
+      payment.recordedBy = userId;
+      await payment.save();
+    }
+
+    res.json({ success: true, payment });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};

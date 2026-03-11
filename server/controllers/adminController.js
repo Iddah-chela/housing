@@ -81,6 +81,34 @@ export const revokeHouseOwner = async (req, res) => {
     }
 };
 
+// Transfer property ownership to any registered user (auto-upgrades them to houseOwner)
+export const transferProperty = async (req, res) => {
+    try {
+        const { propertyId, newOwnerEmail } = req.body;
+        if (!propertyId || !newOwnerEmail) {
+            return res.json({ success: false, message: 'Property ID and new owner email are required' });
+        }
+        const newOwner = await User.findOne({ email: newOwnerEmail.toLowerCase().trim() });
+        if (!newOwner) {
+            return res.json({ success: false, message: 'No user found with that email. Ask them to sign up first.' });
+        }
+        const property = await Property.findByIdAndUpdate(
+            propertyId,
+            { owner: newOwner._id },
+            { new: true }
+        );
+        if (!property) return res.json({ success: false, message: 'Property not found' });
+        // Upgrade user to houseOwner if they aren't already
+        if (!['houseOwner', 'admin'].includes(newOwner.role)) {
+            newOwner.role = 'houseOwner';
+            await newOwner.save();
+        }
+        res.json({ success: true, message: `Property transferred to ${newOwner.username} (${newOwner.email})` });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
 // Unverify listing
 export const unverifyListing = async (req, res) => {
     try {

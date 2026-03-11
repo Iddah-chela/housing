@@ -16,7 +16,8 @@ import {
     verifyProperty,
     unverifyProperty,
     deleteUser,
-    revokeHouseOwner
+    revokeHouseOwner,
+    transferProperty
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -42,5 +43,6 @@ adminRouter.post("/relist-property", relistProperty);
 adminRouter.post("/verify-property", verifyProperty);
 adminRouter.post("/unverify-property", unverifyProperty);
 adminRouter.post("/revoke-landlord", revokeHouseOwner);
+adminRouter.post("/transfer-property", transferProperty);
 
 export default adminRouter;

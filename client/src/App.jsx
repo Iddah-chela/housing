@@ -22,6 +22,7 @@ const AddRoom         = lazy(() => import('./pages/HouseOwner/AddRoom'))
 const ListRoom        = lazy(() => import('./pages/HouseOwner/ListRoom'))
 const ViewingRequests = lazy(() => import('./pages/HouseOwner/ViewingRequests'))
 const OwnerBookings   = lazy(() => import('./pages/HouseOwner/OwnerBookings'))
+const UtilityManager  = lazy(() => import('./pages/HouseOwner/UtilityManager'))
 const AdminLayout     = lazy(() => import('./pages/Admin/AdminLayout'))
 const AdminDashboard  = lazy(() => import('./pages/Admin/AdminDashboard'))
 const AdminApplications = lazy(() => import('./pages/Admin/AdminApplications'))
@@ -110,6 +111,7 @@ const App = () => {
               <Route path='add-room' element={<AddRoom/>}/>
               <Route path='list-room' element={<ListRoom/>}/>
               <Route path='bookings' element={<OwnerBookings/>}/>
+              <Route path='utilities' element={<UtilityManager/>}/>
           </Route>
           <Route path='/admin' element={<AdminLayout/>}>
               <Route index element={<AdminDashboard/>}/>

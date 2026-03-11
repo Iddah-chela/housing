@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { HardHat, Save, Home, Check, X as XIcon, GripVertical, MapPin, Navigation, ExternalLink } from 'lucide-react';
 
 const PropertyListingModal = ({ onClose, existingProperty = null }) => {
-  const { user, navigate, getToken, axios, darkMode } = useAppContext()
+  const { user, navigate, getToken, axios, darkMode, isAdmin } = useAppContext()
 
   // Property Details State
   const [propertyInfo, setPropertyInfo] = useState(existingProperty ? {
@@ -16,7 +16,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
     place: existingProperty.place,
     estate: existingProperty.estate,
     propertyType: existingProperty.propertyType,
-    googleMapsUrl: existingProperty.googleMapsUrl || ''
+    googleMapsUrl: existingProperty.googleMapsUrl || '',
+    landlordName: existingProperty.landlordName || ''
   } : {
     name: '',
     address: '',
@@ -25,7 +26,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
     place: '',
     estate: '',
     propertyType: '',
-    googleMapsUrl: ''
+    googleMapsUrl: '',
+    landlordName: ''
   })
 
   // Grid State - Start with 1 row (1-story building) with 5 columns
@@ -524,8 +526,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
           <XIcon className='w-5 h-5' />
         </button>
 
-        <h1 className='text-3xl font-bold mb-2'>{existingProperty ? 'Edit Property' : 'List Your Rental Property'}</h1>
-        <p className='text-gray-600 mb-6'>Fill in details, design the layout, and set room pricing - all in one go!</p>
+        <h1 className='text-3xl font-bold mb-2'>{existingProperty ? 'Edit Property' : isAdmin ? 'Add Listing (Admin)' : 'List Your Rental Property'}</h1>
+        <p className='text-gray-600 mb-6'>{isAdmin && !existingProperty ? "Create a listing on behalf of a house owner. Fill in their contact details and property layout." : "Fill in details, design the layout, and set room pricing - all in one go!"}</p>
 
         {/* Property Details */}
         <div className='border-l-4 border-indigo-500 pl-4 mb-6'>
@@ -541,6 +543,9 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
             </select>
             <input type="tel" placeholder='Contact Phone *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.contact} onChange={(e) => setPropertyInfo({ ...propertyInfo, contact: e.target.value })} required />
             <input type="tel" placeholder='WhatsApp Number (Optional)' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.whatsappNumber} onChange={(e) => setPropertyInfo({ ...propertyInfo, whatsappNumber: e.target.value })} />
+            {isAdmin && (
+              <input type="text" placeholder="House Owner's Name (shown to tenants after unlock)" className='border border-indigo-300 dark:border-indigo-600 rounded px-3 py-2 outline-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:text-gray-100 md:col-span-2' value={propertyInfo.landlordName} onChange={(e) => setPropertyInfo({ ...propertyInfo, landlordName: e.target.value })} />
+            )}
             <input type="text" placeholder='Street Address *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.address} onChange={(e) => setPropertyInfo({ ...propertyInfo, address: e.target.value })} required />
             <input type="text" placeholder='Estate/Building Name *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.estate} onChange={(e) => setPropertyInfo({ ...propertyInfo, estate: e.target.value })} required />
             <select className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 md:col-span-2' value={propertyInfo.place} onChange={(e) => setPropertyInfo({ ...propertyInfo, place: e.target.value })} required>

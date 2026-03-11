@@ -356,7 +356,7 @@ const MyViewings = () => {
                     {isRenter && viewing.isDirectApply && viewing.status === 'pending' && (
                       <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
                         <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">Application under review</p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">The landlord is reviewing your direct application.</p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">The house owner is reviewing your direct application.</p>
                       </div>
                     )}
                   </div>

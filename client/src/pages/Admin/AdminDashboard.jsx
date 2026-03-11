@@ -50,7 +50,7 @@ const AdminDashboard = () => {
   const quickActions = [
     { label: 'Manage Listings', desc: 'Verify, delist, or review properties', path: '/admin/listings', icon: LayoutList, bg: 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40', textColor: 'text-indigo-700 dark:text-indigo-300' },
     { label: 'User Management', desc: 'Suspend, unsuspend, or review users', path: '/admin/users', icon: Users, bg: 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40', textColor: 'text-blue-700 dark:text-blue-300' },
-    { label: 'Applications', desc: 'Review landlord applications', path: '/admin/applications', icon: Shield, bg: 'bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40', textColor: 'text-green-700 dark:text-green-300' },
+    { label: 'Applications', desc: 'Review house owner applications', path: '/admin/applications', icon: Shield, bg: 'bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40', textColor: 'text-green-700 dark:text-green-300' },
     { label: 'Reports', desc: 'Handle pending reports', path: '/admin/reports', icon: FileText, bg: 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40', textColor: 'text-red-700 dark:text-red-300' },
   ];
 
