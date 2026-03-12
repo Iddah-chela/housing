@@ -4,8 +4,9 @@ import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
 import { HardHat, Save, Home, Check, X as XIcon, GripVertical, MapPin, Navigation, ExternalLink } from 'lucide-react';
 
-const PropertyListingModal = ({ onClose, existingProperty = null }) => {
+const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord = false }) => {
   const { user, navigate, getToken, axios, darkMode, isAdmin } = useAppContext()
+  const effectiveAdmin = isAdmin && !showAsLandlord
 
   // Property Details State
   const [propertyInfo, setPropertyInfo] = useState(existingProperty ? {
@@ -526,8 +527,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
           <XIcon className='w-5 h-5' />
         </button>
 
-        <h1 className='text-3xl font-bold mb-2'>{existingProperty ? 'Edit Property' : isAdmin ? 'Add Listing (Admin)' : 'List Your Rental Property'}</h1>
-        <p className='text-gray-600 mb-6'>{isAdmin && !existingProperty ? "Create a listing on behalf of a house owner. Fill in their contact details and property layout." : "Fill in details, design the layout, and set room pricing - all in one go!"}</p>
+        <h1 className='text-3xl font-bold mb-2'>{existingProperty ? 'Edit Property' : effectiveAdmin ? 'Add Listing (Admin)' : 'List Your Rental Property'}</h1>
+        <p className='text-gray-600 mb-6'>{effectiveAdmin && !existingProperty ? "Create a listing on behalf of a house owner. Fill in their contact details and property layout." : "Fill in details, design the layout, and set room pricing - all in one go!"}</p>
 
         {/* Property Details */}
         <div className='border-l-4 border-indigo-500 pl-4 mb-6'>
@@ -543,7 +544,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null }) => {
             </select>
             <input type="tel" placeholder='Contact Phone *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.contact} onChange={(e) => setPropertyInfo({ ...propertyInfo, contact: e.target.value })} required />
             <input type="tel" placeholder='WhatsApp Number (Optional)' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.whatsappNumber} onChange={(e) => setPropertyInfo({ ...propertyInfo, whatsappNumber: e.target.value })} />
-            {isAdmin && (
+            {effectiveAdmin && (
               <input type="text" placeholder="House Owner's Name (shown to tenants after unlock)" className='border border-indigo-300 dark:border-indigo-600 rounded px-3 py-2 outline-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:text-gray-100 md:col-span-2' value={propertyInfo.landlordName} onChange={(e) => setPropertyInfo({ ...propertyInfo, landlordName: e.target.value })} />
             )}
             <input type="text" placeholder='Street Address *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.address} onChange={(e) => setPropertyInfo({ ...propertyInfo, address: e.target.value })} required />

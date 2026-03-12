@@ -386,6 +386,7 @@ const ListRoom = () => {
              setEditingProperty(null)
            }}
            existingProperty={editingProperty}
+           showAsLandlord={true}
          />
        )}
     </div>

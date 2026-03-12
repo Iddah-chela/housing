@@ -15,6 +15,7 @@ const Dashboard = () => {
         bookedRooms: 0,
         totalBookings: 0,
         totalRevenue: 0,
+        rentCollected: 0,
         pendingViewings: 0,
         confirmedViewings: 0,
         recentBookings: [],
@@ -28,10 +29,11 @@ const Dashboard = () => {
             const token = await getToken()
             const headers = { Authorization: `Bearer ${token}` }
 
-            const [bookingsRes, propertiesRes, viewingsRes] = await Promise.all([
+            const [bookingsRes, propertiesRes, viewingsRes, rentRes] = await Promise.all([
                 axios.get('/api/bookings/property', { headers }),
                 axios.get('/api/properties/owner/my-properties', { headers }),
-                axios.get('/api/viewing/owner', { headers }).catch(() => ({ data: { success: false } }))
+                axios.get('/api/viewing/owner', { headers }).catch(() => ({ data: { success: false } })),
+                axios.get('/api/rent-payment/owner/summary', { headers }).catch(() => ({ data: { success: false } }))
             ])
 
             let totalRooms = 0, vacantRooms = 0, occupiedRooms = 0, bookedRooms = 0
@@ -67,6 +69,8 @@ const Dashboard = () => {
             const pendingViewings = viewings.filter(v => v.status === 'pending').length
             const confirmedViewings = viewings.filter(v => v.status === 'confirmed').length
 
+            const rentCollected = rentRes.data?.success ? (rentRes.data.totalCollected || 0) : 0
+
             setStats({
                 totalProperties: properties.length,
                 totalRooms,
@@ -75,6 +79,7 @@ const Dashboard = () => {
                 bookedRooms,
                 totalBookings: bookings.length,
                 totalRevenue,
+                rentCollected,
                 pendingViewings,
                 confirmedViewings,
                 recentBookings: bookings.slice(0, 5),
@@ -107,7 +112,7 @@ const Dashboard = () => {
         { label: 'Occupied', value: stats.occupiedRooms, icon: XCircle, color: 'bg-red-50 dark:bg-red-900/30 text-red-600', iconBg: 'bg-red-100 dark:bg-red-900/40' },
         { label: 'Booked', value: stats.bookedRooms, icon: CalendarCheck, color: 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600', iconBg: 'bg-yellow-100 dark:bg-yellow-900/40' },
         { label: 'Total Bookings', value: stats.totalBookings, icon: Users, color: 'bg-purple-50 dark:bg-purple-900/30 text-purple-600', iconBg: 'bg-purple-100 dark:bg-purple-900/40' },
-        { label: 'Monthly Revenue', value: `Ksh ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600', iconBg: 'bg-emerald-100 dark:bg-emerald-900/40' },
+        { label: 'Rent Collected', value: `Ksh ${stats.rentCollected.toLocaleString()}`, subtitle: `of Ksh ${stats.totalRevenue.toLocaleString()} due`, icon: DollarSign, color: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600', iconBg: 'bg-emerald-100 dark:bg-emerald-900/40' },
         { label: 'Pending Viewings', value: stats.pendingViewings, icon: Eye, color: 'bg-orange-50 dark:bg-orange-900/30 text-orange-600', iconBg: 'bg-orange-100 dark:bg-orange-900/40', onClick: () => navigate('/owner/viewing-requests') },
     ]
 
@@ -134,6 +139,7 @@ const Dashboard = () => {
                         </div>
                         <p className='text-2xl font-bold'>{card.value}</p>
                         <p className='text-sm opacity-70 mt-0.5'>{card.label}</p>
+                        {card.subtitle && <p className='text-xs opacity-50 mt-0.5'>{card.subtitle}</p>}
                     </div>
                 ))}
             </div>

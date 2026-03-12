@@ -64,19 +64,22 @@ app.use(cors({
 }));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
-// General: 100 requests per 15 min per IP
+// Disabled in development — only active in production
+const isDev = process.env.NODE_ENV !== 'production'
+
+// General: 300 requests per 15 min per IP
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: isDev ? 10_000 : 300,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many requests, please try again later' },
 });
 
-// Auth-sensitive routes: stricter (20 per 15 min)
+// Auth-sensitive routes: stricter (60 per 15 min in prod)
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 20,
+    max: isDev ? 10_000 : 60,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many attempts, please try again later' },
@@ -85,7 +88,7 @@ const authLimiter = rateLimit({
 // STK push routes: very strict (5 per 5 min) to prevent M-Pesa spam to third parties
 const stkLimiter = rateLimit({
     windowMs: 5 * 60 * 1000,
-    max: 5,
+    max: isDev ? 10_000 : 5,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many payment attempts. Please wait before trying again.' },

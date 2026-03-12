@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAppContext } from '../context/AppContext'
 import toast from 'react-hot-toast'
-import { Shield, Building2, ArrowLeft, LayoutGrid, DollarSign, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap } from 'lucide-react'
+import { Shield, Building2, ArrowLeft, LayoutGrid, DollarSign, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Clock, Bell } from 'lucide-react'
 import { ManagedPropertySkeleton } from '../components/Skeletons'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
@@ -20,6 +20,15 @@ const ManagedProperties = () => {
   const [rentPayments, setRentPayments] = useState({}) // { propertyId: [payment...] }
   const [loadingPayments, setLoadingPayments] = useState(false)
   const [togglingRoom, setTogglingRoom] = useState(null) // key = `${propId}-${bid}-${r}-${c}`
+  const [paymentModal, setPaymentModal] = useState(null)
+  const [paymentForm, setPaymentForm] = useState({ amountDue: '', amountPaid: '', note: '' })
+  const [savingPayment, setSavingPayment] = useState(false)
+  // Rent reminders
+  const [remindingRoom, setRemindingRoom]   = useState(null) // key string
+  const [roomContacts, setRoomContacts]     = useState({})   // { 'propId-bid-r-c': contact }
+  const [rentInviteRoom, setRentInviteRoom] = useState(null) // { propertyId, buildingId, row, col, roomNum }
+  const [rentInviteForm, setRentInviteForm] = useState({ name: '', phone: '', email: '' })
+  const [savingRentContact, setSavingRentContact] = useState(false)
 
   const { user, getToken, axios } = useAppContext()
   const navigate = useNavigate()
@@ -131,10 +140,128 @@ const ManagedProperties = () => {
     }
   }
 
-  const isPaid = (propertyId, buildingId, row, col) => {
+  const getPayStatus = (propertyId, buildingId, row, col) => {
     const list = rentPayments[propertyId] || []
     const rec = list.find(x => x.buildingId === buildingId && x.row === row && x.col === col)
-    return rec?.paid === true
+    if (!rec) return 'unpaid'
+    return rec.paymentStatus || (rec.paid ? 'full' : 'unpaid')
+  }
+
+  const isPaid = (propertyId, buildingId, row, col) =>
+    getPayStatus(propertyId, buildingId, row, col) === 'full'
+
+  const markFullyPaid = async (propertyId, buildingId, row, col, payRec, roomRent) => {
+    const key = `${propertyId}-${buildingId}-${row}-${col}`
+    setTogglingRoom(key)
+    try {
+      const due = payRec?.amountDue ?? roomRent
+      const response = await axios.post('/api/rent-payment/set-amount', {
+        propertyId, buildingId, row, col,
+        month: trackerMonth, year: trackerYear,
+        amountDue: due,
+        amountPaid: due,
+        note: payRec?.note
+      }, { headers: { Authorization: `Bearer ${await getToken()}` } })
+      if (response.data.success) {
+        const p = response.data.payment
+        setRentPayments(prev => {
+          const existing = [...(prev[propertyId] || [])]
+          const idx = existing.findIndex(x => x.buildingId === buildingId && x.row === row && x.col === col)
+          if (idx >= 0) existing[idx] = p; else existing.push(p)
+          return { ...prev, [propertyId]: existing }
+        })
+        toast.success('Marked as fully paid ✓')
+      } else {
+        toast.error(response.data.message)
+      }
+    } catch {
+      toast.error('Failed to update payment')
+    } finally {
+      setTogglingRoom(null)
+    }
+  }
+
+  const setRentAmount = async () => {
+    const { propertyId, buildingId, row, col } = paymentModal
+    setSavingPayment(true)
+    try {
+      const response = await axios.post('/api/rent-payment/set-amount', {
+        propertyId, buildingId, row, col,
+        month: trackerMonth, year: trackerYear,
+        amountDue:  paymentForm.amountDue  !== '' ? Number(paymentForm.amountDue)  : undefined,
+        amountPaid: paymentForm.amountPaid !== '' ? Number(paymentForm.amountPaid) : undefined,
+        note: paymentForm.note
+      }, { headers: { Authorization: `Bearer ${await getToken()}` } })
+      if (response.data.success) {
+        const p = response.data.payment
+        setRentPayments(prev => {
+          const existing = [...(prev[propertyId] || [])]
+          const idx = existing.findIndex(x => x.buildingId === buildingId && x.row === row && x.col === col)
+          if (idx >= 0) existing[idx] = p
+          else existing.push(p)
+          return { ...prev, [propertyId]: existing }
+        })
+        toast.success('Payment recorded')
+        setPaymentModal(null)
+      } else {
+        toast.error(response.data.message)
+      }
+    } catch {
+      toast.error('Failed to save payment')
+    } finally {
+      setSavingPayment(false)
+    }
+  }
+
+  const sendRentReminder = async (propertyId, buildingId, row, col, roomNum) => {
+    const key = `${propertyId}-${buildingId}-${row}-${col}`
+    setRemindingRoom(key)
+    try {
+      const response = await axios.post('/api/rent-payment/remind', {
+        propertyId, buildingId, row, col, month: trackerMonth, year: trackerYear
+      }, { headers: { Authorization: `Bearer ${await getToken()}` } })
+      if (response.data.success) {
+        const via = response.data.via || ''
+        const label = via.includes('sms') ? 'SMS' : via.includes('email') ? 'email' : 'notification'
+        toast.success(`Reminder sent via ${label}`)
+      } else if (response.data.noTenant) {
+        const existing = response.data.contact || roomContacts[key] || {}
+        setRentInviteRoom({ propertyId, buildingId, row, col, roomNum })
+        setRentInviteForm({ name: existing.name || '', phone: existing.phone || '', email: existing.email || '' })
+      } else {
+        toast.error(response.data.message)
+      }
+    } catch {
+      toast.error('Failed to send reminder')
+    } finally {
+      setRemindingRoom(null)
+    }
+  }
+
+  const saveRentContact = async () => {
+    if (!rentInviteRoom) return
+    setSavingRentContact(true)
+    try {
+      const { propertyId, buildingId, row, col } = rentInviteRoom
+      const response = await axios.post('/api/utility/room-contact', {
+        propertyId, buildingId, row, col,
+        name:  rentInviteForm.name.trim(),
+        phone: rentInviteForm.phone.trim(),
+        email: rentInviteForm.email.trim()
+      }, { headers: { Authorization: `Bearer ${await getToken()}` } })
+      if (response.data.success) {
+        const key = `${propertyId}-${buildingId}-${row}-${col}`
+        setRoomContacts(prev => ({ ...prev, [key]: response.data.contact }))
+        toast.success('Contact saved! Next reminder will reach them automatically.')
+        setRentInviteRoom(null)
+      } else {
+        toast.error(response.data.message)
+      }
+    } catch {
+      toast.error('Failed to save contact')
+    } finally {
+      setSavingRentContact(false)
+    }
   }
 
   const changeMonth = (delta) => {
@@ -340,6 +467,7 @@ const ManagedProperties = () => {
               {properties.map((property) => {
                 const occupiedRooms = getOccupiedRooms(property)
                 const paidCount = occupiedRooms.filter(r => isPaid(property._id, r.buildingId, r.row, r.col)).length
+                const partialCount = occupiedRooms.filter(r => getPayStatus(property._id, r.buildingId, r.row, r.col) === 'partial').length
                 const total = occupiedRooms.length
 
                 return (
@@ -350,13 +478,19 @@ const ManagedProperties = () => {
                         <h4 className='text-lg font-bold text-gray-800 dark:text-gray-100'>{property.name}</h4>
                         <p className='text-sm text-gray-500 dark:text-gray-400'>{property.address}, {property.estate}</p>
                       </div>
-                      <div className='flex gap-3 text-sm'>
+                      <div className='flex gap-3 text-sm flex-wrap'>
                         <div className='px-3 py-1.5 bg-green-50 dark:bg-green-900/30 rounded-lg'>
                           <span className='text-green-700 dark:text-green-300 font-semibold'>{paidCount}</span>
                           <span className='text-green-600 dark:text-green-400 ml-1'>paid</span>
                         </div>
+                        {partialCount > 0 && (
+                          <div className='px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg'>
+                            <span className='text-yellow-700 dark:text-yellow-300 font-semibold'>{partialCount}</span>
+                            <span className='text-yellow-600 dark:text-yellow-400 ml-1'>partial</span>
+                          </div>
+                        )}
                         <div className='px-3 py-1.5 bg-red-50 dark:bg-red-900/30 rounded-lg'>
-                          <span className='text-red-700 dark:text-red-300 font-semibold'>{total - paidCount}</span>
+                          <span className='text-red-700 dark:text-red-300 font-semibold'>{total - paidCount - partialCount}</span>
                           <span className='text-red-600 dark:text-red-400 ml-1'>unpaid</span>
                         </div>
                         <div className='px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg'>
@@ -394,7 +528,9 @@ const ManagedProperties = () => {
                               </div>
                               <div className='divide-y dark:divide-gray-700'>
                                 {bRooms.map(r => {
-                                  const paid = isPaid(property._id, r.buildingId, r.row, r.col)
+                                  const status = getPayStatus(property._id, r.buildingId, r.row, r.col)
+                                  const paid = status === 'full'
+                                  const partial = status === 'partial'
                                   const key = `${property._id}-${r.buildingId}-${r.row}-${r.col}`
                                   const toggling = togglingRoom === key
                                   const payRec = (rentPayments[property._id] || []).find(x => x.buildingId === r.buildingId && x.row === r.row && x.col === r.col)
@@ -402,35 +538,62 @@ const ManagedProperties = () => {
                                   return (
                                     <div key={key} className='flex items-center justify-between px-6 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors'>
                                       <div className='flex items-center gap-3'>
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${paid ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                                          paid ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                                          : partial ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                                          : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
                                           R{r.roomNum}
                                         </div>
                                         <div>
                                           <p className='text-sm font-medium text-gray-700 dark:text-gray-300'>Room {r.roomNum}</p>
-                                          {payRec?.paidAt && paid && (
+                                          {payRec?.amountDue > 0 ? (
+                                            <p className='text-xs text-gray-400'>Ksh {(payRec.amountPaid || 0).toLocaleString()} / {payRec.amountDue.toLocaleString()}</p>
+                                          ) : payRec?.paidAt && paid ? (
                                             <p className='text-xs text-gray-400'>Paid {new Date(payRec.paidAt).toLocaleDateString()}</p>
-                                          )}
+                                          ) : null}
                                         </div>
                                       </div>
-                                      <button
-                                        onClick={() => togglePayment(property._id, r.buildingId, r.row, r.col)}
-                                        disabled={toggling}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all disabled:opacity-50 ${
-                                          paid
-                                            ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/60'
-                                            : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50'
-                                        }`}
-                                      >
-                                        {toggling ? (
-                                          <div className='w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin' />
-                                        ) : paid ? (
-                                          <CheckCircle2 className='w-3.5 h-3.5' />
-                                        ) : (
-                                          <XCircle className='w-3.5 h-3.5' />
+                                      <div className='flex items-center gap-1.5'>
+                                        <button
+                                          onClick={() => { setPaymentModal({ propertyId: property._id, buildingId: r.buildingId, row: r.row, col: r.col, roomNum: r.roomNum }); setPaymentForm({ amountDue: payRec?.amountDue ?? r.cell?.pricePerMonth ?? '', amountPaid: payRec?.amountPaid ?? '', note: payRec?.note ?? '' }) }}
+                                          className='px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                                          title='Record amount'
+                                        >Ksh</button>
+                                        {!paid && (
+                                          <button
+                                            onClick={() => sendRentReminder(property._id, r.buildingId, r.row, r.col, r.roomNum)}
+                                            disabled={remindingRoom === key}
+                                            className='px-2.5 py-1.5 rounded-lg text-xs font-medium border border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50 flex items-center gap-1'
+                                            title={roomContacts[key] ? 'Contact saved — click to remind' : 'Send rent reminder'}
+                                          >
+                                            <Bell className='w-3 h-3' />
+                                            {remindingRoom === key ? '…' : 'Remind'}
+                                            {roomContacts[key] && <span className='w-1.5 h-1.5 rounded-full bg-orange-400' />}
+                                          </button>
                                         )}
-                                        {toggling ? 'Saving...' : paid ? 'Paid' : 'Unpaid'}
-                                      </button>
-                                    </div>
+                                        <button
+                                          onClick={() => partial
+                                            ? markFullyPaid(property._id, r.buildingId, r.row, r.col, payRec, r.cell?.pricePerMonth)
+                                            : togglePayment(property._id, r.buildingId, r.row, r.col)}
+                                          disabled={toggling}
+                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all disabled:opacity-50 ${
+                                            paid ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/60'
+                                            : partial ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-200 dark:hover:bg-yellow-900/60'
+                                            : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50'
+                                          }`}
+                                        >
+                                          {toggling ? (
+                                            <div className='w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin' />
+                                          ) : paid ? (
+                                            <CheckCircle2 className='w-3.5 h-3.5' />
+                                          ) : partial ? (
+                                            <Clock className='w-3.5 h-3.5' />
+                                          ) : (
+                                            <XCircle className='w-3.5 h-3.5' />
+                                          )}
+                                          {toggling ? 'Saving...' : paid ? 'Paid' : partial ? 'Partial' : 'Unpaid'}
+                                        </button>
+                                      </div>                                    </div>
                                   )
                                 })}
                               </div>
@@ -446,6 +609,121 @@ const ManagedProperties = () => {
           </div>
         )}
       </div>
+
+      {/* ── Rent Payment Amount Modal ── */}
+      {paymentModal && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4' onClick={() => setPaymentModal(null)}>
+          <div className='bg-white dark:bg-gray-800 rounded-xl w-full max-w-xs p-5 shadow-2xl' onClick={e => e.stopPropagation()}>
+            <h3 className='font-bold text-gray-900 dark:text-white mb-1'>Room {paymentModal.roomNum} — Rent</h3>
+            <p className='text-xs text-gray-400 mb-4'>{MONTHS[trackerMonth - 1]} {trackerYear}</p>
+            <div className='space-y-3'>
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Rent Due (Ksh) <span className='text-gray-400 font-normal'>— from room rate</span></label>
+                <input type='number' min='0' placeholder='e.g. 5000'
+                  value={paymentForm.amountDue}
+                  onChange={e => setPaymentForm(d => ({ ...d, amountDue: e.target.value }))}
+                  className='w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700/60 dark:text-gray-100 outline-indigo-500' />
+              </div>
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Amount Paid (Ksh)</label>
+                <input type='number' min='0' placeholder='e.g. 3000'
+                  value={paymentForm.amountPaid}
+                  onChange={e => setPaymentForm(d => ({ ...d, amountPaid: e.target.value }))}
+                  className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
+              </div>
+              {paymentForm.amountDue !== '' && paymentForm.amountPaid !== '' && Number(paymentForm.amountDue) > 0 && (
+                <p className={`text-xs font-medium ${
+                  Number(paymentForm.amountPaid) >= Number(paymentForm.amountDue) ? 'text-green-600 dark:text-green-400'
+                  : Number(paymentForm.amountPaid) > 0 ? 'text-yellow-600 dark:text-yellow-400'
+                  : 'text-red-600 dark:text-red-400'}`}>
+                  {Number(paymentForm.amountPaid) >= Number(paymentForm.amountDue)
+                    ? '✓ Fully paid'
+                    : Number(paymentForm.amountPaid) > 0
+                    ? `Ksh ${(Number(paymentForm.amountDue) - Number(paymentForm.amountPaid)).toLocaleString()} still outstanding`
+                    : 'Not paid'}
+                </p>
+              )}
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Note (optional)</label>
+                <input type='text' placeholder='e.g. Paid in two parts'
+                  value={paymentForm.note}
+                  onChange={e => setPaymentForm(d => ({ ...d, note: e.target.value }))}
+                  className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
+              </div>
+            </div>
+            <div className='flex gap-2 mt-4'>
+              <button onClick={() => setPaymentModal(null)} className='flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'>
+                Cancel
+              </button>
+              <button onClick={setRentAmount} disabled={savingPayment} className='flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm rounded-lg font-medium transition-colors'>
+                {savingPayment ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Rent Reminder — Invite Tenant Modal ── */}
+      {rentInviteRoom && (() => {
+        const rentProp = properties.find(p => p._id === rentInviteRoom.propertyId)
+        const propName = rentProp?.name || 'your property'
+        const waMsg = `Hi ${rentInviteForm.name || 'there'}, I manage rent at ${propName} using PataKeja. Join for free at patakejaa.co.ke so you can track your payments and receive reminders automatically. Takes less than a minute!`
+        const waPhone = rentInviteForm.phone ? rentInviteForm.phone.replace(/\s+/g, '').replace(/^\+/, '').replace(/^0/, '254') : ''
+        const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}` : `https://wa.me/?text=${encodeURIComponent(waMsg)}`
+        return (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4' onClick={() => setRentInviteRoom(null)}>
+          <div className='bg-white dark:bg-gray-800 rounded-xl w-full max-w-sm shadow-2xl overflow-hidden' onClick={e => e.stopPropagation()}>
+            <div className='bg-orange-50 dark:bg-orange-900/20 px-5 py-4 border-b border-orange-100 dark:border-orange-800'>
+              <p className='font-bold text-gray-900 dark:text-white'>Room {rentInviteRoom.roomNum} — No tenant linked</p>
+              <p className='text-xs text-orange-600 dark:text-orange-400 mt-0.5'>Send a WhatsApp reminder now, or save their contact for automatic reminders next time.</p>
+            </div>
+            <div className='px-5 py-4 space-y-3'>
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Tenant name (optional)</label>
+                <input type='text' placeholder='e.g. John Kamau'
+                  value={rentInviteForm.name}
+                  onChange={e => setRentInviteForm(d => ({ ...d, name: e.target.value }))}
+                  className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
+              </div>
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Phone number <span className='text-gray-400'>(enter to send directly to them on WhatsApp)</span></label>
+                <input type='tel' placeholder='0712 345 678'
+                  value={rentInviteForm.phone}
+                  onChange={e => setRentInviteForm(d => ({ ...d, phone: e.target.value }))}
+                  className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
+              </div>
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Email <span className='text-gray-400 font-normal'>(optional — for automatic email reminders)</span></label>
+                <input type='email' placeholder='e.g. john@gmail.com'
+                  value={rentInviteForm.email}
+                  onChange={e => setRentInviteForm(d => ({ ...d, email: e.target.value }))}
+                  className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
+              </div>
+              <div className='bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-xs text-gray-500 dark:text-gray-400 italic'>
+                "{waMsg}"
+              </div>
+            </div>
+            <div className='px-5 pb-5 space-y-2'>
+              <a href={waUrl} target='_blank' rel='noopener noreferrer'
+                className='flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg font-medium transition-colors'>
+                <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 24 24'><path d='M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z'/><path d='M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.122 1.523 5.854L0 24l6.29-1.498A11.96 11.96 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.6a9.548 9.548 0 01-4.87-1.336l-.35-.207-3.628.864.924-3.545-.228-.364A9.558 9.558 0 012.4 12c0-5.295 4.305-9.6 9.6-9.6s9.6 4.305 9.6 9.6-4.305 9.6-9.6 9.6z'/></svg>
+                {waPhone ? 'Send via WhatsApp' : 'Open WhatsApp (pick contact)'}
+              </a>
+              <div className='flex gap-2'>
+                <button onClick={() => setRentInviteRoom(null)}
+                  className='flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'>
+                  Skip
+                </button>
+                <button onClick={saveRentContact} disabled={savingRentContact || (!rentInviteForm.phone && !rentInviteForm.email)}
+                  className='flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors'
+                  title='Save to auto-send next time'>
+                  {savingRentContact ? 'Saving…' : 'Save contact'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        )
+      })()}
     </>
   )
 }

@@ -1,6 +1,8 @@
 import UtilityEntry from '../models/utilityEntry.js';
 import Property from '../models/property.js';
 import Booking from '../models/booking.js';
+import RoomContact from '../models/roomContact.js';
+import User from '../models/user.js';
 import { sendPushNotification } from '../utils/pushNotifier.js';
 
 // Helper: check if caller is owner or caretaker of the property
@@ -148,28 +150,82 @@ export const sendUtilityReminder = async (req, res) => {
       hasMoved: true
     });
 
-    if (!booking) {
-      return res.json({ success: false, message: 'No active tenant found in this room' });
-    }
-
     const property = await Property.findById(propertyId).lean();
     const m = month || new Date().getMonth() + 1;
     const y = year  || new Date().getFullYear();
     const monthName = new Date(y, m - 1, 1).toLocaleString('en-KE', { month: 'long', year: 'numeric' });
-
     const entry = await UtilityEntry.findOne({ property: propertyId, buildingId, row, col, type, month: m, year: y }).lean();
     const outstanding = entry ? Math.max(0, (entry.amountDue || 0) - (entry.amountPaid || 0)) : null;
-
     const baseNote = property?.utilitySettings?.reminderNote ? `\n${property.utilitySettings.reminderNote}` : '';
     const amountText = outstanding != null ? ` Ksh ${outstanding.toLocaleString()} outstanding.` : '';
 
-    sendPushNotification(booking.user, {
+    const pushPayload = {
       title: `Utility Reminder — ${type.charAt(0).toUpperCase() + type.slice(1)}`,
       body: `${monthName}${amountText} Please settle your ${type} bill for ${property?.name || 'your property'}.${baseNote}`,
       url: '/my-bookings'
-    });
+    };
 
-    res.json({ success: true, message: `Reminder sent to tenant in room (${row + 1}, ${col + 1})` });
+    if (booking) {
+      // Platform tenant — send directly
+      sendPushNotification(booking.user, pushPayload);
+      return res.json({ success: true, message: `Reminder sent to tenant in room (${row + 1}, ${col + 1})` });
+    }
+
+    // No booking — check for manually stored contact
+    const contact = await RoomContact.findOne({ property: propertyId, buildingId, row, col }).lean();
+    if (!contact) {
+      return res.json({ success: false, noTenant: true, hasContact: false,
+        message: 'No tenant found. Save their contact to invite them.' });
+    }
+
+    if (contact.email) {
+      const user = await User.findOne({ email: contact.email }).lean();
+      if (user) {
+        sendPushNotification(user._id, pushPayload);
+        return res.json({ success: true, message: `Reminder sent to ${contact.name || contact.email}` });
+      }
+    }
+
+    // Contact saved but tenant not on platform yet
+    return res.json({
+      success: false, noTenant: true, hasContact: true, notSignedUp: true,
+      contact: { name: contact.name, phone: contact.phone, email: contact.email },
+      message: 'Tenant has not signed up yet — share the invite link with them'
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/utility/room-contact
+export const saveRoomContact = async (req, res) => {
+  try {
+    const { propertyId, buildingId, row, col, name, phone, email } = req.body;
+    if (!propertyId || buildingId == null || row == null || col == null) {
+      return res.json({ success: false, message: 'Missing required fields' });
+    }
+    const allowed = await canManage(propertyId, req.user?.email, req.user?._id);
+    if (!allowed) return res.json({ success: false, message: 'Access denied' });
+
+    const contact = await RoomContact.findOneAndUpdate(
+      { property: propertyId, buildingId, row, col },
+      { name: name || '', phone: phone || '', email: email || '' },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({ success: true, contact });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/utility/room-contacts/:propertyId
+export const getRoomContacts = async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+    const allowed = await canManage(propertyId, req.user?.email, req.user?._id);
+    if (!allowed) return res.json({ success: false, message: 'Access denied' });
+    const contacts = await RoomContact.find({ property: propertyId }).lean();
+    res.json({ success: true, contacts });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }

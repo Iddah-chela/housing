@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react'
+﻿import React, { useEffect, useState, useCallback } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import toast from 'react-hot-toast'
 import { Zap, Droplets, Bell, CheckCircle, AlertCircle, Clock, Settings, ChevronDown, ChevronRight } from 'lucide-react'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -11,7 +12,7 @@ const statusColor = {
 }
 
 const UtilityManager = ({ initialProperties } = {}) => {
-  const { axios, getToken, toast } = useAppContext()
+  const { axios, getToken } = useAppContext()
 
   // --- property selection ---
   const [properties, setProperties] = useState(initialProperties || [])
@@ -41,11 +42,16 @@ const UtilityManager = ({ initialProperties } = {}) => {
 
   // --- record form ---
   const [recordForm, setRecordForm] = useState(null) // { buildingId, row, col, roomLabel }
-  const [recordData, setRecordData] = useState({ previousReading: '', currentReading: '', amountDue: '', amountPaid: '', note: '' })
+  const [recordData, setRecordData] = useState({ previousReading: '', currentReading: '', amountDue: '', amountPaid: '', note: '', applyToAll: false })
   const [saving, setSaving] = useState(false)
 
   // --- reminders ---
   const [sendingReminder, setSendingReminder] = useState(null) // key string
+  // --- room contacts (manual tenants) ---
+  const [roomContacts, setRoomContacts] = useState({}) // { 'buildingId-row-col': contact }
+  const [inviteRoom, setInviteRoom]     = useState(null) // { buildingId, row, col, roomLabel, notSignedUp, existingContact }
+  const [inviteForm, setInviteForm]     = useState({ name: '', phone: '', email: '' })
+  const [savingContact, setSavingContact] = useState(false)
 
   // ── load properties ──────────────────────────────────────────────────
   useEffect(() => {
@@ -77,6 +83,24 @@ const UtilityManager = ({ initialProperties } = {}) => {
       reminderNote:            s.reminderNote || ''
     })
   }, [selectedProperty])
+
+  // ── load contacts when property changes ─────────────────────────────
+  const fetchContacts = useCallback(async () => {
+    if (!selectedProperty) return
+    try {
+      const token = await getToken()
+      const { data } = await axios.get(`/api/utility/room-contacts/${selectedProperty._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (data.success) {
+        const map = {}
+        data.contacts.forEach(c => { map[`${c.buildingId}-${c.row}-${c.col}`] = c })
+        setRoomContacts(map)
+      }
+    } catch { /* non-critical */ }
+  }, [selectedProperty])
+
+  useEffect(() => { fetchContacts() }, [fetchContacts])
 
   // ── load entries ─────────────────────────────────────────────────────
   const fetchEntries = useCallback(async () => {
@@ -127,7 +151,8 @@ const UtilityManager = ({ initialProperties } = {}) => {
       currentReading:  existing?.currentReading ?? '',
       amountDue:       existing?.amountDue ?? '',
       amountPaid:      existing?.amountPaid ?? '',
-      note:            existing?.note ?? ''
+      note:            existing?.note ?? '',
+      applyToAll:      false
     })
     setRecordForm({ buildingId, buildingName, row, col, roomLabel: `${buildingName} • Room ${roomNumber}` })
   }
@@ -137,26 +162,42 @@ const UtilityManager = ({ initialProperties } = {}) => {
     setSaving(true)
     try {
       const token = await getToken()
-      const { data } = await axios.post('/api/utility/record', {
+      const headers = { Authorization: `Bearer ${token}` }
+      const basePayload = {
         propertyId: selectedProperty._id,
-        buildingId: recordForm.buildingId,
-        row: recordForm.row,
-        col: recordForm.col,
         type: typeFilter,
         month, year,
-        previousReading: recordData.previousReading !== '' ? Number(recordData.previousReading) : undefined,
-        currentReading:  recordData.currentReading  !== '' ? Number(recordData.currentReading)  : undefined,
-        amountDue:       recordData.amountDue  !== '' ? Number(recordData.amountDue)  : undefined,
-        amountPaid:      recordData.amountPaid !== '' ? Number(recordData.amountPaid) : undefined,
-        note:            recordData.note
-      }, { headers: { Authorization: `Bearer ${token}` } })
-      if (data.success) {
-        toast.success('Record saved')
-        setRecordForm(null)
-        fetchEntries()
-      } else {
-        toast.error(data.message)
+        amountDue:  recordData.amountDue  !== '' ? Number(recordData.amountDue)  : undefined,
+        amountPaid: recordData.amountPaid !== '' ? Number(recordData.amountPaid) : undefined,
+        note:       recordData.note
       }
+      if (recordData.applyToAll) {
+        const allRooms = []
+        for (const b of selectedProperty.buildings || []) {
+          for (let ri = 0; ri < (b.grid || []).length; ri++) {
+            for (let ci = 0; ci < b.grid[ri].length; ci++) {
+              if (b.grid[ri][ci].type === 'room') allRooms.push({ buildingId: b.id, row: ri, col: ci })
+            }
+          }
+        }
+        await Promise.all(allRooms.map(r =>
+          axios.post('/api/utility/record', { ...basePayload, ...r }, { headers })
+        ))
+        toast.success(`Applied to all ${allRooms.length} rooms`)
+      } else {
+        const { data } = await axios.post('/api/utility/record', {
+          ...basePayload,
+          buildingId: recordForm.buildingId,
+          row: recordForm.row,
+          col: recordForm.col,
+          previousReading: recordData.previousReading !== '' ? Number(recordData.previousReading) : undefined,
+          currentReading:  recordData.currentReading  !== '' ? Number(recordData.currentReading)  : undefined,
+        }, { headers })
+        if (!data.success) { toast.error(data.message); return }
+        toast.success('Record saved')
+      }
+      setRecordForm(null)
+      fetchEntries()
     } catch { toast.error('Failed to save record') }
     finally { setSaving(false) }
   }
@@ -184,10 +225,45 @@ const UtilityManager = ({ initialProperties } = {}) => {
         propertyId: selectedProperty._id, buildingId, row, col,
         type: typeFilter, month, year
       }, { headers: { Authorization: `Bearer ${token}` } })
-      if (data.success) toast.success(`Reminder sent to ${roomLabel}`)
-      else toast.error(data.message)
+      if (data.success) {
+        toast.success(`Reminder sent to ${roomLabel}`)
+      } else if (data.noTenant) {
+        // No tenant linked — open invite panel
+        setInviteRoom({ buildingId, row, col, roomLabel, notSignedUp: data.notSignedUp })
+        const existing = data.contact || roomContacts[key] || {}
+        setInviteForm({ name: existing.name || '', phone: existing.phone || '', email: existing.email || '' })
+      } else {
+        toast.error(data.message)
+      }
     } catch { toast.error('Failed to send reminder') }
     finally { setSendingReminder(null) }
+  }
+
+  // ── save room contact ────────────────────────────────────────────────
+  const saveContact = async () => {
+    if (!inviteRoom) return
+    setSavingContact(true)
+    try {
+      const token = await getToken()
+      const { data } = await axios.post('/api/utility/room-contact', {
+        propertyId: selectedProperty._id,
+        buildingId: inviteRoom.buildingId,
+        row: inviteRoom.row,
+        col: inviteRoom.col,
+        name:  inviteForm.name.trim(),
+        phone: inviteForm.phone.trim(),
+        email: inviteForm.email.trim()
+      }, { headers: { Authorization: `Bearer ${token}` } })
+      if (data.success) {
+        const key = `${inviteRoom.buildingId}-${inviteRoom.row}-${inviteRoom.col}`
+        setRoomContacts(prev => ({ ...prev, [key]: data.contact }))
+        toast.success('Tenant contact saved — share the app link with them!')
+        setInviteRoom(null)
+      } else {
+        toast.error(data.message)
+      }
+    } catch { toast.error('Failed to save contact') }
+    finally { setSavingContact(false) }
   }
 
   // ── helpers ───────────────────────────────────────────────────────────
@@ -454,16 +530,21 @@ const UtilityManager = ({ initialProperties } = {}) => {
                               </button>
                             )}
 
-                            {isTenantPays && entry && status !== 'paid' && (
-                              <button
-                                onClick={() => sendReminder(building.id, rowIdx, colIdx, `Room ${roomNum}`)}
-                                disabled={sendingReminder === key}
-                                className='px-2.5 py-1.5 text-xs border border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-1'
-                              >
-                                <Bell className='w-3 h-3' />
-                                {sendingReminder === key ? 'Sending…' : 'Remind'}
-                              </button>
-                            )}
+                            {isTenantPays && entry && status !== 'paid' && (() => {
+                              const hasContact = !!roomContacts[key]
+                              return (
+                                <button
+                                  onClick={() => sendReminder(building.id, rowIdx, colIdx, `Room ${roomNum}`)}
+                                  disabled={sendingReminder === key}
+                                  className='px-2.5 py-1.5 text-xs border border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-1'
+                                  title={hasContact ? 'Contact saved — click to remind' : 'Click to remind or save tenant contact'}
+                                >
+                                  <Bell className='w-3 h-3' />
+                                  {sendingReminder === key ? 'Sending…' : 'Remind'}
+                                  {hasContact && <span className='w-1.5 h-1.5 rounded-full bg-orange-400 ml-0.5' title='Contact saved' />}
+                                </button>
+                              )
+                            })()}
                           </div>
                         </div>
                       )
@@ -486,6 +567,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
             <p className='text-xs text-gray-400 mb-4'>{MONTHS[month - 1]} {year}</p>
 
             <div className='space-y-3'>
+              {!recordData.applyToAll && (
               <div className='grid grid-cols-2 gap-2'>
                 <div>
                   <label className='text-xs text-gray-500 block mb-1'>Previous Reading</label>
@@ -511,8 +593,9 @@ const UtilityManager = ({ initialProperties } = {}) => {
                     className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
                 </div>
               </div>
+              )}
 
-              {recordData.previousReading !== '' && recordData.currentReading !== '' && (
+              {!recordData.applyToAll && recordData.previousReading !== '' && recordData.currentReading !== '' && (
                 <p className='text-xs text-indigo-600 dark:text-indigo-400'>
                   Units used: {Math.max(0, parseFloat(recordData.currentReading || 0) - parseFloat(recordData.previousReading || 0))}
                   {ratePerUnit ? ` × Ksh ${ratePerUnit} = Ksh ${Math.max(0, parseFloat(recordData.currentReading || 0) - parseFloat(recordData.previousReading || 0)) * parseFloat(ratePerUnit)}` : ''}
@@ -543,6 +626,14 @@ const UtilityManager = ({ initialProperties } = {}) => {
                   onChange={e => setRecordData(d => ({ ...d, note: e.target.value }))}
                   className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
               </div>
+
+              <label className='flex items-center gap-2 cursor-pointer pt-1'>
+                <input type='checkbox'
+                  checked={recordData.applyToAll}
+                  onChange={e => setRecordData(d => ({ ...d, applyToAll: e.target.checked }))}
+                  className='rounded accent-indigo-600' />
+                <span className='text-xs text-gray-500 dark:text-gray-400'>Apply same amount to <strong>all rooms</strong> this month</span>
+              </label>
             </div>
 
             <div className='flex gap-2 mt-4'>
@@ -550,12 +641,80 @@ const UtilityManager = ({ initialProperties } = {}) => {
                 Cancel
               </button>
               <button onClick={saveRecord} disabled={saving} className='flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm rounded-lg font-medium transition-colors'>
-                {saving ? 'Saving…' : 'Save Record'}
+                {saving ? 'Saving…' : recordData.applyToAll ? 'Apply to All Rooms' : 'Save Record'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/*  Invite Tenant Modal  */}
+      {inviteRoom && (() => {
+        const waMsg = `Hi ${inviteForm.name || 'there'}, your ${typeFilter} bill at ${selectedProperty?.name || 'your property'} needs to be settled. You can also track bills on PataKeja at patakejaa.co.ke - free to use!`
+        const waPhone = inviteForm.phone ? inviteForm.phone.replace(/\s+/g, '').replace(/^\+/, '').replace(/^0/, '254') : ''
+        const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}` : `https://wa.me/?text=${encodeURIComponent(waMsg)}`
+        return (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4' onClick={() => setInviteRoom(null)}>
+          <div className='bg-white dark:bg-gray-800 rounded-xl w-full max-w-sm shadow-2xl overflow-hidden' onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className='bg-orange-50 dark:bg-orange-900/20 px-5 py-4 border-b border-orange-100 dark:border-orange-800'>
+              <p className='font-bold text-gray-900 dark:text-white'>{inviteRoom.roomLabel}  No tenant linked</p>
+              {inviteRoom.notSignedUp
+                ? <p className='text-xs text-orange-700 dark:text-orange-300 mt-0.5'>Contact saved but tenant hasn't signed up yet.</p>
+                : <p className='text-xs text-orange-600 dark:text-orange-400 mt-0.5'>Send a WhatsApp message now, or save their contact for automatic reminders.</p>
+              }
+            </div>
+
+            {/* Form */}
+            <div className='px-5 py-4 space-y-3'>
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Tenant name (optional)</label>
+                <input type='text' placeholder='e.g. John Kamau'
+                  value={inviteForm.name}
+                  onChange={e => setInviteForm(d => ({ ...d, name: e.target.value }))}
+                  className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
+              </div>
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Phone <span className='text-gray-400'>(enter to send directly to them)</span></label>
+                <input type='tel' placeholder='e.g. 0712 345 678'
+                  value={inviteForm.phone}
+                  onChange={e => setInviteForm(d => ({ ...d, phone: e.target.value }))}
+                  className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
+              </div>
+              <div>
+                <label className='text-xs text-gray-500 block mb-1'>Email <span className='text-gray-400'>(optional  for automatic reminders)</span></label>
+                <input type='email' placeholder='e.g. john@gmail.com'
+                  value={inviteForm.email}
+                  onChange={e => setInviteForm(d => ({ ...d, email: e.target.value }))}
+                  className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
+              </div>
+              <div className='bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-xs text-gray-500 dark:text-gray-400 italic'>
+                "{waMsg}"
+              </div>
+            </div>
+
+            <div className='px-5 pb-5 space-y-2'>
+              <a href={waUrl} target='_blank' rel='noopener noreferrer'
+                className='flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg font-medium transition-colors'>
+                <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 24 24'><path d='M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z'/><path d='M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.122 1.523 5.854L0 24l6.29-1.498A11.96 11.96 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.6a9.548 9.548 0 01-4.87-1.336l-.35-.207-3.628.864.924-3.545-.228-.364A9.558 9.558 0 012.4 12c0-5.295 4.305-9.6 9.6-9.6s9.6 4.305 9.6 9.6-4.305 9.6-9.6 9.6z'/></svg>
+                {waPhone ? 'Send via WhatsApp' : 'Open WhatsApp (pick contact)'}
+              </a>
+              <div className='flex gap-2'>
+                <button onClick={() => setInviteRoom(null)}
+                  className='flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'>
+                  Skip
+                </button>
+                <button onClick={saveContact} disabled={savingContact || (!inviteForm.phone && !inviteForm.email)}
+                  className='flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors'
+                  title='Save email to auto-send future reminders'>
+                  {savingContact ? 'Saving' : 'Save contact'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        )
+      })()}
 
     </div>
   )

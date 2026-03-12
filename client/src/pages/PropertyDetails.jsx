@@ -177,7 +177,7 @@ const PropertyDetails = () => {
         return (
           <div className='relative w-full flex flex-col items-center justify-center h-full'>
             {roomNum > 0 && <span style={{ fontSize: numSize + 'px', lineHeight: '1' }} className='text-gray-700 font-extrabold absolute top-0.5 left-1'>R{roomNum}</span>}
-            <div className='absolute bottom-0 left-1/2 -translate-x-1/2' style={{ width: '30%', height: '22%', background: '#7c2d12', borderRadius: '3px 3px 0 0', minHeight: '6px', minWidth: '8px' }}></div>
+            <div className='hidden sm:block absolute bottom-0 left-1/2 -translate-x-1/2' style={{ width: '30%', height: '22%', background: '#7c2d12', borderRadius: '3px 3px 0 0', minHeight: '6px', minWidth: '8px' }}></div>
           </div>
         )
       }
@@ -265,10 +265,21 @@ const PropertyDetails = () => {
   const currentBuilding = property.buildings[selectedBuilding]
   const vacantCount = property.vacantRooms || 0
 
-  // Dynamic cell size for compound thumbnail view — capped small so all buildings fit
+  // Dynamic cell size for compound thumbnail view
   const numBuildings = property.buildings.length
   const totalCols = property.buildings.reduce((sum, b) => sum + (b.cols || 5), 0)
-  const bCellPx = Math.max(32, Math.min(42, Math.floor(520 / (totalCols + numBuildings))))
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const bCellPx = (() => {
+    if (isMobile) {
+      // Shrink to fit on small screens — scrolls only when truly extreme
+      const availableWidth = Math.max(200, window.innerWidth - 80)
+      const fixedOverhead = numBuildings * 16 + Math.max(0, numBuildings - 1) * 18 + 24
+      const maxCell = totalCols > 0 ? Math.floor((availableWidth - fixedOverhead) / totalCols) : 42
+      return Math.max(16, Math.min(42, maxCell))
+    }
+    // Original formula for large screens
+    return Math.max(32, Math.min(42, Math.floor(520 / (totalCols + numBuildings))))
+  })()
 
   // Days since last refresh
   const daysSinceRefresh = property.lastVerifiedAt
@@ -415,8 +426,8 @@ const PropertyDetails = () => {
               </div>
             )
           })() : (
-          <div className='overflow-x-auto py-4'>
-            <div className='inline-block'>
+          <div className='py-4 overflow-x-auto'>
+            <div className='w-fit mx-auto'>
               {(() => {
                 const gs = property.compoundGate?.side || 'bottom'
                 const posClass = {
