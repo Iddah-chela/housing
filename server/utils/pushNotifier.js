@@ -1,4 +1,4 @@
-﻿import webPush from "web-push";
+import webPush from "web-push";
 import PushSubscription from "../models/pushSubscription.js";
 import Notification from "../models/notification.js";
 
@@ -30,13 +30,12 @@ export const sendPushNotification = async (userId, payload) => {
     }
 
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-        return; // Push not configured — in-app already saved above
+        return; // Push not configured � in-app already saved above
     }
 
     try {
         const subscriptions = await PushSubscription.find({ user: userId });
         if (!subscriptions.length) {
-            console.log(`[Push] No push subscriptions for user ${userId} (in-app saved)`);
             return;
         }
 
@@ -58,7 +57,6 @@ export const sendPushNotification = async (userId, payload) => {
                 ).catch(async (err) => {
                     if (err.statusCode === 410 || err.statusCode === 404) {
                         await PushSubscription.deleteOne({ _id: sub._id });
-                        console.log(`[Push] Removed expired subscription for user ${userId}`);
                     } else {
                         console.warn(`[Push] Failed to send to user ${userId}:`, err.statusCode || err.message);
                     }
@@ -68,7 +66,6 @@ export const sendPushNotification = async (userId, payload) => {
 
         const sent = results.filter(r => r.status === 'fulfilled').length;
         if (sent > 0) {
-            console.log(`[Push] Sent to user ${userId} (${sent}/${subscriptions.length} devices)`);
         }
     } catch (err) {
         console.warn('[Push] Error sending notification:', err.message);

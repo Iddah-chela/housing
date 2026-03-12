@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { toast } from 'react-hot-toast';
 import { assets } from '../assets/assets';
@@ -162,7 +162,7 @@ const FeedbackModal = ({ onClose }) => {
               maxLength={1000}
               rows={4}
               className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none bg-white dark:bg-gray-700 dark:text-gray-100'
-              placeholder='Tell us what you think — what do you love? What should we improve?'
+              placeholder='Tell us what you think � what do you love? What should we improve?'
             />
             <p className='text-xs text-gray-400 text-right mt-1'>{message.length}/1000</p>
           </div>

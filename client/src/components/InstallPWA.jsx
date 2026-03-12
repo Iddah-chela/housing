@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Download } from 'lucide-react';
 
 const InstallPWA = ({ isScrolled }) => {

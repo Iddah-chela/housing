@@ -18,7 +18,6 @@ export const getUserData = async (req, res) => {
             isCaretaker = !!managed;
         }
 
-        console.log('User role:', role, 'User ID:', req.user._id, 'isCaretaker:', isCaretaker);
         res.json({success: true, role, recentSearchedPlaces, image, isCaretaker})
     } catch (error) {
         res.json({success: false, message: error.message})

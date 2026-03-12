@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Shield, AlertTriangle } from 'lucide-react'
 
@@ -14,7 +14,7 @@ const Safety = () => {
 
       <div className='space-y-8'>
 
-        {/* For Tenants + For Landlords — side by side on lg screens */}
+        {/* For Tenants + For Landlords � side by side on lg screens */}
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
           {/* For Tenants */}
           <section className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4'>
@@ -101,7 +101,7 @@ const Safety = () => {
             </div>
             <div>
               <p className='text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-0.5'>PataKeja Support</p>
-              <a href='mailto:safety@PataKeja.co.ke' className='text-indigo-600 hover:underline font-medium'>safety@PataKeja.co.ke</a>
+              <a href='mailto:support@patakejaa.co.ke' className='text-indigo-600 hover:underline font-medium'>support@patakejaa.co.ke</a>
             </div>
           </div>
         </section>

@@ -267,7 +267,6 @@ export const approveApplication = async (req, res) => {
         clerkClient.users.updateUser(application.userId, {
             publicMetadata: { role: 'houseOwner' }
         })
-            .then(() => console.log('✅ Updated Clerk role to houseOwner for:', application.userId))
             .catch((err) => console.error('❌ Error updating Clerk metadata:', err.message));
         
     } catch (error) {

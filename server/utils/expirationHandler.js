@@ -43,7 +43,6 @@ export const expireViewingRequests = async () => {
             }
         }
 
-        console.log(`Expired ${expiredRequests.length} viewing requests`);
         return { expired: expiredRequests.length };
     } catch (error) {
         console.error('Error expiring viewing requests:', error);

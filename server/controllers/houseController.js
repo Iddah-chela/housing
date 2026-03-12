@@ -5,7 +5,6 @@ import User from "../models/user.js";
 export const registerHouse = async (req, res)=>{
     try {
         const {name, address, contact, place, estate} = req.body;
-        console.log('Received house data:', {name, address, contact, place, estate});
         const owner = req.user._id
 
         // check if house already exists for this owner

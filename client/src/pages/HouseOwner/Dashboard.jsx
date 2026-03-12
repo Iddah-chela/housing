@@ -87,7 +87,6 @@ const Dashboard = () => {
                 properties
             })
         } catch (error) {
-            console.error('Dashboard fetch error:', error)
         } finally {
             setLoading(false)
         }

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
 import { assets } from '../assets/assets'
 
 const Footer = () => {
@@ -40,6 +40,7 @@ const Footer = () => {
                         <li><a href='/rooms' className='hover:text-gray-700 dark:hover:text-gray-200 transition-colors'>Browse Houses</a></li>
                         <li><a href='/about' className='hover:text-gray-700 dark:hover:text-gray-200 transition-colors'>About Us</a></li>
                         <li><a href='/#how-it-works' className='hover:text-gray-700 dark:hover:text-gray-200 transition-colors'>How It Works</a></li>
+                        <li><a href='mailto:support@patakejaa.co.ke' className='hover:text-gray-700 dark:hover:text-gray-200 transition-colors'>Contact Us</a></li>
                     </ul>
                 </div>
 
@@ -57,7 +58,7 @@ const Footer = () => {
                     <p className='font-playfair text-base text-gray-800 dark:text-gray-200 mb-3'>STAY UPDATED</p>
                     <p className='text-sm mb-3'>New listings and housing tips to your inbox.</p>
                     {status === 'done' ? (
-                      <p className='text-sm text-green-600 font-medium'>✓ You're subscribed!</p>
+                      <p className='text-sm text-green-600 font-medium'>? You're subscribed!</p>
                     ) : (
                       <form onSubmit={handleSubscribe} className='flex items-center'>
                         <input
@@ -82,7 +83,7 @@ const Footer = () => {
             </div>
             <hr className='border-gray-300 dark:border-gray-600 mt-8' />
             <div className='flex flex-col md:flex-row gap-2 items-center justify-between py-5'>
-                <p className='text-sm'>© {new Date().getFullYear()} PataKeja. All rights reserved.</p>
+                <p className='text-sm'>� {new Date().getFullYear()} PataKeja. All rights reserved.</p>
                 <ul className='flex items-center gap-4 text-sm'>
                     <li><a href='/privacy' className='hover:text-gray-700'>Privacy</a></li>
                     <li><a href='/terms' className='hover:text-gray-700'>Terms</a></li>

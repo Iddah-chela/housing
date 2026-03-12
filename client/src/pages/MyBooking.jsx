@@ -67,7 +67,6 @@ const MyBooking = () => {
                 toast.error(data.message)
             }
         } catch (error) {
-            console.error('Error fetching bookings:', error)
             toast.error('Failed to fetch bookings')
         } finally {
             setLoading(false)

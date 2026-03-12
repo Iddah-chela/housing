@@ -1,4 +1,4 @@
-ï»¿import IntaSend from 'intasend-node';
+import IntaSend from 'intasend-node';
 import UserPass from "../models/userPass.js";
 import User from "../models/user.js";
 import Property from "../models/property.js";
@@ -20,7 +20,7 @@ const activePassForUser = (userId, propertyId) => {
             ]
         });
     }
-    // No propertyId â€” only global passes count
+    // No propertyId — only global passes count
     return UserPass.findOne({ ...base, $or: [{ property: null }, { property: { $exists: false } }] });
 };
 
@@ -30,7 +30,7 @@ const priorCompletedCount = (userId) =>
 // FREE_UNLOCKS: how many free property views a new user gets before paying
 const FREE_UNLOCKS = 2;
 
-// Check if this will be user's first (free) pass â€” also considers referral unlocks
+// Check if this will be user's first (free) pass — also considers referral unlocks
 export const checkFirstUnlock = async (req, res) => {
     try {
         const count = await priorCompletedCount(req.user._id);
@@ -76,7 +76,7 @@ export const initiateUnlock = async (req, res) => {
         const availableReferralUnlocks = (dbUser?.referralUnlocks || 0) - (dbUser?.referralUnlocksUsed || 0);
         
         if (priorCount < FREE_UNLOCKS) {
-            // Signup freebie â€” per-property only (not global)
+            // Signup freebie — per-property only (not global)
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
             const freePass = await UserPass.create({
                 user: userId, passType: '1day', amount: 0, isFree: true,
@@ -96,7 +96,7 @@ export const initiateUnlock = async (req, res) => {
         }
         
         if (availableReferralUnlocks > 0) {
-            // Referral freebie â€” per-property only
+            // Referral freebie — per-property only
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
             const freePass = await UserPass.create({
                 user: userId, passType: '1day', amount: 0, isFree: true,
@@ -146,7 +146,6 @@ export const initiateUnlock = async (req, res) => {
             pass.transactionRef = transactionRef;
             pass.paymentStatus = 'completed';
             await pass.save();
-            console.log('?? TEST MODE: pass auto-activated', pass._id);
             return res.json({
                 success: true, isFree: false, passType, amount,
                 testMode: true,
@@ -186,7 +185,6 @@ export const initiateUnlock = async (req, res) => {
             // SDK throws on failure; reaching here means STK was queued
             const invoiceId = stkRes?.invoice?.invoice_id || stkRes?.invoice_id;
             pass.invoiceId = invoiceId;
-            console.log('IntaSend STK queued, invoice_id:', invoiceId);
         } catch (stkErr) {
             const errDetail = stkErr?.response?.data || stkErr?.message || stkErr;
             console.error('IntaSend STK error:', JSON.stringify(errDetail, null, 2));
@@ -300,7 +298,6 @@ export const paymentWebhook = async (req, res) => {
         // IntaSend sends: { invoice_id, state, api_ref, challenge, ... }
         // api_ref holds our transactionRef set during initiation
         const body = req.body;
-        console.log('IntaSend Webhook:', JSON.stringify(body));
 
         // Optional: validate challenge secret
         const expectedChallenge = process.env.INTASEND_WEBHOOK_CHALLENGE;
@@ -319,7 +316,6 @@ export const paymentWebhook = async (req, res) => {
 
         if (state === 'COMPLETE') {
             pass.paymentStatus = 'completed'; await pass.save();
-            console.log('? Pass activated via IntaSend webhook:', pass._id);
         } else if (state === 'FAILED') {
             pass.paymentStatus = 'failed'; await pass.save();
         }
@@ -330,7 +326,7 @@ export const paymentWebhook = async (req, res) => {
     }
 };
 
-// Confirm payment â€” verifies with IntaSend before activating
+// Confirm payment — verifies with IntaSend before activating
 export const confirmPayment = async (req, res) => {
     try {
         const { unlockId } = req.body;
@@ -380,7 +376,6 @@ export const confirmPayment = async (req, res) => {
         }
 
         const state = (statusRes?.invoice?.state || statusRes?.state || '').toUpperCase();
-        console.log('IntaSend status check â€” invoice_id:', pass.invoiceId, 'state:', state);
 
         if (state === 'COMPLETE') {
             pass.paymentStatus = 'completed';
@@ -396,7 +391,7 @@ export const confirmPayment = async (req, res) => {
             await pass.save();
             return res.json({ success: false, message: 'Payment was not completed. Please try again.' });
         } else {
-            // PENDING or PROCESSING â€” payment hasn't gone through yet
+            // PENDING or PROCESSING — payment hasn't gone through yet
             return res.json({ success: false, message: 'Payment is still being processed. Please wait a moment and try again.' });
         }
     } catch (error) {
@@ -488,7 +483,7 @@ export const applyReferral = async (req, res) => {
         currentUser.referredBy = referrer._id;
         await currentUser.save();
 
-        // Credit the referrer â€” one free day pass every REFS_PER_UNLOCK referrals
+        // Credit the referrer — one free day pass every REFS_PER_UNLOCK referrals
         referrer.referralCount = (referrer.referralCount || 0) + 1;
         const newCount = referrer.referralCount;
         if (newCount % REFS_PER_UNLOCK === 0 && (referrer.referralUnlocks || 0) < MAX_REFERRAL_UNLOCKS) {
@@ -557,7 +552,6 @@ export const guestInitiateUnlock = async (req, res) => {
             pass.transactionRef = transactionRef;
             pass.paymentStatus = 'completed';
             await pass.save();
-            console.log('ðŸ§ª TEST MODE: guest pass auto-activated', pass._id);
             return res.json({
                 success: true, testMode: true, passType, amount,
                 message: `[TEST] Guest pass activated instantly.`,

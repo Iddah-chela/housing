@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
@@ -110,7 +110,7 @@ const Terms = () => {
         <section>
           <h2 className='text-xl font-semibold mb-3'>11. Contact</h2>
           <p className='text-gray-700 leading-relaxed'>
-            For questions about these terms, contact us at <a href='mailto:support@PataKeja.co.ke' className='text-indigo-600 hover:underline'>support@PataKeja.co.ke</a>.
+            For questions about these terms, contact us at <a href='mailto:support@patakejaa.co.ke' className='text-indigo-600 hover:underline'>support@patakejaa.co.ke</a>.
           </p>
         </section>
       </div>

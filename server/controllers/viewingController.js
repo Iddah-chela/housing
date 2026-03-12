@@ -710,7 +710,6 @@ export const handleOwnerAction = async (req, res) => {
                                 no: `/my-viewings`
                             }
                         });
-                        console.log('[OwnerAction] Immediate nudge sent for viewing', viewing._id);
                     }
                 } catch (e) {
                     console.warn('[OwnerAction] Immediate nudge failed:', e.message);

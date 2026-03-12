@@ -1,4 +1,4 @@
-﻿import React, {useEffect, useState } from "react";
+import React, {useEffect, useState } from "react";
 import { Link, useLocation } from 'react-router-dom';
 import { assets } from '../assets/assets';
 import { useAppContext } from '../context/AppContext';
@@ -55,7 +55,7 @@ const Navbar = () => {
         return () => window.removeEventListener("scroll", handleScroll);
     }, [location.pathname]);
 
-    // hero state helpers — evaluated once per render, no dark: cascade needed
+    // hero state helpers � evaluated once per render, no dark: cascade needed
     const heroLight = !isScrolled && !darkMode;  // on hero, light mode
     const heroDark  = !isScrolled &&  darkMode;  // on hero, dark mode
 

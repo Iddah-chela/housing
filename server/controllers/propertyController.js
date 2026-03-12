@@ -56,7 +56,6 @@ export const createProperty = async (req, res) => {
     const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl } = req.body;
     const owner = req.user._id;
 
-    console.log('Received property data:', { name, address, buildings: buildings?.length, images: images?.length });
 
     // Upload images to Cloudinary
     let uploadedImageUrls = [];

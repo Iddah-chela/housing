@@ -1,4 +1,4 @@
-Ôªøimport React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { assets, facilityIcons } from '../assets/assets'
 import ChatInterface from '../components/ChatInterface'
@@ -65,7 +65,6 @@ const PropertyDetails = () => {
           }
           
         } catch (error) {
-          console.error('Error fetching property:', error)
           toast.error('Failed to load property details')
         } finally {
           setLoading(false)
@@ -94,7 +93,6 @@ const PropertyDetails = () => {
             setReferralInfo(data)
           }
         } catch (error) {
-          console.error('Error checking unlock status:', error)
           setIsFreeUnlock(false)
         }
       }
@@ -186,7 +184,7 @@ const PropertyDetails = () => {
         return <div style={{ fontSize: fontSize + 'px' }} className='text-gray-500 font-medium'>Common</div>
       }
       
-      return <div className='text-gray-300 text-lg'>¬∑</div>
+      return <div className='text-gray-300 text-lg'>∑</div>
     }
 
     const handleCellClick = (building, rowIndex, colIndex) => {
@@ -271,7 +269,7 @@ const PropertyDetails = () => {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
   const bCellPx = (() => {
     if (isMobile) {
-      // Shrink to fit on small screens ‚Äî scrolls only when truly extreme
+      // Shrink to fit on small screens ó scrolls only when truly extreme
       const availableWidth = Math.max(200, window.innerWidth - 80)
       const fixedOverhead = numBuildings * 16 + Math.max(0, numBuildings - 1) * 18 + 24
       const maxCell = totalCols > 0 ? Math.floor((availableWidth - fixedOverhead) / totalCols) : 42
@@ -293,7 +291,7 @@ const PropertyDetails = () => {
         {property.needsRefresh && (
           <div className='mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-200'>
             <svg className='w-4 h-4 shrink-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z'/></svg>
-            <span><strong>Heads up:</strong> This listing was last updated {daysSinceRefresh} days ago. Availability may have changed ‚Äî confirm directly with the house owner.</span>
+            <span><strong>Heads up:</strong> This listing was last updated {daysSinceRefresh} days ago. Availability may have changed ó confirm directly with the house owner.</span>
           </div>
         )}
         {/* Property Header */}
@@ -362,10 +360,10 @@ const PropertyDetails = () => {
               <div className='py-2'>
                 <div className='flex items-center gap-3 mb-3'>
                   <button onClick={() => setZoomedBuilding(null)} className='flex items-center gap-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-700 px-3 py-1.5 rounded-lg transition-all'>
-                    ‚Üê All Buildings
+                    ? All Buildings
                   </button>
                   <span className='font-bold text-gray-800'>{bld.name}</span>
-                  <span className='text-xs text-gray-400'>{bld.rows} floors ¬∑ {bld.cols} units wide</span>
+                  <span className='text-xs text-gray-400'>{bld.rows} floors ∑ {bld.cols} units wide</span>
                 </div>
                 <div className='overflow-x-auto'>
                   <div className='inline-block'>
@@ -401,14 +399,14 @@ const PropertyDetails = () => {
                                   </div>
                                 )}
                                 {cell.type === 'common' && <div style={{ fontSize: Math.max(7, Math.floor(zCellPx * 0.15)) + 'px' }} className='text-gray-500 dark:text-gray-400 font-medium'>Common</div>}
-                                {cell.type !== 'room' && cell.type !== 'common' && <div className='text-gray-300'>¬∑</div>}
+                                {cell.type !== 'room' && cell.type !== 'common' && <div className='text-gray-300'>∑</div>}
                                 {cell.type === 'room' && (
                                   <div className='hidden group-hover:flex flex-col absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none items-center'>
                                     <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl text-left'>
-                                      <div className='font-bold text-[11px]'>R{roomNum} ¬∑ {cell.roomType}</div>
+                                      <div className='font-bold text-[11px]'>R{roomNum} ∑ {cell.roomType}</div>
                                       <div className='text-[10px] text-gray-300 mt-0.5'>Ksh {cell.pricePerMonth?.toLocaleString()}/mo</div>
                                       <div className={`text-[10px] font-medium mt-0.5 ${cell.isBooked ? 'text-amber-300' : cell.isVacant ? 'text-green-300' : 'text-red-300'}`}>
-                                        {cell.isBooked ? '‚óè Booked' : cell.isVacant ? '‚óè Vacant' : '‚óè Occupied'}
+                                        {cell.isBooked ? '? Booked' : cell.isVacant ? '? Vacant' : '? Occupied'}
                                       </div>
                                     </div>
                                     <div className='w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1 shrink-0'></div>
@@ -465,7 +463,7 @@ const PropertyDetails = () => {
                 }[gs] || {}
                 return (
               <div className='relative'>
-                {/* Compound fence ‚Äî gate-connected path network */}
+                {/* Compound fence ó gate-connected path network */}
                 <div className='border-2 border-dashed border-gray-500 dark:border-gray-500 p-3 bg-gradient-to-br from-green-50 to-slate-100 dark:from-gray-800 dark:to-gray-900 relative'
                   style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad }}>
                   {(() => {
@@ -509,7 +507,7 @@ const PropertyDetails = () => {
                         <React.Fragment key={building.id}>
                           {/* Corridor pathway between buildings */}
                           {buildingIdx > 0 && (isColLayout ? (
-                            /* Horizontal corridor for stacked buildings ‚Äî bleeds to left+right fence */
+                            /* Horizontal corridor for stacked buildings ó bleeds to left+right fence */
                             <div style={{ height: 14, alignSelf: 'stretch', flexShrink: 0, marginLeft: '-12px', marginRight: '-12px' }} className='my-1.5 relative'>
                               <div className='h-full w-full bg-gray-500 dark:bg-gray-600'>
                                 <div className='absolute inset-0 flex items-center px-2'>
@@ -518,7 +516,7 @@ const PropertyDetails = () => {
                               </div>
                             </div>
                           ) : (
-                            /* Vertical corridor for side-by-side buildings ‚Äî bleeds to top+bottom fence */
+                            /* Vertical corridor for side-by-side buildings ó bleeds to top+bottom fence */
                             <div style={{ width: 18, alignSelf: 'stretch', flexShrink: 0, marginTop: '-12px', marginBottom: '-12px' }} className='flex items-stretch mx-1.5 relative'>
                               <div className='w-full h-full bg-gray-500 dark:bg-gray-600'>
                                 <div className='absolute inset-0 flex justify-center'>
@@ -537,7 +535,7 @@ const PropertyDetails = () => {
                             {building.name}
                           </div>
 
-                          {/* Roof ‚Äî outlined triangle with overhang, no bottom border */}
+                          {/* Roof ó outlined triangle with overhang, no bottom border */}
                           <div className='flex justify-center' style={{ marginLeft: -Math.round(bCellPx * 0.15), marginRight: -Math.round(bCellPx * 0.15) }}>
                             <svg width={building.cols * bCellPx + Math.round(bCellPx * 0.3)} height='28' className='drop-shadow-sm'>
                               <polyline
@@ -577,10 +575,10 @@ const PropertyDetails = () => {
                                       {cell.type === 'room' && (
                                         <div className='hidden group-hover:flex flex-col absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none items-center'>
                                           <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl text-left'>
-                                            <div className='font-bold text-[11px]'>R{getRoomNumber(building.grid, rowIndex, colIndex)} ¬∑ {cell.roomType}</div>
+                                            <div className='font-bold text-[11px]'>R{getRoomNumber(building.grid, rowIndex, colIndex)} ∑ {cell.roomType}</div>
                                             <div className='text-[10px] text-gray-300 mt-0.5'>Ksh {cell.pricePerMonth?.toLocaleString()}/mo</div>
                                             <div className={`text-[10px] font-medium mt-0.5 ${cell.isBooked ? 'text-amber-300' : cell.isVacant ? 'text-green-300' : 'text-red-300'}`}>
-                                              {cell.isBooked ? '‚óè Booked' : cell.isVacant ? '‚óè Vacant' : '‚óè Occupied'}
+                                              {cell.isBooked ? '? Booked' : cell.isVacant ? '? Vacant' : '? Occupied'}
                                             </div>
                                           </div>
                                           <div className='w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1 shrink-0'></div>
@@ -672,7 +670,7 @@ const PropertyDetails = () => {
                         <span className='font-medium'>Active Pass</span>
                         {unlockData && (
                           <span className='text-xs text-green-600'>
-                            {unlockData.passType === '7day' ? '7-day' : '1-day'} pass ¬∑ {unlockData.daysRemaining > 0 ? `${unlockData.daysRemaining} day${unlockData.daysRemaining > 1 ? 's' : ''} left` : 'expires today'}
+                            {unlockData.passType === '7day' ? '7-day' : '1-day'} pass ∑ {unlockData.daysRemaining > 0 ? `${unlockData.daysRemaining} day${unlockData.daysRemaining > 1 ? 's' : ''} left` : 'expires today'}
                           </span>
                         )}
                       </div>
@@ -716,10 +714,10 @@ const PropertyDetails = () => {
                             <Users className='w-3 h-3' />
                             {referralInfo.referralCount} friend{referralInfo.referralCount !== 1 ? 's' : ''} joined
                             {referralInfo.referralUnlocksAvailable > 0
-                              ? <span className='text-green-600 font-medium ml-1'>¬∑ {referralInfo.referralUnlocksAvailable} free day{referralInfo.referralUnlocksAvailable !== 1 ? 's' : ''} ready!</span>
+                              ? <span className='text-green-600 font-medium ml-1'>∑ {referralInfo.referralUnlocksAvailable} free day{referralInfo.referralUnlocksAvailable !== 1 ? 's' : ''} ready!</span>
                               : referralInfo.referralUnlocksUsed > 0
-                                ? <span className='ml-1'>¬∑ {referralInfo.referralUnlocksUsed} used ¬∑ Invite another!</span>
-                                : <span className='ml-1'>¬∑ Invite another for a free day</span>
+                                ? <span className='ml-1'>∑ {referralInfo.referralUnlocksUsed} used ∑ Invite another!</span>
+                                : <span className='ml-1'>∑ Invite another for a free day</span>
                             }
                           </p>
                         )}
@@ -732,7 +730,7 @@ const PropertyDetails = () => {
                     <div className='p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 border-2 border-indigo-200 dark:border-indigo-700 rounded-lg mb-2'>
                       <div className='text-center'>
                         {!user ? (
-                          /* Not logged in ‚Äî two options: free sign-in OR pay without login */
+                          /* Not logged in ó two options: free sign-in OR pay without login */
                           <>
                             <Gift className='w-8 h-8 text-indigo-400 mx-auto mb-2' />
                             <p className='text-sm font-semibold text-gray-800 mb-1'>Access owner contact details</p>
@@ -740,7 +738,7 @@ const PropertyDetails = () => {
 
                             {/* Option A: free with sign-in */}
                             <div className='mb-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg'>
-                              <p className='text-xs font-bold text-green-700 dark:text-green-300 mb-0.5 flex items-center gap-1'><PartyPopper className='w-3.5 h-3.5' /> FREE ‚Äî First 2 unlocks</p>
+                              <p className='text-xs font-bold text-green-700 dark:text-green-300 mb-0.5 flex items-center gap-1'><PartyPopper className='w-3.5 h-3.5' /> FREE ó First 2 unlocks</p>
                               <p className='text-xs text-green-600 dark:text-green-400 mb-2'>Sign in or create a free account</p>
                               <SignInButton mode='modal'>
                                 <button className='w-full py-2 rounded-lg font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition-all text-sm flex items-center justify-center gap-2'>
@@ -758,7 +756,7 @@ const PropertyDetails = () => {
 
                             {/* Option B: pay without login via M-Pesa */}
                             <div className='p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg'>
-                              <p className='text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-0.5 flex items-center gap-1'><Lock className='w-3.5 h-3.5' /> Ksh 100/day or Ksh 300/week ‚Äî via M-Pesa</p>
+                              <p className='text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-0.5 flex items-center gap-1'><Lock className='w-3.5 h-3.5' /> Ksh 100/day or Ksh 300/week ó via M-Pesa</p>
                               <p className='text-xs text-indigo-600 dark:text-indigo-400 mb-2'>Pay directly, no account needed</p>
                               <button
                                 onClick={() => setShowGuestPayment(true)}
@@ -769,7 +767,7 @@ const PropertyDetails = () => {
                             </div>
                           </>
                         ) : (() => {
-                          // Show card immediately ‚Äî no "Checking..." block
+                          // Show card immediately ó no "Checking..." block
                           // isFreeUnlock: null = still loading (show paid as default), true = free, false = paid
                           const showFree = isFreeUnlock === true
                           return (
@@ -782,8 +780,8 @@ const PropertyDetails = () => {
                                 <div className='text-2xl font-bold text-green-600 mb-1'>FREE</div>
                                 <p className='text-xs text-green-700 mb-3'>
                                   {freeReason === 'referral' 
-                                    ? `Referral unlock ‚Äî ${referralInfo?.referralUnlocksAvailable || 1} free unlock${(referralInfo?.referralUnlocksAvailable || 1) > 1 ? 's' : ''} available!`
-                                    : 'Free unlock ‚Äî first 2 are on us!'}
+                                    ? `Referral unlock ó ${referralInfo?.referralUnlocksAvailable || 1} free unlock${(referralInfo?.referralUnlocksAvailable || 1) > 1 ? 's' : ''} available!`
+                                    : 'Free unlock ó first 2 are on us!'}
                                 </p>
                               </>
                             ) : (
@@ -793,7 +791,7 @@ const PropertyDetails = () => {
                                 ) : (
                                   <>
                                     <div className='text-2xl font-bold text-indigo-600'>from Ksh 100</div>
-                                    <p className='text-xs text-indigo-500'>Ksh 100/day &nbsp;¬∑&nbsp; Ksh 300/week</p>
+                                    <p className='text-xs text-indigo-500'>Ksh 100/day &nbsp;∑&nbsp; Ksh 300/week</p>
                                   </>
                                 )}
                               </div>
@@ -813,7 +811,7 @@ const PropertyDetails = () => {
                                 ? <span className='flex items-center justify-center gap-2 animate-pulse'>Loading...</span>
                                 : showFree 
                                   ? <span className='flex items-center justify-center gap-2'><Gift className='w-4 h-4' /> Claim Free Access</span> 
-                                  : <span className='flex items-center justify-center gap-2'><Unlock className='w-4 h-4' /> Unlock ‚Äî from Ksh 100</span>}
+                                  : <span className='flex items-center justify-center gap-2'><Unlock className='w-4 h-4' /> Unlock ó from Ksh 100</span>}
                             </button>
                           </>
                         )})()}
@@ -840,7 +838,7 @@ const PropertyDetails = () => {
                           <span className='text-sm font-semibold text-gray-800 dark:text-gray-100'>Share & Earn Free Days</span>
                         </div>
                         <p className='text-xs text-gray-600 dark:text-gray-300 mb-2.5'>
-                          Invite a friend to sign up ‚Äî you get a free 1-day unlock for any property!
+                          Invite a friend to sign up ó you get a free 1-day unlock for any property!
                         </p>
                         <div className='flex gap-2 mb-2'>
                           <button
@@ -865,13 +863,13 @@ const PropertyDetails = () => {
                           <p className='text-xs text-amber-700 flex items-center gap-1 flex-wrap'>
                             <Users className='w-3 h-3' />
                             {referralInfo.referralCount} friend{referralInfo.referralCount !== 1 ? 's' : ''} joined
-                            {referralInfo.referralUnlocksUsed > 0 && <span className='ml-1'>¬∑ {referralInfo.referralUnlocksUsed} day{referralInfo.referralUnlocksUsed !== 1 ? 's' : ''} used</span>}
-                            {referralInfo.referralUnlocksAvailable === 0 && <span className='ml-1'>¬∑ Invite another!</span>}
+                            {referralInfo.referralUnlocksUsed > 0 && <span className='ml-1'>∑ {referralInfo.referralUnlocksUsed} day{referralInfo.referralUnlocksUsed !== 1 ? 's' : ''} used</span>}
+                            {referralInfo.referralUnlocksAvailable === 0 && <span className='ml-1'>∑ Invite another!</span>}
                           </p>
                         )}
                         {referralInfo.referralCount === 0 && (
                           <p className='text-xs text-amber-600 flex items-center gap-1'>
-                            <Users className='w-3 h-3' /> Invite a friend ‚Äî each signup = 1 free day for any property!
+                            <Users className='w-3 h-3' /> Invite a friend ó each signup = 1 free day for any property!
                           </p>
                         )}
                       </div>

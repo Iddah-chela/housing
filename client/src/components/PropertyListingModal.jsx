@@ -508,7 +508,6 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
         throw new Error(response.data.message)
       }
     } catch (error) {
-      console.error('Error submitting property:', error)
       toast.error('Failed to submit property. Please try again.')
       setLoading(false)
     }

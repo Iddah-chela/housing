@@ -29,7 +29,6 @@ const ListRoom = () => {
         toast.error(response.data.message)
       }
     } catch (error) {
-      console.error('Error fetching properties:', error)
       toast.error('Failed to load your properties')
     } finally {
       setLoading(false)

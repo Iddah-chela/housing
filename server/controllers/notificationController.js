@@ -18,7 +18,6 @@ export const subscribePush = async (req, res) => {
             { upsert: true, new: true }
         );
 
-        console.log(`[Push] Subscription saved for user ${userId}`);
         res.json({ success: true, message: "Push subscription saved" });
     } catch (error) {
         res.json({ success: false, message: error.message });

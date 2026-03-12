@@ -82,7 +82,6 @@ const ProfileModal = ({ onClose }) => {
                 toast.error(data.message || 'Failed to update avatar')
             }
         } catch (err) {
-            console.error(err)
             toast.error('Failed to update avatar')
         } finally {
             setSaving(false)

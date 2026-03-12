@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, lazy, Suspense } from 'react'
+import React, { useEffect, useState, lazy, Suspense } from 'react'
 import Navbar from './components/Navbar'
 import { Route, Routes, useLocation, useSearchParams, Navigate } from 'react-router-dom'
 import { useAppContext } from './context/AppContext'
@@ -8,7 +8,7 @@ import {Toaster} from 'react-hot-toast'
 import FeedbackModal from './components/FeedbackModal'
 import Footer from './components/Footer'
 
-// Lazy-load all pages — they won't be in the initial JS bundle
+// Lazy-load all pages � they won't be in the initial JS bundle
 const Home            = lazy(() => import('./pages/home'))
 const About           = lazy(() => import('./pages/About'))
 const AllRooms        = lazy(() => import('./pages/AllRooms'))

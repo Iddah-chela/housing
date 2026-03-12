@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
@@ -100,7 +100,7 @@ const Privacy = () => {
           <h2 className='text-xl font-semibold mb-3'>9. Contact Us</h2>
           <p className='text-gray-700 leading-relaxed'>
             For privacy-related inquiries, contact our Data Protection Officer at{' '}
-            <a href='mailto:privacy@PataKeja.co.ke' className='text-indigo-600 hover:underline'>privacy@PataKeja.co.ke</a>.
+            <a href='mailto:support@patakejaa.co.ke' className='text-indigo-600 hover:underline'>support@patakejaa.co.ke</a>.
           </p>
         </section>
       </div>

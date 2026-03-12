@@ -31,7 +31,6 @@ const clerkWebhooks = async (req, res) =>{
         // Getting data from request body
         const {data, type} = req.body
         
-        console.log(`📥 Clerk Webhook: ${type} for user ${data.id}`);
         
         const userData = {
             _id: data.id,
@@ -58,30 +57,25 @@ const clerkWebhooks = async (req, res) =>{
                             referrer.referralCount = (referrer.referralCount || 0) + 1
                             referrer.referralUnlocks = (referrer.referralUnlocks || 0) + 1
                             await referrer.save()
-                            console.log(`🎁 Referrer ${referrer.email} earned a free unlock! (${referrer.referralUnlocks}/${MAX_REFERRAL_UNLOCKS})`)
                         }
                     }
                 }
 
                 const newUser = await User.create(userData);
-                console.log('✅ User created in MongoDB:', newUser.email, newUser.referralCode);
                  break;
             }
 
             case "user.updated": {
                 await User.findByIdAndUpdate(data.id, userData);
-                console.log('✅ User updated in MongoDB:', userData.email);
                  break;
             }
 
              case "user.deleted": {
                 await User.findByIdAndDelete(data.id);
-                console.log('✅ User deleted from MongoDB:', data.id);
                  break;
             }
 
             default:
-                console.log('⚠️  Unhandled webhook type:', type);
                 break;
         }
         res.json({success: true, message: "Webhook Received"})

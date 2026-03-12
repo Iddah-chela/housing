@@ -28,6 +28,7 @@
     "mongoose": "^8.19.1",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.1",
+    "resend": "^6.9.3",
     "svix": "^1.76.1",
     "web-push": "^3.6.7"
   },

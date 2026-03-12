@@ -29,7 +29,6 @@ const AdminApplications = () => {
         // Revoke after a short delay to free memory
         if (win) setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
       } catch (e) {
-        console.error('Failed to open document:', e);
       }
     } else {
       window.open(url, '_blank', 'noopener,noreferrer');

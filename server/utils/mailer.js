@@ -1,36 +1,30 @@
-ï»¿import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS   // Gmail App Password (not your account password)
-    }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
- * Send an email.
+ * Send an email via Resend.
  * @param {string|string[]} to - recipient(s)
  * @param {string} subject
  * @param {string} html
  */
 export const sendEmail = async (to, subject, html) => {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.warn('[Mailer] EMAIL_USER / EMAIL_PASS not set ? skipping email send.');
+    if (!process.env.RESEND_API_KEY) {
+        console.warn('[Mailer] RESEND_API_KEY not set — skipping email send.');
         return;
     }
     if (!to) {
-        console.warn('[Mailer] No recipient email provided ? skipping.');
+        console.warn('[Mailer] No recipient email provided — skipping.');
         return;
     }
+    const recipient = Array.isArray(to) ? to : [to];
     try {
-        await transporter.sendMail({
-            from: `"PataKeja" <${process.env.EMAIL_USER}>`,
-            to: Array.isArray(to) ? to.join(',') : to,
+        await resend.emails.send({
+            from: 'PataKeja <support@patakejaa.co.ke>',
+            to: recipient,
             subject,
             html
         });
-        console.log(`[Mailer] Email sent to ${Array.isArray(to) ? to.join(',') : to}: ${subject}`);
     } catch (err) {
         console.error('[Mailer] Failed to send email:', err.message);
     }

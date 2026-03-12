@@ -47,7 +47,6 @@ export const checkListingFreshness = async () => {
         );
 
         if (staleResult.modifiedCount || expiredResult.modifiedCount) {
-            console.log(`[Freshness] ${staleResult.modifiedCount} marked needsRefresh, ${expiredResult.modifiedCount} expired`);
         }
     } catch (error) {
         console.error('[Freshness cron error]', error.message);
@@ -102,7 +101,6 @@ export const checkUnlockAutoRefunds = async () => {
         }
 
         if (flagged > 0) {
-            console.log(`[Auto-refund] ${flagged} unlock(s) flagged for refund`);
         }
     } catch (error) {
         console.error('[Auto-refund cron error]', error.message);
@@ -187,7 +185,6 @@ export const sendPostViewingNudges = async () => {
         }
 
         if (sent > 0) {
-            console.log(`[Nudge] ${sent} post-viewing nudge(s) sent`);
         }
     } catch (error) {
         console.error('[Nudge cron error]', error.message);
@@ -266,7 +263,6 @@ export const sendViewingReminders = async () => {
         }
 
         if (sent > 0) {
-            console.log(`[Reminder] ${sent} viewing reminder(s) sent`);
         }
     } catch (error) {
         console.error('[Reminder cron error]', error.message);
@@ -339,7 +335,6 @@ export const sendMoveInNudges = async () => {
                         actions: [{ action: 'bg-yes', title: '✓ Moved in!' }, { action: 'dismiss', title: 'Later' }],
                         actionUrls: { 'bg-yes': `${SERVER_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=yes&bg=1` }
                     });
-                    console.log(`[MoveIn] First nudge sent to ${renterUser.username} for booking ${booking._id}`);
                 }
 
                 // ── Second nudge (24-48h after move-in date) ───────────────
@@ -355,7 +350,6 @@ export const sendMoveInNudges = async () => {
                             actions: [{ action: 'bg-yes', title: '✓ Moved in!' }, { action: 'dismiss', title: 'Later' }],
                             actionUrls: { 'bg-yes': `${SERVER_BASE2}/api/bookings/move-in-action?id=${booking._id}&answer=yes&bg=1` }
                         });
-                        console.log(`[MoveIn] Second nudge sent to ${renterUser.username} for booking ${booking._id}`);
                     }
                 }
 
@@ -405,7 +399,6 @@ export const sendMoveInNudges = async () => {
                             'bg-no':  `${SERVER}/api/bookings/move-in-action?id=${booking._id}&answer=owner-no&token=${token}&bg=1`
                         }
                     });
-                    console.log(`[MoveIn] Owner nudge sent to ${ownerUser.username} for booking ${booking._id}`);
                 }
             } catch (e) {
                 console.warn('[MoveIn] Failed for booking', booking._id, ':', e.message);

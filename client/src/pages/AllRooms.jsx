@@ -79,7 +79,6 @@ const AllRooms = () => {
           toast.error(response.data.message)
         }
       } catch (error) {
-        console.error('Error fetching properties:', error)
         toast.error('Failed to load properties')
       } finally {
         setLoading(false)
