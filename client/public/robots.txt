@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Private/authenticated app areas
+Disallow: /admin
+Disallow: /admin/
+Disallow: /owner
+Disallow: /owner/
+Disallow: /my-bookings
+Disallow: /my-viewings
+Disallow: /my-chats
+Disallow: /managed-properties
+Disallow: /viewing/action
+
+Sitemap: https://patakejaa.co.ke/sitemap.xml
