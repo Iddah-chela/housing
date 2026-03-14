@@ -83,7 +83,7 @@ const Footer = () => {
             </div>
             <hr className='border-gray-300 dark:border-gray-600 mt-8' />
             <div className='flex flex-col md:flex-row gap-2 items-center justify-between py-5'>
-                <p className='text-sm'>© {new Date().getFullYear()} PataKeja. All rights reserved.</p>
+                <p className='text-sm'>ï¿½ {new Date().getFullYear()} PataKeja. All rights reserved.</p>
                 <ul className='flex items-center gap-4 text-sm'>
                     <li><a href='/privacy' className='hover:text-gray-700'>Privacy</a></li>
                     <li><a href='/terms' className='hover:text-gray-700'>Terms</a></li>

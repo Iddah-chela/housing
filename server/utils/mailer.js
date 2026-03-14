@@ -10,11 +10,11 @@ const resend = new Resend(process.env.RESEND_API_KEY);
  */
 export const sendEmail = async (to, subject, html) => {
     if (!process.env.RESEND_API_KEY) {
-        console.warn('[Mailer] RESEND_API_KEY not set — skipping email send.');
+        console.warn('[Mailer] RESEND_API_KEY not set ï¿½ skipping email send.');
         return;
     }
     if (!to) {
-        console.warn('[Mailer] No recipient email provided — skipping.');
+        console.warn('[Mailer] No recipient email provided ï¿½ skipping.');
         return;
     }
     const recipient = Array.isArray(to) ? to : [to];
