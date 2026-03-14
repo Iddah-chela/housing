@@ -30,6 +30,9 @@ const clerkWebhooks = async (req, res) =>{
 
         // Getting data from request body
         const {data, type} = req.body
+
+        const incomingRole = data.public_metadata?.role
+        const hasValidIncomingRole = ["user", "houseOwner", "admin"].includes(incomingRole)
         
         
         const userData = {
@@ -37,12 +40,15 @@ const clerkWebhooks = async (req, res) =>{
             email: data.email_addresses[0]?.email_address || '',
             username: `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'User',
             image: data.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent((data.first_name || 'U') + ' ' + (data.last_name || ''))}&background=6366f1&color=fff`,
-            role: data.public_metadata?.role || 'user' // Get role from Clerk metadata
         }
 
         // switch case for different events
         switch (type) {
             case "user.created": {
+                // Apply role only when explicitly present in Clerk metadata.
+                // Otherwise default new records to regular user.
+                userData.role = hasValidIncomingRole ? incomingRole : 'user'
+
                 // Generate unique referral code
                 userData.referralCode = generateReferralCode(data.id)
                 
@@ -66,7 +72,14 @@ const clerkWebhooks = async (req, res) =>{
             }
 
             case "user.updated": {
-                await User.findByIdAndUpdate(data.id, userData);
+                // Do not default role to "user" on updates.
+                // This prevents accidental admin demotion when Clerk metadata has no role.
+                const updateData = { ...userData }
+                if (hasValidIncomingRole) {
+                    updateData.role = incomingRole
+                }
+
+                await User.findByIdAndUpdate(data.id, updateData);
                  break;
             }
 
