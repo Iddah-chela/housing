@@ -8,7 +8,7 @@ import {Toaster} from 'react-hot-toast'
 import FeedbackModal from './components/FeedbackModal'
 import Footer from './components/Footer'
 
-// Lazy-load all pages — they won't be in the initial JS bundle
+// Lazy-load all pages ï¿½ they won't be in the initial JS bundle
 const Home            = lazy(() => import('./pages/home'))
 const About           = lazy(() => import('./pages/About'))
 const AllRooms        = lazy(() => import('./pages/AllRooms'))
@@ -36,6 +36,7 @@ const UnlockPolicy    = lazy(() => import('./pages/UnlockPolicy'))
 const Safety          = lazy(() => import('./pages/Safety'))
 const ManagedProperties = lazy(() => import('./pages/ManagedProperties'))
 const ViewingAction   = lazy(() => import('./pages/ViewingAction'))
+const Unsubscribe     = lazy(() => import('./pages/Unsubscribe'))
 
 // Auto-open Clerk signup when landing on /sign-up?ref=...
 const SignUpRedirect = () => {
@@ -105,6 +106,7 @@ const App = () => {
           <Route path='/sign-up' element={<SignUpRedirect/>}/>
           <Route path='/managed-properties' element={<ManagedProperties/>}/>
           <Route path='/viewing/action' element={<ViewingAction/>}/>
+          <Route path='/unsubscribe' element={<Unsubscribe/>}/>
           <Route path='/owner' element={<Layout/>}>
               <Route index element={<Dashboard/>}/>
               <Route path='viewing-requests' element={<ViewingRequests/>}/>

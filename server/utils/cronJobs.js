@@ -162,7 +162,7 @@ export const sendPostViewingNudges = async () => {
                     </div>`
                 ).catch(e => console.warn('[Nudge] Email failed:', e.message));
 
-                const SERVER = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
+                const SERVER = process.env.SERVER_URL || process.env.BACKEND_URL || `https://housing-production-89b4.up.railway.app/`;
                 sendPushNotification(viewing.renter, {
                     title: 'Want this room?',
                     body: `You visited ${roomLabel} at ${property.name}. Ready to book?`,
@@ -326,7 +326,7 @@ export const sendMoveInNudges = async () => {
                         </div>`
                     ).catch(() => {});
 
-                    const SERVER_BASE = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
+                    const SERVER_BASE = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
                     sendPushNotification(booking.user, {
                         title: 'Move-in day! 🏠',
                         body: `Did you move into ${property.name}? Tap to confirm.`,
@@ -341,7 +341,7 @@ export const sendMoveInNudges = async () => {
                 else if (booking.moveInNudgeSentAt && !booking.moveInOwnerNudgeSentAt && hoursDiff >= 24 && hoursDiff < 48) {
                     const hoursSinceFirst = (now - new Date(booking.moveInNudgeSentAt)) / (1000 * 60 * 60);
                     if (hoursSinceFirst >= 20) { // at least 20h after first nudge
-                        const SERVER_BASE2 = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
+                        const SERVER_BASE2 = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
                         sendPushNotification(booking.user, {
                             title: 'Reminder: Confirm your move-in',
                             body: `Still waiting for confirmation of your move-in at ${property.name}`,
