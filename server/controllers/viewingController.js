@@ -6,6 +6,33 @@ import UserPass from "../models/userPass.js";
 import Booking from "../models/booking.js";
 import { sendEmail } from "../utils/mailer.js";
 import { sendPushNotification } from "../utils/pushNotifier.js";
+const normalizeDate = (value) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setHours(0, 0, 0, 0);
+    return d;
+};
+const validateMoveInAgainstAvailability = (property, roomDetails, moveInDateRaw) => {
+    const building = property?.buildings?.find(b => String(b.id) === String(roomDetails?.buildingId));
+    const cell = building?.grid?.[roomDetails?.row]?.[roomDetails?.col];
+    if (!cell || cell.type !== 'room') {
+        return { ok: false, message: 'Selected room is invalid.' };
+    }
+    if (cell.isMoveOutSoon) {
+        const availableFrom = normalizeDate(cell.availableFrom);
+        const moveInDate = normalizeDate(moveInDateRaw);
+        if (!availableFrom || !moveInDate) {
+            return { ok: false, message: 'Unable to validate availability date for this room.' };
+        }
+        if (moveInDate < availableFrom) {
+            return {
+                ok: false,
+                message: `Move-in date must be on or after ${availableFrom.toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}.`
+            };
+        }
+    }
+    return { ok: true };
+};
 
 // Create a viewing request
 export const createViewingRequest = async (req, res) => {
@@ -22,6 +49,48 @@ export const createViewingRequest = async (req, res) => {
         const property = await Property.findById(propertyId);
         if (!property) {
             return res.json({ success: false, message: "Property not found" });
+        }
+
+        const building = property.buildings?.find(b => String(b.id) === String(roomDetails?.buildingId));
+        const cell = building?.grid?.[roomDetails?.row]?.[roomDetails?.col];
+        if (!cell || cell.type !== 'room') {
+            return res.json({ success: false, message: "Selected room is invalid" });
+        }
+        if (!cell.isVacant && !cell.isMoveOutSoon) {
+            return res.json({ success: false, message: "This room is currently occupied" });
+        }
+        if (cell.isBooked) {
+            return res.json({ success: false, message: "This room is already booked" });
+        }
+        if (cell.isMoveOutSoon) {
+            const availableFrom = normalizeDate(cell.availableFrom);
+            if (!availableFrom) {
+                return res.json({ success: false, message: "This room is marked available soon but availability date is missing" });
+            }
+
+            const chosenViewingDate = normalizeDate(viewingDate);
+            if (!chosenViewingDate) {
+                return res.json({ success: false, message: "Invalid viewing date" });
+            }
+            if (chosenViewingDate < availableFrom) {
+                return res.json({
+                    success: false,
+                    message: `Viewing date must be on or after ${availableFrom.toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                });
+            }
+
+            if (preferredMoveInDate) {
+                const chosenMoveInDate = normalizeDate(preferredMoveInDate);
+                if (!chosenMoveInDate) {
+                    return res.json({ success: false, message: "Invalid preferred move-in date" });
+                }
+                if (chosenMoveInDate < availableFrom) {
+                    return res.json({
+                        success: false,
+                        message: `Move-in date must be on or after ${availableFrom.toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                    });
+                }
+            }
         }
 
         // Require active pass to request viewing
@@ -163,13 +232,21 @@ export const respondToViewingRequest = async (req, res) => {
             try {
                 const property = await Property.findById(viewingRequest.property);
                 if (property) {
+                    const moveInDate = viewingRequest.preferredMoveInDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    const moveInValidation = validateMoveInAgainstAvailability(property, viewingRequest.roomDetails, moveInDate);
+                    if (!moveInValidation.ok) {
+                        viewingRequest.status = 'declined';
+                        viewingRequest.ownerResponse = moveInValidation.message;
+                        await viewingRequest.save();
+                        return;
+                    }
+
                     let pricePerMonth = 0;
                     try {
-                        const building = property.buildings?.find(b => b.id === viewingRequest.roomDetails.buildingId);
-                        pricePerMonth = building?.grid?.[viewingRequest.roomDetails.row]?.[viewingRequest.roomDetails.col]?.pricePerMonth || 0;
+                        const building = property.buildings?.find(b => String(b.id) === String(viewingRequest.roomDetails.buildingId));
+                        const gridCell = building?.grid?.[viewingRequest.roomDetails.row]?.[viewingRequest.roomDetails.col];
+                        pricePerMonth = gridCell?.pricePerMonth || gridCell?.price || 0;
                     } catch (_) {}
-
-                    const moveInDate = viewingRequest.preferredMoveInDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
                     await Booking.create({
                         user: viewingRequest.renter,
@@ -188,7 +265,7 @@ export const respondToViewingRequest = async (req, res) => {
                     });
 
                     // Mark grid cell as booked
-                    const building = property.buildings?.find(b => b.id === viewingRequest.roomDetails.buildingId);
+                    const building = property.buildings?.find(b => String(b.id) === String(viewingRequest.roomDetails.buildingId));
                     if (building && building.grid?.[viewingRequest.roomDetails.row]?.[viewingRequest.roomDetails.col]) {
                         building.grid[viewingRequest.roomDetails.row][viewingRequest.roomDetails.col].isBooked = true;
                         property.markModified('buildings');
@@ -320,13 +397,30 @@ export const createDirectApply = async (req, res) => {
     try {
         const { propertyId, roomDetails, ownerId, message, preferredMoveInDate } = req.body;
         const renterId = req.user._id;
-
         if (message && (typeof message !== 'string' || message.length > 1000)) {
             return res.json({ success: false, message: "Message is too long (max 1000 characters)" });
         }
 
         const property = await Property.findById(propertyId);
         if (!property) return res.json({ success: false, message: "Property not found" });
+
+        const building = property.buildings?.find(b => String(b.id) === String(roomDetails?.buildingId));
+        const cell = building?.grid?.[roomDetails?.row]?.[roomDetails?.col];
+        if (!cell || cell.type !== 'room') {
+            return res.json({ success: false, message: "Selected room is invalid" });
+        }
+        if (!cell.isVacant && !cell.isMoveOutSoon) {
+            return res.json({ success: false, message: "This room is currently occupied" });
+        }
+        if (cell.isBooked) {
+            return res.json({ success: false, message: "This room is already booked" });
+        }
+
+        const moveInDate = preferredMoveInDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const moveInValidation = validateMoveInAgainstAvailability(property, roomDetails, moveInDate);
+        if (!moveInValidation.ok) {
+            return res.json({ success: false, message: moveInValidation.message });
+        }
 
         const activePass = await UserPass.findOne({
             user: renterId,
@@ -337,7 +431,6 @@ export const createDirectApply = async (req, res) => {
             return res.json({ success: false, message: "You need an active pass to apply directly. Please unlock this property first." });
         }
 
-        // Prevent duplicate pending direct-apply for same room
         const activeRequest = await ViewingRequest.findOne({
             property: propertyId,
             'roomDetails.buildingId': roomDetails.buildingId,
@@ -364,7 +457,7 @@ export const createDirectApply = async (req, res) => {
             preferredMoveInDate: preferredMoveInDate || null,
             isDirectApply: true,
             status: "pending",
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7-day expiry for direct apply
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
 
         const populatedRequest = await ViewingRequest.findById(viewingRequest._id)
@@ -372,13 +465,11 @@ export const createDirectApply = async (req, res) => {
 
         res.json({ success: true, viewingRequest: populatedRequest });
 
-        // Fire-and-forget: notify owner
         (async () => {
             try {
                 const ownerUser = await User.findById(ownerId);
                 if (ownerUser?.email) {
                     const renterUser = await User.findById(renterId);
-                    // Generate owner action token for one-click email Accept/Decline
                     const ownerToken = crypto.randomUUID();
                     viewingRequest.ownerActionToken = ownerToken;
                     await viewingRequest.save();
@@ -471,9 +562,9 @@ export const handleNudgeResponse = async (req, res) => {
         // Look up price from property grid
         let pricePerMonth = 0;
         try {
-            const building = property.buildings?.find(b => b.id === viewing.roomDetails.buildingId);
+            const building = property.buildings?.find(b => String(b.id) === String(viewing.roomDetails.buildingId));
             const cell = building?.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col];
-            pricePerMonth = cell?.pricePerMonth || 0;
+            pricePerMonth = cell?.pricePerMonth || cell?.price || 0;
         } catch (_) {}
 
         // Prevent duplicate bookings
@@ -497,6 +588,10 @@ export const handleNudgeResponse = async (req, res) => {
 
         const moveInDate = viewing.preferredMoveInDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+        const renterMoveInValidation = validateMoveInAgainstAvailability(property, viewing.roomDetails, moveInDate);
+        if (!renterMoveInValidation.ok) {
+            return res.json({ success: false, message: renterMoveInValidation.message });
+        }
         await Booking.create({
             user: viewing.renter,
             property: property._id,
@@ -515,7 +610,7 @@ export const handleNudgeResponse = async (req, res) => {
 
         // Mark grid cell as booked
         try {
-            const building = property.buildings?.find(b => b.id === viewing.roomDetails.buildingId);
+            const building = property.buildings?.find(b => String(b.id) === String(viewing.roomDetails.buildingId));
             if (building && building.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col]) {
                 building.grid[viewing.roomDetails.row][viewing.roomDetails.col].isBooked = true;
                 property.markModified('buildings');
@@ -575,6 +670,7 @@ export const handleNudgeResponse = async (req, res) => {
             </body></html>`);
     } catch (error) {
         console.error('[NudgeResponse]', error.message);
+        if (wantJson) return res.status(500).json({ success: false, message: error.message });
         res.status(500).send('<h2>Something went wrong. Please try again.</h2>');
     }
 };
@@ -626,13 +722,22 @@ export const handleOwnerAction = async (req, res) => {
             try {
                 const property = viewing.property;
                 if (property) {
+                    const moveInDate = viewing.preferredMoveInDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    const moveInValidation = validateMoveInAgainstAvailability(property, viewing.roomDetails, moveInDate);
+                    if (!moveInValidation.ok) {
+                        viewing.status = 'declined';
+                        viewing.ownerResponse = moveInValidation.message;
+                        await viewing.save();
+                        if (wantJson) return res.json({ success: false, message: moveInValidation.message });
+                        return res.status(400).send(`<h2>${moveInValidation.message}</h2>`);
+                    }
+
                     let pricePerMonth = 0;
                     try {
-                        const building = property.buildings?.find(b => b.id === viewing.roomDetails.buildingId);
-                        pricePerMonth = building?.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col]?.price || 0;
+                        const building = property.buildings?.find(b => String(b.id) === String(viewing.roomDetails.buildingId));
+                        const gridCell = building?.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col];
+                        pricePerMonth = gridCell?.pricePerMonth || gridCell?.price || 0;
                     } catch (_) {}
-
-                    const moveInDate = viewing.preferredMoveInDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
                     await Booking.create({
                         user: viewing.renter?._id || viewing.renter,
                         property: property._id,
@@ -649,7 +754,7 @@ export const handleOwnerAction = async (req, res) => {
                         viewingRequestId: viewing._id
                     });
 
-                    const building = property.buildings?.find(b => b.id === viewing.roomDetails.buildingId);
+                    const building = property.buildings?.find(b => String(b.id) === String(viewing.roomDetails.buildingId));
                     if (building && building.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col]) {
                         building.grid[viewing.roomDetails.row][viewing.roomDetails.col].isBooked = true;
                         property.markModified('buildings');
@@ -767,6 +872,7 @@ export const handleOwnerAction = async (req, res) => {
             </body></html>`);
     } catch (error) {
         console.error('[OwnerAction]', error.message);
+        if (wantJson) return res.status(500).json({ success: false, message: error.message });
         res.status(500).send('<h2>Something went wrong. Please try again.</h2>');
     }
 };
@@ -798,8 +904,9 @@ export const handleRenterDecision = async (req, res) => {
 
         let pricePerMonth = 0;
         try {
-            const building = property.buildings?.find(b => b.id === viewing.roomDetails.buildingId);
-            pricePerMonth = building?.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col]?.price || 0;
+            const building = property.buildings?.find(b => String(b.id) === String(viewing.roomDetails.buildingId));
+            const gridCell = building?.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col];
+            pricePerMonth = gridCell?.pricePerMonth || gridCell?.price || 0;
         } catch (_) {}
 
         const existingBooking = await Booking.findOne({
@@ -816,6 +923,10 @@ export const handleRenterDecision = async (req, res) => {
         }
 
         const moveInDate = viewing.preferredMoveInDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const moveInValidation = validateMoveInAgainstAvailability(property, viewing.roomDetails, moveInDate);
+        if (!moveInValidation.ok) {
+            return res.json({ success: false, message: moveInValidation.message });
+        }
         await Booking.create({
             user: renterId,
             property: property._id,
@@ -833,7 +944,7 @@ export const handleRenterDecision = async (req, res) => {
         });
 
         try {
-            const building = property.buildings?.find(b => b.id === viewing.roomDetails.buildingId);
+            const building = property.buildings?.find(b => String(b.id) === String(viewing.roomDetails.buildingId));
             if (building?.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col]) {
                 building.grid[viewing.roomDetails.row][viewing.roomDetails.col].isBooked = true;
                 property.markModified('buildings');

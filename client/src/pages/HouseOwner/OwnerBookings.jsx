@@ -12,10 +12,11 @@ const statusColors = {
 
 const getBookingRent = (booking) => {
     if (booking?.roomDetails?.pricePerMonth) return booking.roomDetails.pricePerMonth
+    if (booking?.roomDetails?.price) return booking.roomDetails.price
     try {
-        const b = booking?.property?.buildings?.find(x => x.id === booking?.roomDetails?.buildingId)
+        const b = booking?.property?.buildings?.find(x => String(x.id) === String(booking?.roomDetails?.buildingId))
         const cell = b?.grid?.[booking?.roomDetails?.row]?.[booking?.roomDetails?.col]
-        return cell?.pricePerMonth || 0
+        return cell?.pricePerMonth || cell?.price || 0
     } catch {
         return 0
     }
@@ -45,10 +46,11 @@ const OwnerBookings = () => {
                 toast.success('Move-out schedule confirmed - room marked as available soon')
                 setBookings(prev => prev.map(b => b._id === bookingId ? { ...b, moveOutStatus: 'scheduled' } : b))
             } else {
-                toast.error(data.message)
+                toast.error(data?.message || 'Failed to confirm move-out schedule')
             }
-        } catch {
-            toast.error('Failed to confirm move-out schedule')
+        } catch (error) {
+            console.error('confirmMoveOut error:', error)
+            toast.error(error?.response?.data?.message || 'Failed to confirm move-out schedule')
         } finally {
             setMovingOut(null)
         }

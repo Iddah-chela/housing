@@ -321,6 +321,12 @@ const AllRooms = () => {
                     {property.vacantRooms} {property.vacantRooms === 1 ? 'Vacancy' : 'Vacancies'}
                   </div>
                 )}
+
+                {(property.soonAvailableRooms || 0) > 0 && (
+                  <div className='px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-sm font-medium'>
+                    {property.soonAvailableRooms} Available Soon
+                  </div>
+                )}
                 
                 {property.needsRefresh && (
                   <div className='px-3 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full text-sm font-medium flex items-center gap-1'>
@@ -329,7 +335,7 @@ const AllRooms = () => {
                   </div>
                 )}
                 
-                {property.vacantRooms === 0 && (
+                {property.vacantRooms === 0 && (property.soonAvailableRooms || 0) === 0 && (
                   <div className='px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm font-medium'>
                     Fully Occupied
                   </div>

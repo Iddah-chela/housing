@@ -281,6 +281,7 @@ export const handleMoveInAction = async (req, res) => {
         return res.status(400).send('<h2>Invalid or expired link.</h2>');
     } catch (error) {
         console.error('[MoveInAction]', error.message);
+        if (bg) return res.status(500).json({ success: false, message: error.message });
         res.status(500).send('<h2>Something went wrong.</h2>');
     }
 };
@@ -350,7 +351,10 @@ export const getPropertyBookings = async (req, res) => {
     const bookings = await Booking.find({
       property: { $in: propertyIds },
       status: { $ne: 'cancelled' }
-    }).populate('user', 'username image email').sort({ createdAt: -1 });
+        })
+            .populate('user', 'username image email')
+            .populate('property', 'name estate place images buildings')
+            .sort({ createdAt: -1 });
     const totalBookings = bookings.length;
     res.json({ success: true, totalBookings, bookings });
    } catch (error) {

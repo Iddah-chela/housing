@@ -8,9 +8,9 @@ const FeaturedHouses = () => {
     const { properties } = useAppContext();
     const navigate = useNavigate();
     
-    // Show properties with vacancies; show verified ones first
+    // Show properties with current or near-future availability; show verified ones first
     const featuredProperties = (properties || [])
-      .filter(p => p && p.vacantRooms > 0 && p.images && p.images.length > 0)
+      .filter(p => p && ((p.vacantRooms || 0) > 0 || (p.soonAvailableRooms || 0) > 0) && p.images && p.images.length > 0)
       .sort((a, b) => (b.isVerified ? 1 : 0) - (a.isVerified ? 1 : 0))
       .slice(0, 4);
     
@@ -48,10 +48,17 @@ const FeaturedHouses = () => {
                 <p className='text-sm text-gray-600 dark:text-gray-400 mb-2'>{property.estate}, {property.place}</p>
                 <div className='flex items-center justify-between'>
                   <span className='text-indigo-600 font-medium'>
-                    {property.vacantRooms} {property.vacantRooms === 1 ? 'Vacancy' : 'Vacancies'}
+                    {(property.vacantRooms || 0) > 0
+                      ? `${property.vacantRooms} ${property.vacantRooms === 1 ? 'Vacancy' : 'Vacancies'}`
+                      : 'Fully Occupied'}
                   </span>
                   <span className='text-sm text-gray-500 dark:text-gray-400'>{property.propertyType}</span>
                 </div>
+                {(property.soonAvailableRooms || 0) > 0 && (
+                  <div className='mt-2 inline-flex items-center px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-semibold'>
+                    {property.soonAvailableRooms} Available Soon
+                  </div>
+                )}
                 {property.createdAt && (() => {
                   const refreshed = property.lastVerifiedAt && property.lastVerifiedAt !== property.createdAt
                   const baseline = refreshed ? property.lastVerifiedAt : property.createdAt

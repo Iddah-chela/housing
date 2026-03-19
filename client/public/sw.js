@@ -112,6 +112,12 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action && event.action.startsWith('bg-') && actionUrl) {
     event.waitUntil(
       fetch(actionUrl)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.json();
+        })
         .then(() => {
           const messages = {
             'bg-yes':     { title: 'Done',     body: "Confirmed! We'll update your record." },

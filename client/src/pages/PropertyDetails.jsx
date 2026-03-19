@@ -379,7 +379,7 @@ const PropertyDetails = () => {
                   <span className='font-bold text-gray-800'>{bld.name}</span>
                   <span className='text-xs text-gray-400'>{bld.rows} floors - {bld.cols} units wide</span>
                 </div>
-                <div className='overflow-x-auto'>
+                <div className='overflow-x-auto overflow-y-visible pt-12 -mt-8'>
                   <div className='inline-block'>
                     <div className='flex justify-center' style={{ marginLeft: -Math.round(zCellPx * 0.15), marginRight: -Math.round(zCellPx * 0.15) }}>
                       <svg width={bld.cols * zCellPx + Math.round(zCellPx * 0.3)} height='32' className='drop-shadow-sm'>
@@ -416,20 +416,20 @@ const PropertyDetails = () => {
                                 {cell.type === 'common' && <div style={{ fontSize: Math.max(7, Math.floor(zCellPx * 0.15)) + 'px' }} className='text-gray-500 dark:text-gray-400 font-medium'>Common</div>}
                                 {cell.type !== 'room' && cell.type !== 'common' && <div className='text-gray-300'>-</div>}
                                 {cell.type === 'room' && (
-                                  <div className='hidden group-hover:flex flex-col absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none items-center'>
-                                    <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl text-left'>
-                                      <div className='font-bold text-[11px]'>R{roomNum} - {cell.roomType}</div>
+                                  <div className='hidden group-hover:flex flex-col absolute top-full left-1/2 -translate-x-1/2 mt-1.5 z-50 pointer-events-none items-center'>
+                                    <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 shadow-xl text-left max-w-xs overflow-hidden'>
+                                      <div className='font-bold text-[11px] truncate'>R{roomNum} - {cell.roomType}</div>
                                       <div className='text-[10px] text-gray-300 mt-0.5'>Ksh {cell.pricePerMonth?.toLocaleString()}/mo</div>
                                       <div className={`text-[10px] font-medium mt-0.5 ${cell.isBooked ? 'text-amber-300' : cell.isMoveOutSoon ? 'text-orange-300' : cell.isVacant ? 'text-green-300' : 'text-red-300'}`}>
                                         {cell.isBooked ? 'Booked' : cell.isMoveOutSoon ? 'Available Soon' : cell.isVacant ? 'Vacant' : 'Occupied'}
                                       </div>
                                       {cell.isMoveOutSoon && (
-                                        <div className='text-[10px] text-orange-200'>
+                                        <div className='text-[10px] text-orange-200 break-words'>
                                           From {cell.availableFrom ? new Date(cell.availableFrom).toLocaleDateString('en-KE', { day:'numeric', month:'short' }) : 'scheduled date'}
                                         </div>
                                       )}
                                     </div>
-                                    <div className='w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1 shrink-0'></div>
+                                    <div className='w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mb-1 shrink-0 order-first'></div>
                                   </div>
                                 )}
                               </div>

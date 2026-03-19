@@ -18,9 +18,11 @@ const ViewingRequestForm = ({ room, propertyId, ownerId, onClose, onSuccess, isD
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     
     if (!user) {
       toast.error('Please sign in to request a viewing');
+      setLoading(false);
       return;
     }
 
@@ -28,6 +30,25 @@ const ViewingRequestForm = ({ room, propertyId, ownerId, onClose, onSuccess, isD
       toast.error('Please select your preferred move-in date');
       setLoading(false);
       return;
+    }
+
+    // Validate dates for available-soon rooms
+    if (room.isMoveOutSoon && room.availableFrom) {
+      const availableDate = new Date(room.availableFrom);
+      const moveInDate = new Date(preferredMoveInDate);
+      const viewDate = viewingDate ? new Date(viewingDate) : null;
+      
+      if (!isDirectApply && viewDate && viewDate < availableDate) {
+        toast.error(`You cannot schedule a viewing before ${availableDate.toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}`);
+        setLoading(false);
+        return;
+      }
+      
+      if (moveInDate < availableDate) {
+        toast.error(`The room will not be available until ${availableDate.toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}. Please select a move-in date on or after that date.`);
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -79,6 +100,12 @@ const ViewingRequestForm = ({ room, propertyId, ownerId, onClose, onSuccess, isD
             </button>
           </div>
 
+          {room.isMoveOutSoon && room.availableFrom && (
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+              <p className="text-sm text-amber-800 dark:text-amber-300">⏳ This room will be <strong>available from {new Date(room.availableFrom).toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}</strong>.</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isDirectApply && (
             <div>
@@ -89,7 +116,7 @@ const ViewingRequestForm = ({ room, propertyId, ownerId, onClose, onSuccess, isD
                 type="date"
                 value={viewingDate}
                 onChange={(e) => setViewingDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={room.isMoveOutSoon && room.availableFrom ? new Date(room.availableFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                 required
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 outline-none focus:border-primary dark:bg-gray-700 dark:text-gray-100"
               />
@@ -137,7 +164,7 @@ const ViewingRequestForm = ({ room, propertyId, ownerId, onClose, onSuccess, isD
                 type="date"
                 value={preferredMoveInDate}
                 onChange={(e) => setPreferredMoveInDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={room.isMoveOutSoon && room.availableFrom ? new Date(room.availableFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                 required
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 outline-none focus:border-primary dark:bg-gray-700 dark:text-gray-100"
               />

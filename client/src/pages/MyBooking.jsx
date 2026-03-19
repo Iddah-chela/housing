@@ -6,6 +6,18 @@ import { toast } from 'react-hot-toast'
 import { BookingRowSkeleton } from '../components/Skeletons'
 import { useSearchParams } from 'react-router-dom'
 
+const getBookingRent = (booking) => {
+    if (booking?.roomDetails?.pricePerMonth) return booking.roomDetails.pricePerMonth
+    if (booking?.roomDetails?.price) return booking.roomDetails.price
+    try {
+        const b = booking?.property?.buildings?.find(x => String(x.id) === String(booking?.roomDetails?.buildingId))
+        const cell = b?.grid?.[booking?.roomDetails?.row]?.[booking?.roomDetails?.col]
+        return cell?.pricePerMonth || cell?.price || 0
+    } catch {
+        return 0
+    }
+}
+
 const MyBooking = () => {
     const { axios, getToken, user } = useAppContext()
     const [bookings, setBookings] = useState([])
@@ -116,7 +128,7 @@ const MyBooking = () => {
                                 </div>
                                 <div className='flex items-center gap-2 text-sm mt-2'>
                                     <span className='px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded text-xs font-medium'>
-                                        Ksh {booking.roomDetails?.pricePerMonth?.toLocaleString()}/month
+                                        Ksh {getBookingRent(booking).toLocaleString()}/month
                                     </span>
                                 </div>
                                 <p className='text-sm text-gray-600 dark:text-gray-400 mt-1'>

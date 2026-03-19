@@ -340,6 +340,25 @@ const ManagedProperties = () => {
     b?.hasMoved && (b.moveOutStatus === 'notice_given' || b.moveOutStatus === 'scheduled')
   )
 
+  const getBookingRoomNumber = (property, roomDetails) => {
+    try {
+      const building = property?.buildings?.find(b => String(b.id) === String(roomDetails?.buildingId))
+      if (!building?.grid) return null
+      let count = 0
+      for (let r = 0; r < building.grid.length; r++) {
+        for (let c = 0; c < (building.grid[r] || []).length; c++) {
+          if (building.grid[r][c]?.type === 'room') {
+            count++
+            if (r === roomDetails?.row && c === roomDetails?.col) return count
+          }
+        }
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
   return (
     <>
       <Navbar />
@@ -401,13 +420,21 @@ const ManagedProperties = () => {
                 <div className='grid gap-2'>
                   {movingOutBookings.map((booking) => (
                     <div key={booking._id} className='flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-800 rounded-lg p-3'>
+                      {(() => {
+                        const roomNum = getBookingRoomNumber(booking.property, booking.roomDetails)
+                        const roomLabel = roomNum
+                          ? `R${roomNum}`
+                          : `R${(booking.roomDetails?.row ?? 0) + 1}-${(booking.roomDetails?.col ?? 0) + 1}`
+                        return (
                       <div className='text-sm text-gray-700 dark:text-gray-200'>
                         <span className='font-semibold'>{booking.user?.username || booking.user?.email || 'Tenant'}</span>
                         <span className='mx-1.5 text-gray-400'>-</span>
-                        <span>{booking.property?.name || 'Property'} · {booking.roomDetails?.buildingName || 'Building'}</span>
+                        <span>{booking.property?.name || 'Property'} · {booking.roomDetails?.buildingName || 'Building'} · {roomLabel}</span>
                         <span className='mx-1.5 text-gray-400'>-</span>
                         <span>Move-out: {booking.moveOutDate ? new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' }) : 'date not set'}</span>
                       </div>
+                        )
+                      })()}
                       {booking.moveOutStatus === 'notice_given' ? (
                         <button
                           onClick={() => confirmMoveOut(booking._id)}
