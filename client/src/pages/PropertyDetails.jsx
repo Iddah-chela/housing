@@ -200,11 +200,17 @@ const PropertyDetails = () => {
         roomType: cell.roomType,
         pricePerMonth: cell.pricePerMonth,
         amenities: cell.amenities || [],
-        isVacant: cell.isVacant
+        isVacant: cell.isVacant,
+        isMoveOutSoon: !!cell.isMoveOutSoon,
+        availableFrom: cell.availableFrom || null
       }
       
       setSelectedRoom(roomData)
-      toast.success(`Selected: ${cell.roomType} - Ksh ${cell.pricePerMonth}/month`)
+      if (cell.isMoveOutSoon) {
+        toast.success(`Selected: ${cell.roomType} - available from ${cell.availableFrom ? new Date(cell.availableFrom).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' }) : 'scheduled date'}`)
+      } else {
+        toast.success(`Selected: ${cell.roomType} - Ksh ${cell.pricePerMonth}/month`)
+      }
     }
 
     const handleRequestViewing = () => {
@@ -220,7 +226,7 @@ const PropertyDetails = () => {
         toast.error('Please select a room from the grid first')
         return
       }
-      if (!selectedRoom.isVacant) {
+      if (!selectedRoom.isVacant && !selectedRoom.isMoveOutSoon) {
         toast.error('This room is currently occupied')
         return
       }
@@ -240,7 +246,7 @@ const PropertyDetails = () => {
         toast.error('Please select a room from the grid first')
         return
       }
-      if (!selectedRoom.isVacant) {
+      if (!selectedRoom.isVacant && !selectedRoom.isMoveOutSoon) {
         toast.error('This room is currently occupied')
         return
       }
@@ -262,6 +268,9 @@ const PropertyDetails = () => {
 
   const currentBuilding = property.buildings[selectedBuilding]
   const vacantCount = property.vacantRooms || 0
+  const soonAvailableCount = property.buildings.reduce((sum, b) =>
+    sum + (b.grid || []).flat().filter(cell => cell?.type === 'room' && cell?.isMoveOutSoon && !cell?.isVacant && !cell?.isBooked).length
+  , 0)
 
   // Dynamic cell size for compound thumbnail view
   const numBuildings = property.buildings.length
@@ -314,6 +323,11 @@ const PropertyDetails = () => {
                   <div className='px-4 py-2 rounded-full text-sm font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300'>
                   {vacantCount} {vacantCount === 1 ? 'Vacancy' : 'Vacancies'}
                 </div>
+                {soonAvailableCount > 0 && (
+                  <div className='px-4 py-2 rounded-full text-sm font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'>
+                    {soonAvailableCount} Available Soon
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setShowReportModal(true)}
@@ -387,6 +401,7 @@ const PropertyDetails = () => {
                                 className={`group relative border border-gray-300 flex items-center justify-center transition-all text-xs ${
                                   isSelected ? 'ring-4 ring-indigo-500 bg-indigo-200 dark:bg-indigo-700 z-10' :
                                   cell.type === 'room' && cell.isBooked ? 'bg-amber-200 dark:bg-amber-800 border-amber-400 cursor-not-allowed' :
+                                  cell.type === 'room' && cell.isMoveOutSoon ? 'bg-orange-200 dark:bg-orange-800 border-orange-400 cursor-pointer hover:bg-orange-300' :
                                   cell.type === 'room' && cell.isVacant ? 'bg-emerald-200 dark:bg-emerald-700 border-emerald-400 hover:bg-emerald-300 cursor-pointer' :
                                   cell.type === 'room' && !cell.isVacant ? 'bg-red-200 dark:bg-red-800 border-red-400 cursor-not-allowed' :
                                   cell.type === 'common' ? 'bg-gray-200 dark:bg-gray-600 border-gray-400' : 'bg-gray-50'
@@ -405,9 +420,14 @@ const PropertyDetails = () => {
                                     <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl text-left'>
                                       <div className='font-bold text-[11px]'>R{roomNum} - {cell.roomType}</div>
                                       <div className='text-[10px] text-gray-300 mt-0.5'>Ksh {cell.pricePerMonth?.toLocaleString()}/mo</div>
-                                      <div className={`text-[10px] font-medium mt-0.5 ${cell.isBooked ? 'text-amber-300' : cell.isVacant ? 'text-green-300' : 'text-red-300'}`}>
-                                        {cell.isBooked ? 'Booked' : cell.isVacant ? 'Vacant' : 'Occupied'}
+                                      <div className={`text-[10px] font-medium mt-0.5 ${cell.isBooked ? 'text-amber-300' : cell.isMoveOutSoon ? 'text-orange-300' : cell.isVacant ? 'text-green-300' : 'text-red-300'}`}>
+                                        {cell.isBooked ? 'Booked' : cell.isMoveOutSoon ? 'Available Soon' : cell.isVacant ? 'Vacant' : 'Occupied'}
                                       </div>
+                                      {cell.isMoveOutSoon && (
+                                        <div className='text-[10px] text-orange-200'>
+                                          From {cell.availableFrom ? new Date(cell.availableFrom).toLocaleDateString('en-KE', { day:'numeric', month:'short' }) : 'scheduled date'}
+                                        </div>
+                                      )}
                                     </div>
                                     <div className='w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1 shrink-0'></div>
                                   </div>
@@ -565,6 +585,7 @@ const PropertyDetails = () => {
                                       className={`group relative border border-gray-300 flex items-center justify-center transition-all text-xs ${
                                         isSelected ? 'ring-4 ring-indigo-500 bg-indigo-200 dark:bg-indigo-900 z-10' :
                                         cell.type === 'room' && cell.isBooked ? 'bg-amber-200 dark:bg-amber-900 border-amber-400 cursor-not-allowed' :
+                                        cell.type === 'room' && cell.isMoveOutSoon ? 'bg-orange-200 dark:bg-orange-900 border-orange-400 cursor-pointer hover:bg-orange-300' :
                                         cell.type === 'room' && cell.isVacant ? 'bg-emerald-200 dark:bg-emerald-900 border-emerald-400 hover:bg-emerald-300 cursor-pointer' :
                                         cell.type === 'room' && !cell.isVacant ? 'bg-red-200 dark:bg-red-900 border-red-400 cursor-not-allowed' :
                                         cell.type === 'common' ? 'bg-gray-200 dark:bg-gray-600 border-gray-400' :
@@ -577,9 +598,14 @@ const PropertyDetails = () => {
                                           <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl text-left'>
                                             <div className='font-bold text-[11px]'>R{getRoomNumber(building.grid, rowIndex, colIndex)} - {cell.roomType}</div>
                                             <div className='text-[10px] text-gray-300 mt-0.5'>Ksh {cell.pricePerMonth?.toLocaleString()}/mo</div>
-                                            <div className={`text-[10px] font-medium mt-0.5 ${cell.isBooked ? 'text-amber-300' : cell.isVacant ? 'text-green-300' : 'text-red-300'}`}>
-                                              {cell.isBooked ? 'Booked' : cell.isVacant ? 'Vacant' : 'Occupied'}
+                                            <div className={`text-[10px] font-medium mt-0.5 ${cell.isBooked ? 'text-amber-300' : cell.isMoveOutSoon ? 'text-orange-300' : cell.isVacant ? 'text-green-300' : 'text-red-300'}`}>
+                                              {cell.isBooked ? 'Booked' : cell.isMoveOutSoon ? 'Available Soon' : cell.isVacant ? 'Vacant' : 'Occupied'}
                                             </div>
+                                            {cell.isMoveOutSoon && (
+                                              <div className='text-[10px] text-orange-200'>
+                                                From {cell.availableFrom ? new Date(cell.availableFrom).toLocaleDateString('en-KE', { day:'numeric', month:'short' }) : 'scheduled date'}
+                                              </div>
+                                            )}
                                           </div>
                                           <div className='w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1 shrink-0'></div>
                                         </div>
@@ -627,6 +653,7 @@ const PropertyDetails = () => {
             <div className='flex items-center gap-2'><div className='w-4 h-4 bg-emerald-200 border border-emerald-400 rounded-sm'></div><span>Vacant</span></div>
             <div className='flex items-center gap-2'><div className='w-4 h-4 bg-red-200 border border-red-400 rounded-sm'></div><span>Occupied</span></div>
             <div className='flex items-center gap-2'><div className='w-4 h-4 bg-amber-200 border border-amber-400 rounded-sm'></div><span>Booked</span></div>
+            <div className='flex items-center gap-2'><div className='w-4 h-4 bg-orange-200 border border-orange-400 rounded-sm'></div><span>Available Soon</span></div>
             <div className='flex items-center gap-2'><div className='w-4 h-4 bg-gray-200 border border-gray-400 rounded-sm'></div><span>Common</span></div>
           </div>
         </div>
@@ -642,7 +669,10 @@ const PropertyDetails = () => {
                 
                 <div className='mt-4'>
                   <p className='text-sm text-gray-600 dark:text-gray-400 mb-2'>Building: {selectedRoom.buildingName}</p>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>Status: <span className={selectedRoom.isBooked ? 'text-yellow-600 font-medium' : selectedRoom.isVacant ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>{selectedRoom.isBooked ? 'Booked' : selectedRoom.isVacant ? 'Vacant' : 'Occupied'}</span></p>
+                  <p className='text-sm text-gray-600 dark:text-gray-400'>Status: <span className={selectedRoom.isBooked ? 'text-yellow-600 font-medium' : selectedRoom.isMoveOutSoon ? 'text-orange-600 font-medium' : selectedRoom.isVacant ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>{selectedRoom.isBooked ? 'Booked' : selectedRoom.isMoveOutSoon ? 'Available Soon' : selectedRoom.isVacant ? 'Vacant' : 'Occupied'}</span></p>
+                  {selectedRoom.isMoveOutSoon && (
+                    <p className='text-xs text-orange-600 dark:text-orange-400 mt-1'>Expected availability: {selectedRoom.availableFrom ? new Date(selectedRoom.availableFrom).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' }) : 'scheduled date'}</p>
+                  )}
                 </div>
 
                 {selectedRoom.amenities && selectedRoom.amenities.length > 0 && (
@@ -891,17 +921,17 @@ const PropertyDetails = () => {
                 
                 <button 
                   onClick={handleRequestViewing}
-                  disabled={!selectedRoom.isVacant || selectedRoom.isBooked}
+                  disabled={(!selectedRoom.isVacant && !selectedRoom.isMoveOutSoon) || selectedRoom.isBooked}
                   className='px-6 py-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold disabled:bg-gray-400'
                 >
-                  {selectedRoom.isBooked ? 'Room Booked' : selectedRoom.isVacant ? 'Request Viewing' : 'Room Occupied'}
+                  {selectedRoom.isBooked ? 'Room Booked' : (selectedRoom.isVacant || selectedRoom.isMoveOutSoon) ? 'Request Viewing' : 'Room Occupied'}
                 </button>
-                {selectedRoom.isVacant && !selectedRoom.isBooked && (
+                {(selectedRoom.isVacant || selectedRoom.isMoveOutSoon) && !selectedRoom.isBooked && (
                   <button
                     onClick={handleDirectApply}
                     className='px-6 py-3 rounded-lg border-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all font-semibold'
                   >
-                    Apply Directly
+                    {selectedRoom.isMoveOutSoon ? 'Apply for Move-In Date' : 'Apply Directly'}
                   </button>
                 )}
               </div>

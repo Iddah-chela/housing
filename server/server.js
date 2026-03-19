@@ -26,7 +26,7 @@ import newsletterRouter from "./routes/newsletterRoutes.js";
 import notificationRouter from "./routes/notificationRoutes.js";
 import utilityRouter from "./routes/utilityRoutes.js";
 import { expireViewingRequests } from "./utils/expirationHandler.js";
-import { checkListingFreshness, checkUnlockAutoRefunds, sendPostViewingNudges, sendViewingReminders, sendMoveInNudges } from "./utils/cronJobs.js";
+import { checkListingFreshness, checkUnlockAutoRefunds, sendPostViewingNudges, sendViewingReminders, sendMoveInNudges, sendMoveOutNudges } from "./utils/cronJobs.js";
 
 
 connectDB()
@@ -166,6 +166,11 @@ setInterval(async () => {
     await sendMoveInNudges();
 }, 6 * 60 * 60 * 1000);
 
+// Every 6 hours: move-out date confirmations
+setInterval(async () => {
+    await sendMoveOutNudges();
+}, 6 * 60 * 60 * 1000);
+
 // Daily: send viewing reminders (day-before reminder push + email)
 setInterval(async () => {
     await sendViewingReminders();
@@ -179,6 +184,7 @@ setTimeout(async () => {
     await sendPostViewingNudges();
     await sendViewingReminders();
     await sendMoveInNudges();
+    await sendMoveOutNudges();
 }, 5000);
 
 

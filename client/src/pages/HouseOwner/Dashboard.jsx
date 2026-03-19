@@ -19,6 +19,7 @@ const Dashboard = () => {
         pendingViewings: 0,
         confirmedViewings: 0,
         recentBookings: [],
+        movingOutBookings: [],
         recentViewings: [],
         properties: []
     })
@@ -64,6 +65,9 @@ const Dashboard = () => {
 
             const bookings = bookingsRes.data?.bookings || []
             const totalRevenue = monthlyRevenue
+            const movingOutBookings = bookings
+                .filter(b => b?.hasMoved && (b.moveOutStatus === 'notice_given' || b.moveOutStatus === 'scheduled'))
+                .slice(0, 5)
 
             const viewings = viewingsRes.data?.viewingRequests || []
             const pendingViewings = viewings.filter(v => v.status === 'pending').length
@@ -83,6 +87,7 @@ const Dashboard = () => {
                 pendingViewings,
                 confirmedViewings,
                 recentBookings: bookings.slice(0, 5),
+                movingOutBookings,
                 recentViewings: viewings.filter(v => v.status === 'pending').slice(0, 5),
                 properties
             })
@@ -222,6 +227,31 @@ const Dashboard = () => {
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* Moving Out Tenants */}
+            <div className='mt-6 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 rounded-xl overflow-hidden'>
+                <div className='px-5 py-4 border-b border-amber-100 dark:border-amber-800 flex items-center justify-between'>
+                    <h2 className='font-semibold text-amber-800 dark:text-amber-300'>Moving Out Tenants</h2>
+                    <button onClick={() => navigate('/owner/bookings')} className='text-xs text-indigo-600 hover:underline'>Manage in Bookings</button>
+                </div>
+                {stats.movingOutBookings.length === 0 ? (
+                    <div className='p-6 text-center text-gray-400 text-sm'>No active move-out notices.</div>
+                ) : (
+                    <div className='divide-y divide-gray-100 dark:divide-gray-700'>
+                        {stats.movingOutBookings.map((booking, i) => (
+                            <div key={i} className='px-5 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/40'>
+                                <div>
+                                    <p className='text-sm font-medium text-gray-800 dark:text-gray-100'>{booking.user?.username || booking.user?.email || 'Tenant'}</p>
+                                    <p className='text-xs text-gray-500 dark:text-gray-400'>{booking.property?.name || 'Property'} - {booking.roomDetails?.buildingName || 'Building'} · {booking.roomDetails?.roomType || 'Room'}</p>
+                                </div>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${booking.moveOutStatus === 'scheduled' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'}`}>
+                                    {booking.moveOutStatus === 'scheduled' ? 'Scheduled' : 'Notice Given'}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Property Overview */}

@@ -10,6 +10,17 @@ const statusColors = {
     completed:  'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
 }
 
+const getBookingRent = (booking) => {
+    if (booking?.roomDetails?.pricePerMonth) return booking.roomDetails.pricePerMonth
+    try {
+        const b = booking?.property?.buildings?.find(x => x.id === booking?.roomDetails?.buildingId)
+        const cell = b?.grid?.[booking?.roomDetails?.row]?.[booking?.roomDetails?.col]
+        return cell?.pricePerMonth || 0
+    } catch {
+        return 0
+    }
+}
+
 const OwnerBookings = () => {
     const { axios, getToken, toast } = useAppContext()
     const [bookings, setBookings] = useState([])
@@ -23,7 +34,7 @@ const OwnerBookings = () => {
     }, [])
 
     const confirmMoveOut = async (bookingId) => {
-        if (!confirm('Confirm this tenant has vacated the room?')) return
+        if (!confirm('Confirm this tenant is moving out on the selected date? This will mark the room as available soon.')) return
         setMovingOut(bookingId)
         try {
             const token = await getToken()
@@ -31,13 +42,13 @@ const OwnerBookings = () => {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (data.success) {
-                toast.success('Move-out confirmed — room is now vacant')
-                setBookings(prev => prev.map(b => b._id === bookingId ? { ...b, moveOutStatus: 'completed' } : b))
+                toast.success('Move-out schedule confirmed - room marked as available soon')
+                setBookings(prev => prev.map(b => b._id === bookingId ? { ...b, moveOutStatus: 'scheduled' } : b))
             } else {
                 toast.error(data.message)
             }
         } catch {
-            toast.error('Failed to confirm move-out')
+            toast.error('Failed to confirm move-out schedule')
         } finally {
             setMovingOut(null)
         }
@@ -160,7 +171,7 @@ const OwnerBookings = () => {
                                             </span>
                                         )}
                                         <span className='text-indigo-600 dark:text-indigo-400 font-medium'>
-                                            Ksh {booking.roomDetails?.pricePerMonth?.toLocaleString()}/mo
+                                            Ksh {getBookingRent(booking).toLocaleString()}/mo
                                         </span>
                                     </div>
 
@@ -200,8 +211,14 @@ const OwnerBookings = () => {
                                             className='mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition-colors'
                                         >
                                             <LogOut className='w-3.5 h-3.5' />
-                                            {movingOut === booking._id ? 'Confirming…' : `Confirm Tenant Vacated${booking.moveOutDate ? ' · ' + new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' }) : ''}`}
+                                            {movingOut === booking._id ? 'Confirming...' : `Confirm Move-Out Plan${booking.moveOutDate ? ' - ' + new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' }) : ''}`}
                                         </button>
+                                    )}
+                                    {booking.moveOutStatus === 'scheduled' && (
+                                        <div className='mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-semibold rounded-lg'>
+                                            <LogOut className='w-3.5 h-3.5' />
+                                            Available soon from {booking.moveOutDate ? new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' }) : 'scheduled date'}
+                                        </div>
                                     )}
 
                                     <div className='mt-1 text-xs text-gray-400 dark:text-gray-500'>

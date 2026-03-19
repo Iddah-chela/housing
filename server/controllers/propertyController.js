@@ -121,10 +121,24 @@ export const createProperty = async (req, res) => {
 // Get all properties (for browsing) — exclude expired ones
 export const getAllProperties = async (req, res) => {
   try {
-    const properties = await Property.find({ vacantRooms: { $gt: 0 }, isExpired: { $ne: true } })
+    const rawProperties = await Property.find({ isExpired: { $ne: true } })
       .select('-contact -whatsappNumber')
       .populate('owner', 'username image isVerified')
       .sort({ createdAt: -1 });
+
+    const properties = rawProperties
+      .map((p) => {
+        const soon = p.buildings?.reduce((acc, b) => {
+          (b.grid || []).forEach((row) => row.forEach((cell) => {
+            if (cell.type === 'room' && cell.isMoveOutSoon && cell.availableFrom) acc++;
+          }));
+          return acc;
+        }, 0) || 0;
+        const obj = p.toObject();
+        obj.soonAvailableRooms = soon;
+        return obj;
+      })
+      .filter((p) => (p.vacantRooms || 0) > 0 || (p.soonAvailableRooms || 0) > 0);
     
     res.json({ success: true, properties });
   } catch (error) {
@@ -297,6 +311,11 @@ export const toggleRoomAvailability = async (req, res) => {
 
     // Toggle availability
     cell.isVacant = !cell.isVacant;
+    if (cell.isVacant) {
+      cell.isMoveOutSoon = false;
+      cell.availableFrom = null;
+      cell.isBooked = false;
+    }
     
     await property.save(); // This will trigger the pre-save hook to recalculate totals
 
@@ -449,6 +468,10 @@ export const caretakerToggleRoom = async (req, res) => {
 
     cell.isVacant = !cell.isVacant;
     cell.isBooked = false; // clear any pending booking when caretaker manually toggles
+    if (cell.isVacant) {
+      cell.isMoveOutSoon = false;
+      cell.availableFrom = null;
+    }
     await property.save();
 
     res.json({

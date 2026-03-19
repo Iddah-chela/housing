@@ -9,7 +9,6 @@ const Sidebar = () => {
         {name: "Viewing Requests", path: "/owner/viewing-requests", icon: assets.calenderIcon},
         {name: "My Listings", path: "/owner/list-room", icon: assets.listIcon},
         {name: "Utilities", path: "/owner/utilities", icon: assets.listIcon},
-        {name: "Messages", path: "/my-chats", icon: assets.addIcon},
     ]
     const linkClass = ({ isActive }) =>
         `flex items-center py-3 px-4 md:px-8 gap-3 transition-colors ${isActive

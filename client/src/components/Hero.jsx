@@ -26,7 +26,7 @@ const Hero = () => {
       className='relative flex flex-col items-start justify-center px-6 md:px-16 lg:px-24 xl:px-32 text-white h-screen bg-cover bg-center bg-no-repeat'
     >
         {/* Preloaded hero image via CSS background */}
-        <div className='absolute inset-0 bg-black/20' aria-hidden="true" />
+        <div className='absolute inset-0 bg-black/45' aria-hidden="true" />
         <div className='relative z-10 flex flex-col items-start w-full'>
           <p className='text-sm font-medium bg-green-500/50 px-3 py-1 rounded-full'>✓ Verified listings · No scams</p>
         <h1 className='font-medium text-3xl md:text-5xl lg:text-6xl max-w-2xl mt-6'>

@@ -5,6 +5,53 @@ import User from "../models/user.js";
 import { sendEmail } from "../utils/mailer.js";
 import { sendPushNotification } from "../utils/pushNotifier.js";
 
+const CLIENT_BASE = process.env.CLIENT_URL || 'http://localhost:5173';
+
+const setRoomMoveOutState = async (property, roomDetails, state = {}) => {
+    if (!property) return;
+    const building = property.buildings?.find(b => b.id === roomDetails?.buildingId);
+    const cell = building?.grid?.[roomDetails?.row]?.[roomDetails?.col];
+    if (!cell || cell.type !== 'room') return;
+
+    if (typeof state.isVacant === 'boolean') cell.isVacant = state.isVacant;
+    if (typeof state.isBooked === 'boolean') cell.isBooked = state.isBooked;
+    if (typeof state.isMoveOutSoon === 'boolean') cell.isMoveOutSoon = state.isMoveOutSoon;
+    if (Object.prototype.hasOwnProperty.call(state, 'availableFrom')) {
+        cell.availableFrom = state.availableFrom;
+    }
+
+    property.markModified('buildings');
+    await property.save();
+};
+
+const getCaretakerUsers = async (property) => {
+    const caretakerEmails = (property?.caretakers || []).filter(Boolean);
+    if (!caretakerEmails.length) return [];
+    return User.find({
+        email: { $in: caretakerEmails.map(e => new RegExp(`^${e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')) }
+    }).select('_id username email');
+};
+
+const notifyOwnerAndCaretakers = async ({ property, title, body, url = '/owner/bookings', emailSubject, emailHtml }) => {
+    if (!property) return;
+    const ownerUser = await User.findById(property.owner);
+    const caretakerUsers = await getCaretakerUsers(property);
+
+    if (ownerUser?._id) {
+        sendPushNotification(ownerUser._id, { title, body, url, tag: `moveout-owner-${property._id}` });
+    }
+    caretakerUsers.forEach(c => {
+        sendPushNotification(c._id, { title, body, url, tag: `moveout-caretaker-${property._id}` });
+    });
+
+    if (emailSubject && emailHtml) {
+        const recipients = [ownerUser?.email, ...caretakerUsers.map(c => c.email)].filter(Boolean);
+        if (recipients.length) {
+            sendEmail(recipients, emailSubject, emailHtml).catch(() => {});
+        }
+    }
+};
+
 // api to create a new booking
 //Post /api/bookings/book
 export const createBooking = async (req, res)=>{
@@ -18,15 +65,32 @@ export const createBooking = async (req, res)=>{
             return res.json({success: false, message: "Property not found"});
         }
 
-        // Prevent duplicate bookings for same room
-        const existing = await Booking.findOne({
+        const requestedMoveInDate = new Date(moveInDate);
+
+        // Prevent conflicting bookings for same room.
+        // Allow future booking if current tenant has a scheduled move-out and requested move-in is on/after available date.
+        const existing = await Booking.find({
             property: propertyId,
             'roomDetails.buildingId': roomDetails.buildingId,
             'roomDetails.row': roomDetails.row,
             'roomDetails.col': roomDetails.col,
             status: { $ne: 'cancelled' }
         });
-        if (existing) {
+
+        const blocking = existing.find(b => {
+            if (b.moveOutStatus === 'completed') return false;
+            if (b.hasMoved && b.moveOutStatus === 'scheduled' && b.moveOutDate) {
+                return requestedMoveInDate < new Date(b.moveOutDate);
+            }
+            return true;
+        });
+        if (blocking) {
+            if (blocking.moveOutStatus === 'scheduled' && blocking.moveOutDate) {
+                return res.json({
+                    success: false,
+                    message: `This room is occupied until ${new Date(blocking.moveOutDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}. Choose a move-in date after that.`
+                });
+            }
             return res.json({ success: false, message: 'This room is already booked' });
         }
 
@@ -46,14 +110,11 @@ export const createBooking = async (req, res)=>{
             status: "confirmed",
             ...(viewingRequestId && { viewingRequestId })
         })
-        // Mark cell as booked in property grid
+        // Mark cell as booked in property grid for upcoming booking.
         try {
-            const building = property.buildings?.find(b => b.id === roomDetails.buildingId);
-            if (building && building.grid?.[roomDetails.row]?.[roomDetails.col]) {
-                building.grid[roomDetails.row][roomDetails.col].isBooked = true;
-                property.markModified('buildings');
-                await property.save();
-            }
+            await setRoomMoveOutState(property, roomDetails, {
+                isBooked: true
+            });
         } catch (_) {}
 
         // Mark viewing request as booked so "Book This Room" button hides
@@ -313,27 +374,38 @@ export const giveNotice = async (req, res) => {
             return res.json({ success: false, message: 'Unauthorized' });
         if (!booking.hasMoved)
             return res.json({ success: false, message: 'You must have moved in before giving notice' });
-        if (booking.moveOutStatus !== 'none')
-            return res.json({ success: false, message: 'Move-out notice already submitted' });
+        if (booking.moveOutStatus === 'completed')
+            return res.json({ success: false, message: 'This booking is already marked as moved out' });
 
-        booking.moveOutDate = new Date(moveOutDate);
+        const parsedMoveOutDate = new Date(moveOutDate);
+        if (Number.isNaN(parsedMoveOutDate.getTime())) {
+            return res.json({ success: false, message: 'Invalid move-out date' });
+        }
+
+        booking.moveOutDate = parsedMoveOutDate;
         booking.moveOutStatus = 'notice_given';
         booking.moveOutInitiatedBy = req.user._id;
+        booking.moveOutConfirmedBy = null;
+        booking.moveOutNudgeSentAt = null;
+        booking.moveOutToken = null;
         await booking.save();
 
-        // Notify property owner
+        // Notify owner + caretakers and keep room occupied until notice is confirmed.
         const property = booking.property;
         if (property) {
             const renter = await User.findById(booking.user);
-            sendPushNotification(property.owner, {
-                title: 'Tenant giving notice',
-                body: `${renter?.username || 'A tenant'} has given notice to vacate their room at ${property.name} on ${new Date(moveOutDate).toDateString()}`,
-                url: '/owner/bookings',
-                tag: `move-out-notice-${booking._id}`
+            const dateText = parsedMoveOutDate.toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' });
+
+            await notifyOwnerAndCaretakers({
+                property,
+                title: 'Tenant gave move-out notice',
+                body: `${renter?.username || 'A tenant'} plans to move out of ${property.name} on ${dateText}. Confirm to mark as available soon.`,
+                emailSubject: `Move-out notice - ${property.name}`,
+                emailHtml: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;"><h2>Tenant Move-out Notice</h2><p><strong>${renter?.username || 'A tenant'}</strong> has given notice to move out on <strong>${dateText}</strong>.</p><p>Please open Owner Bookings and confirm this move-out plan to mark the room as <strong>Available Soon</strong>.</p><p><a href="${CLIENT_BASE}/owner/bookings" style="background:#4F46E5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;">Open Owner Bookings</a></p></div>`
             });
         }
 
-        res.json({ success: true, message: 'Move-out notice submitted. The landlord has been notified.' });
+        res.json({ success: true, message: 'Move-out notice submitted. Owner and caretaker have been notified.' });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
@@ -358,47 +430,129 @@ export const confirmMoveOut = async (req, res) => {
         if (!isOwner && !isCaretaker && !isTenant)
             return res.json({ success: false, message: 'Unauthorized' });
 
-        if (booking.moveOutStatus === 'completed')
-            return res.json({ success: true, message: 'Move-out already confirmed' });
+        if (!booking.moveOutDate) {
+            return res.json({ success: false, message: 'Tenant has not provided a move-out date yet' });
+        }
+        if (booking.moveOutStatus === 'completed') {
+            return res.json({ success: true, message: 'Move-out already completed' });
+        }
 
-        booking.moveOutStatus = 'completed';
-        if (!booking.moveOutDate) booking.moveOutDate = new Date();
+        // This confirms the planned move-out (available soon), not the physical vacate yet.
+        booking.moveOutStatus = 'scheduled';
+        booking.moveOutConfirmedBy = req.user._id;
         await booking.save();
 
-        // Mark room as vacant again in the property grid
+        // Mark room as occupied but available soon from the move-out date.
         try {
             if (property) {
-                const building = property.buildings?.find(b => b.id === booking.roomDetails.buildingId);
-                if (building?.grid?.[booking.roomDetails.row]?.[booking.roomDetails.col]) {
-                    building.grid[booking.roomDetails.row][booking.roomDetails.col].isVacant = true;
-                    building.grid[booking.roomDetails.row][booking.roomDetails.col].isBooked = false;
-                    property.markModified('buildings');
-                    await property.save();
-                }
+                await setRoomMoveOutState(property, booking.roomDetails, {
+                    isVacant: false,
+                    isBooked: false,
+                    isMoveOutSoon: true,
+                    availableFrom: booking.moveOutDate
+                });
             }
         } catch (_) {}
 
-        // Notify the other party
+        // Notify tenant and confirm to owner/caretaker.
         if (!isTenant) {
-            // Notify tenant
             sendPushNotification(booking.user, {
-                title: 'Move-out confirmed',
-                body: `Your move-out from ${property?.name} has been recorded. Thank you for using PataKeja!`,
+                title: 'Move-out date confirmed',
+                body: `Your move-out date at ${property?.name} is confirmed for ${new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
                 url: '/my-bookings',
-                tag: `move-out-confirmed-${booking._id}`
+                tag: `move-out-scheduled-${booking._id}`
             });
         } else if (property) {
-            // Notify owner
-            sendPushNotification(property.owner, {
-                title: 'Tenant has moved out',
-                body: `A tenant has confirmed moving out from ${property.name}. The room is now vacant.`,
+            await notifyOwnerAndCaretakers({
+                property,
+                title: 'Move-out schedule confirmed',
+                body: `A tenant move-out schedule at ${property.name} has been confirmed and marked as available soon.`,
                 url: '/owner/bookings',
-                tag: `move-out-confirmed-${booking._id}`
+                emailSubject: `Move-out schedule confirmed - ${property.name}`,
+                emailHtml: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;"><h2>Move-out schedule confirmed</h2><p>A room has been marked as <strong>Available Soon</strong> from <strong>${new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.</p><p><a href="${CLIENT_BASE}/owner/bookings" style="background:#4F46E5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;">Open Owner Bookings</a></p></div>`
             });
         }
 
-        res.json({ success: true, message: 'Move-out confirmed. Room is now marked as vacant.' });
+        res.json({ success: true, message: 'Move-out plan confirmed. Room is now marked as available soon.' });
     } catch (error) {
         res.json({ success: false, message: error.message });
+    }
+};
+
+// Token / authenticated move-out action — GET /api/bookings/move-out-action
+// Used by reminders on the move-out date: ?id=X&answer=yes|no&token=Y
+export const handleMoveOutAction = async (req, res) => {
+    try {
+        const { id, answer, token } = req.query;
+        const bg = req.query.bg === '1';
+        const booking = await Booking.findById(id).populate('property');
+        if (!booking) {
+            if (bg) return res.status(404).json({ success: false, message: 'Booking not found' });
+            return res.status(404).send('<h2>Booking not found.</h2>');
+        }
+        if (!token || booking.moveOutToken !== token) {
+            if (bg) return res.status(400).json({ success: false, message: 'Invalid or expired token' });
+            return res.status(400).send('<h2>Invalid or expired link.</h2>');
+        }
+
+        const property = booking.property;
+
+        if (answer === 'yes') {
+            booking.moveOutStatus = 'completed';
+            booking.moveOutToken = null;
+            booking.moveOutNudgeSentAt = new Date();
+            await booking.save();
+
+            try {
+                await setRoomMoveOutState(property, booking.roomDetails, {
+                    isVacant: true,
+                    isBooked: false,
+                    isMoveOutSoon: false,
+                    availableFrom: null
+                });
+            } catch (_) {}
+
+            await notifyOwnerAndCaretakers({
+                property,
+                title: 'Tenant moved out',
+                body: `Move-out at ${property?.name} has been confirmed. Room is now vacant.`,
+                url: '/owner/bookings'
+            });
+
+            if (bg) return res.json({ success: true, message: 'Move-out confirmed. Room is now vacant.' });
+            return res.redirect(`${CLIENT_BASE}/my-bookings?movedOut=1`);
+        }
+
+        if (answer === 'no') {
+            booking.moveOutStatus = 'none';
+            booking.moveOutDate = null;
+            booking.moveOutToken = null;
+            booking.moveOutNudgeSentAt = new Date();
+            await booking.save();
+
+            try {
+                await setRoomMoveOutState(property, booking.roomDetails, {
+                    isVacant: false,
+                    isMoveOutSoon: false,
+                    availableFrom: null
+                });
+            } catch (_) {}
+
+            await notifyOwnerAndCaretakers({
+                property,
+                title: 'Move-out postponed',
+                body: `Tenant at ${property?.name} did not move out yet. Waiting for a new move-out date.`,
+                url: '/owner/bookings'
+            });
+
+            if (bg) return res.json({ success: true, message: 'Noted. Please set a new move-out date in My Bookings.' });
+            return res.redirect(`${CLIENT_BASE}/my-bookings?moveOut=no`);
+        }
+
+        if (bg) return res.status(400).json({ success: false, message: 'Invalid answer' });
+        return res.status(400).send('<h2>Invalid response.</h2>');
+    } catch (error) {
+        if (req.query.bg === '1') return res.status(500).json({ success: false, message: error.message });
+        return res.status(500).send('<h2>Something went wrong.</h2>');
     }
 };

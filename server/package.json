@@ -7,7 +7,9 @@
     "server": "nodemon server.js",
     "start": "node server.js",
     "reset-test-user": "node resetTestUser.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "cleanup-test-accounts": "node cleanupTestAccounts.js",
+    "cleanup-test-accounts:apply": "node cleanupTestAccounts.js --apply"
   },
   "keywords": [],
   "author": "",

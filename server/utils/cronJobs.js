@@ -304,8 +304,9 @@ export const sendMoveInNudges = async () => {
                     booking.moveInNudgeSentAt = new Date();
                     await booking.save();
 
-                    const yesUrl = `${BASE}/booking-action?id=${booking._id}&answer=yes`;
-                    const noUrl  = `${BASE}/booking-action?id=${booking._id}&answer=no`;
+                    const SERVER_BASE = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+                    const yesUrl = `${SERVER_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=yes`;
+                    const noUrl  = `${SERVER_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=no`;
 
                     sendEmail(renterUser.email,
                         `Did you move in? — ${property.name}`,
@@ -326,7 +327,6 @@ export const sendMoveInNudges = async () => {
                         </div>`
                     ).catch(() => {});
 
-                    const SERVER_BASE = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
                     sendPushNotification(booking.user, {
                         title: 'Move-in day! 🏠',
                         body: `Did you move into ${property.name}? Tap to confirm.`,
@@ -363,8 +363,8 @@ export const sendMoveInNudges = async () => {
                     booking.moveInOwnerNudgeSentAt = new Date();
                     await booking.save();
 
-                    const ownerYes = `${BASE}/booking-action?id=${booking._id}&answer=owner-yes&token=${token}`;
-                    const ownerNo  = `${BASE}/booking-action?id=${booking._id}&answer=owner-no&token=${token}`;
+                    const ownerYes = `${SERVER}/api/bookings/move-in-action?id=${booking._id}&answer=owner-yes&token=${token}`;
+                    const ownerNo  = `${SERVER}/api/bookings/move-in-action?id=${booking._id}&answer=owner-no&token=${token}`;
 
                     sendEmail(ownerUser.email,
                         `Did ${renterUser.username} move in? — ${property.name}`,
@@ -384,7 +384,7 @@ export const sendMoveInNudges = async () => {
                         </div>`
                     ).catch(() => {});
 
-                    const SERVER = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
+                    const SERVER = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
                     sendPushNotification(property.owner, {
                         title: '🏠 Move-in check',
                         body: `Did ${renterUser.username} move into ${property.name}?`,
@@ -406,5 +406,77 @@ export const sendMoveInNudges = async () => {
         }
     } catch (error) {
         console.error('[MoveIn cron error]', error.message);
+    }
+};
+
+// ── Run every 6 hours ─────────────────────────────────────────────────────────
+// On/after move-out date (for scheduled notices):
+//  - Ask tenant if they actually moved out
+//  - If yes: room becomes vacant
+//  - If no: keep occupied and ask tenant to set a new date in My Bookings
+export const sendMoveOutNudges = async () => {
+    try {
+        const now = new Date();
+        const BASE = process.env.CLIENT_URL || 'http://localhost:5173';
+        const SERVER = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+
+        const due = await Booking.find({
+            hasMoved: true,
+            moveOutStatus: { $in: ['notice_given', 'scheduled'] },
+            moveOutDate: { $lte: now },
+            moveOutNudgeSentAt: null
+        }).populate('property');
+
+        for (const booking of due) {
+            try {
+                const renter = await User.findById(booking.user);
+                if (!renter || !booking.property) continue;
+
+                booking.moveOutNudgeSentAt = new Date();
+                booking.moveOutToken = crypto.randomUUID();
+                await booking.save();
+
+                const yesUrl = `${SERVER}/api/bookings/move-out-action?id=${booking._id}&answer=yes&token=${booking.moveOutToken}`;
+                const noUrl = `${SERVER}/api/bookings/move-out-action?id=${booking._id}&answer=no&token=${booking.moveOutToken}`;
+
+                sendEmail(
+                    renter.email,
+                    `Move-out check - ${booking.property.name}`,
+                    `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;">
+                        <div style="background:#ea580c;padding:24px;text-align:center;border-radius:8px 8px 0 0;">
+                            <h2 style="color:#fff;margin:0;">Move-out day check</h2>
+                        </div>
+                        <div style="padding:24px;background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                            <p>Hi <strong>${renter.username || 'Tenant'}</strong>,</p>
+                            <p>Did you move out from <strong>${booking.property.name}</strong> today?</p>
+                            <div style="display:flex;gap:12px;justify-content:center;margin:24px 0;">
+                                <a href="${yesUrl}" style="background:#16a34a;color:#fff;padding:14px 30px;border-radius:8px;text-decoration:none;font-weight:700;">Yes, I moved out</a>
+                                <a href="${noUrl}" style="background:#dc2626;color:#fff;padding:14px 30px;border-radius:8px;text-decoration:none;font-weight:700;">Not yet</a>
+                            </div>
+                            <p style="font-size:12px;color:#6b7280;">If not yet, we'll keep your room occupied and you'll be able to set a new move-out date in My Bookings.</p>
+                        </div>
+                    </div>`
+                ).catch(() => {});
+
+                sendPushNotification(booking.user, {
+                    title: 'Move-out check',
+                    body: `Did you move out from ${booking.property.name}?`,
+                    url: '/my-bookings',
+                    tag: `moveout-${booking._id}`,
+                    actions: [
+                        { action: 'bg-yes', title: 'Yes, moved out' },
+                        { action: 'bg-no', title: 'Not yet' }
+                    ],
+                    actionUrls: {
+                        'bg-yes': `${SERVER}/api/bookings/move-out-action?id=${booking._id}&answer=yes&token=${booking.moveOutToken}&bg=1`,
+                        'bg-no': `${SERVER}/api/bookings/move-out-action?id=${booking._id}&answer=no&token=${booking.moveOutToken}&bg=1`
+                    }
+                });
+            } catch (e) {
+                console.warn('[MoveOut] Failed for booking', booking._id, ':', e.message);
+            }
+        }
+    } catch (error) {
+        console.error('[MoveOut cron error]', error.message);
     }
 };

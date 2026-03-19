@@ -166,7 +166,7 @@ export const respondToViewingRequest = async (req, res) => {
                     let pricePerMonth = 0;
                     try {
                         const building = property.buildings?.find(b => b.id === viewingRequest.roomDetails.buildingId);
-                        pricePerMonth = building?.grid?.[viewingRequest.roomDetails.row]?.[viewingRequest.roomDetails.col]?.price || 0;
+                        pricePerMonth = building?.grid?.[viewingRequest.roomDetails.row]?.[viewingRequest.roomDetails.col]?.pricePerMonth || 0;
                     } catch (_) {}
 
                     const moveInDate = viewingRequest.preferredMoveInDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -473,7 +473,7 @@ export const handleNudgeResponse = async (req, res) => {
         try {
             const building = property.buildings?.find(b => b.id === viewing.roomDetails.buildingId);
             const cell = building?.grid?.[viewing.roomDetails.row]?.[viewing.roomDetails.col];
-            pricePerMonth = cell?.price || 0;
+            pricePerMonth = cell?.pricePerMonth || 0;
         } catch (_) {}
 
         // Prevent duplicate bookings

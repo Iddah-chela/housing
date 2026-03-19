@@ -39,10 +39,13 @@ const bookingSchema = new mongoose.Schema({
     moveOutDate: { type: Date, default: null },
     moveOutStatus: {
         type: String,
-        enum: ['none', 'notice_given', 'completed'],
+        enum: ['none', 'notice_given', 'scheduled', 'completed'],
         default: 'none'
     },
     moveOutInitiatedBy: { type: String, ref: 'User', default: null },
+    moveOutConfirmedBy: { type: String, ref: 'User', default: null },
+    moveOutNudgeSentAt: { type: Date, default: null },
+    moveOutToken: { type: String, default: null },
     viewingRequestId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "ViewingRequest",

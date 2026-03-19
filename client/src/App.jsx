@@ -132,7 +132,7 @@ const App = () => {
      {user && !isAdminPath && (
        <button
          onClick={() => setShowFeedback(true)}
-         className='fixed bottom-6 right-6 z-50 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white p-3.5 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105'
+         className={`fixed z-50 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white p-3.5 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105 ${isOwnerPath ? 'bottom-20 right-4 md:bottom-6 md:right-6' : 'bottom-6 right-6'}`}
          title='Send Feedback'
        >
          <MessageSquareHeart className='w-5 h-5' />

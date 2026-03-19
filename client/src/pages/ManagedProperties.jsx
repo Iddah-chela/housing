@@ -29,6 +29,7 @@ const ManagedProperties = () => {
   const [rentInviteRoom, setRentInviteRoom] = useState(null) // { propertyId, buildingId, row, col, roomNum }
   const [rentInviteForm, setRentInviteForm] = useState({ name: '', phone: '', email: '' })
   const [savingRentContact, setSavingRentContact] = useState(false)
+  const [confirmingMoveOut, setConfirmingMoveOut] = useState(null)
 
   const { user, getToken, axios } = useAppContext()
   const navigate = useNavigate()
@@ -97,7 +98,15 @@ const ManagedProperties = () => {
               if (b.id !== buildingId) return b
               const newGrid = b.grid.map((r, ri) =>
                 r.map((cell, ci) => {
-                  if (ri === row && ci === col) return { ...cell, isVacant: !cell.isVacant, isBooked: false }
+                  if (ri === row && ci === col) {
+                    return {
+                      ...cell,
+                      isVacant: !cell.isVacant,
+                      isBooked: false,
+                      isMoveOutSoon: false,
+                      availableFrom: null
+                    }
+                  }
                   return cell
                 })
               )
@@ -110,6 +119,36 @@ const ManagedProperties = () => {
       }
     } catch {
       toast.error('Failed to update room availability')
+    }
+  }
+
+  const confirmMoveOut = async (bookingId) => {
+    if (!confirm('Confirm this tenant move-out plan? This marks the room as available soon.')) return
+    setConfirmingMoveOut(bookingId)
+    try {
+      const token = await getToken()
+      const { data } = await axios.post('/api/bookings/confirm-move-out', { bookingId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (data.success) {
+        toast.success('Move-out schedule confirmed')
+        setBookingMap(prev => ({
+          ...prev,
+          ...Object.fromEntries(
+            Object.entries(prev).map(([key, val]) => [
+              key,
+              val?._id === bookingId ? { ...val, moveOutStatus: 'scheduled' } : val
+            ])
+          )
+        }))
+        fetchManagedProperties()
+      } else {
+        toast.error(data.message || 'Failed to confirm move-out')
+      }
+    } catch {
+      toast.error('Failed to confirm move-out')
+    } finally {
+      setConfirmingMoveOut(null)
     }
   }
 
@@ -297,6 +336,10 @@ const ManagedProperties = () => {
     return rooms
   }
 
+  const movingOutBookings = Object.values(bookingMap).filter(b =>
+    b?.hasMoved && (b.moveOutStatus === 'notice_given' || b.moveOutStatus === 'scheduled')
+  )
+
   return (
     <>
       <Navbar />
@@ -352,6 +395,35 @@ const ManagedProperties = () => {
         ) : activeTab === 'availability' ? (
           /* ── Room Availability Tab ── */
           <div className='grid gap-6'>
+            {movingOutBookings.length > 0 && (
+              <div className='border border-amber-200 dark:border-amber-700 rounded-xl p-4 bg-amber-50/80 dark:bg-amber-900/20'>
+                <h3 className='font-semibold text-amber-800 dark:text-amber-300 mb-3'>Moving Out Tenants</h3>
+                <div className='grid gap-2'>
+                  {movingOutBookings.map((booking) => (
+                    <div key={booking._id} className='flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-800 rounded-lg p-3'>
+                      <div className='text-sm text-gray-700 dark:text-gray-200'>
+                        <span className='font-semibold'>{booking.user?.username || booking.user?.email || 'Tenant'}</span>
+                        <span className='mx-1.5 text-gray-400'>-</span>
+                        <span>{booking.property?.name || 'Property'} · {booking.roomDetails?.buildingName || 'Building'}</span>
+                        <span className='mx-1.5 text-gray-400'>-</span>
+                        <span>Move-out: {booking.moveOutDate ? new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' }) : 'date not set'}</span>
+                      </div>
+                      {booking.moveOutStatus === 'notice_given' ? (
+                        <button
+                          onClick={() => confirmMoveOut(booking._id)}
+                          disabled={confirmingMoveOut === booking._id}
+                          className='px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white transition-colors'
+                        >
+                          {confirmingMoveOut === booking._id ? 'Confirming...' : 'Confirm Plan'}
+                        </button>
+                      ) : (
+                        <span className='px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'>Scheduled</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {properties.map((property) => (
               <div key={property._id} className='border border-gray-200 dark:border-gray-700 rounded-xl p-6 bg-white dark:bg-gray-800 shadow-sm overflow-hidden'>
                 <div className='flex flex-col sm:flex-row justify-between items-start gap-3 mb-4'>
@@ -396,6 +468,7 @@ const ManagedProperties = () => {
                             {building.grid.map((row, rowIndex) => (
                               <div key={rowIndex} className='flex'>
                                 {row.map((cell, colIndex) => {
+                                  const roomBooking = bookingMap[`${property._id}-${building.id}-${rowIndex}-${colIndex}`]
                                   if (cell.type === 'empty') return <div key={colIndex} style={{width: CELL, height: CELL}} className='border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700' />
                                   if (cell.type === 'common') return (
                                     <div key={colIndex} style={{width: CELL, height: CELL}} className='border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 flex items-center justify-center'>
@@ -403,14 +476,14 @@ const ManagedProperties = () => {
                                     </div>
                                   )
                                   return (
-                                    <div key={colIndex} style={{width: CELL, height: CELL}} className={`relative border border-gray-200 dark:border-gray-600 overflow-hidden group ${cell.isBooked ? 'bg-yellow-50 dark:bg-yellow-900/40' : cell.isVacant ? 'bg-green-50 dark:bg-green-900/40' : 'bg-red-50 dark:bg-red-900/40'}`}>
+                                    <div key={colIndex} style={{width: CELL, height: CELL}} className={`relative border border-gray-200 dark:border-gray-600 overflow-hidden group ${cell.isBooked ? 'bg-yellow-50 dark:bg-yellow-900/40' : cell.isMoveOutSoon ? 'bg-amber-50 dark:bg-amber-900/30' : cell.isVacant ? 'bg-green-50 dark:bg-green-900/40' : 'bg-red-50 dark:bg-red-900/40'}`}>
                                       <div className='flex items-center justify-center h-full'>
                                         <span className='font-extrabold text-gray-700 dark:text-gray-200' style={{fontSize: '10px'}}>R{getRoomNumber(building.grid, rowIndex, colIndex)}</span>
                                       </div>
                                       <div className='absolute bottom-0 left-1/2 -translate-x-1/2' style={{width: '20%', height: '18%', background: '#7c2d12', borderRadius: '2px 2px 0 0', minHeight: '5px', minWidth: '6px'}}></div>
                                       {/* Hover overlay: show who booked, or toggle */}
-                                      {cell.isBooked && bookingMap[`${property._id}-${building.id}-${rowIndex}-${colIndex}`] ? (() => {
-                                        const bk = bookingMap[`${property._id}-${building.id}-${rowIndex}-${colIndex}`]
+                                      {cell.isBooked && roomBooking ? (() => {
+                                        const bk = roomBooking
                                         return (
                                           <div className='absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-yellow-700/90 text-white p-0.5 gap-0.5'>
                                             {bk.user?.image && <img src={bk.user.image} className='w-5 h-5 rounded-full' alt=''/>}
@@ -429,6 +502,12 @@ const ManagedProperties = () => {
                                         >
                                           {cell.isVacant ? 'Mark\nOccupied' : 'Mark\nVacant'}
                                         </button>
+                                      )}
+                                      {cell.isMoveOutSoon && roomBooking && (
+                                        <div className='absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-amber-700/90 text-white p-0.5 gap-0.5'>
+                                          <span style={{fontSize: '8px'}} className='font-bold text-center leading-tight line-clamp-1'>Available soon</span>
+                                          <span style={{fontSize: '7px'}} className='text-amber-100'>From {roomBooking.moveOutDate ? new Date(roomBooking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' }) : 'scheduled date'}</span>
+                                        </div>
                                       )}
                                     </div>
                                   )

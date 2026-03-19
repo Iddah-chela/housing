@@ -10,7 +10,9 @@ const cellSchema = new mongoose.Schema({
   pricePerMonth: Number,
   amenities: [String],
   isVacant: Boolean,
-  isBooked: { type: Boolean, default: false }
+  isBooked: { type: Boolean, default: false },
+  isMoveOutSoon: { type: Boolean, default: false },
+  availableFrom: { type: Date, default: null }
 }, { _id: false });
 
 const buildingSchema = new mongoose.Schema({
