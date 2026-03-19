@@ -55,7 +55,7 @@ const Navbar = () => {
         return () => window.removeEventListener("scroll", handleScroll);
     }, [location.pathname]);
 
-    // hero state helpers — evaluated once per render, no dark: cascade needed
+    // hero state helpers - evaluated once per render, no dark: cascade needed
     const heroLight = !isScrolled && !darkMode;  // on hero, light mode
     const heroDark  = !isScrolled &&  darkMode;  // on hero, dark mode
 

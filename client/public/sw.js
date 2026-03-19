@@ -51,7 +51,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (JS, CSS, images, fonts) � cache-first
+  // Static assets (JS, CSS, images, fonts) -> cache-first
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

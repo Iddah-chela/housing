@@ -50,7 +50,7 @@ export async function subscribeToPush(getToken) {
             return false;
         }
 
-        // Get SW registration (with timeout � hangs forever if SW failed to register)
+        // Get SW registration (with timeout - hangs forever if SW failed to register)
         const registration = await Promise.race([
             navigator.serviceWorker.ready,
             new Promise((_, reject) => setTimeout(() => reject(new Error('Service worker not ready after 10s')), 10000))
@@ -133,7 +133,7 @@ export async function unsubscribeFromPush(getToken) {
 
 /**
  * Silently re-subscribe if user previously opted in (e.g. after page reload).
- * Does not prompt � only re-subscribes if permission is already granted.
+ * Does not prompt - only re-subscribes if permission is already granted.
  * @param {Function} getToken
  */
 export async function resubscribeIfNeeded(getToken) {

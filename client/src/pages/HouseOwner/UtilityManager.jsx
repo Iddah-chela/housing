@@ -154,7 +154,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
       note:            existing?.note ?? '',
       applyToAll:      false
     })
-    setRecordForm({ buildingId, buildingName, row, col, roomLabel: `${buildingName} • Room ${roomNumber}` })
+    setRecordForm({ buildingId, buildingName, row, col, roomLabel: `${buildingName} - Room ${roomNumber}` })
   }
 
   // -- save record ------------------------------------------------------
@@ -228,7 +228,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
       if (data.success) {
         toast.success(`Reminder sent to ${roomLabel}`)
       } else if (data.noTenant) {
-        // No tenant linked — open invite panel
+        // No tenant linked - open invite panel
         setInviteRoom({ buildingId, row, col, roomLabel, notSignedUp: data.notSignedUp })
         const existing = data.contact || roomContacts[key] || {}
         setInviteForm({ name: existing.name || '', phone: existing.phone || '', email: existing.email || '' })
@@ -257,7 +257,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
       if (data.success) {
         const key = `${inviteRoom.buildingId}-${inviteRoom.row}-${inviteRoom.col}`
         setRoomContacts(prev => ({ ...prev, [key]: data.contact }))
-        toast.success('Tenant contact saved — share the app link with them!')
+        toast.success('Tenant contact saved - share the app link with them!')
         setInviteRoom(null)
       } else {
         toast.error(data.message)
@@ -326,7 +326,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
           <h3 className='font-semibold text-indigo-900 dark:text-indigo-200 mb-3 text-sm'>Billing Settings for {selectedProperty?.name}</h3>
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3'>
             <div>
-              <label className='text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1'>?? Water paid by</label>
+              <label className='text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1'>Water paid by</label>
               <select value={settings.waterPaidBy} onChange={e => setSettings(s => ({ ...s, waterPaidBy: e.target.value }))}
                 className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500'>
                 <option value='tenant'>Tenant pays</option>
@@ -334,7 +334,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
               </select>
             </div>
             <div>
-              <label className='text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1'>? Electricity paid by</label>
+              <label className='text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1'>Electricity paid by</label>
               <select value={settings.electricityPaidBy} onChange={e => setSettings(s => ({ ...s, electricityPaidBy: e.target.value }))}
                 className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500'>
                 <option value='tenant'>Tenant pays (tokens/prepay or metered)</option>
@@ -342,14 +342,14 @@ const UtilityManager = ({ initialProperties } = {}) => {
               </select>
             </div>
             <div>
-              <label className='text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1'>? Electricity rate (Ksh/unit, optional)</label>
+              <label className='text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1'>Electricity rate (Ksh/unit, optional)</label>
               <input type='number' min='0' step='0.01' placeholder='e.g. 25'
                 value={settings.electricityRatePerUnit}
                 onChange={e => setSettings(s => ({ ...s, electricityRatePerUnit: e.target.value }))}
                 className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-indigo-500' />
             </div>
             <div>
-              <label className='text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1'>?? Water rate (Ksh/unit, optional)</label>
+              <label className='text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1'>Water rate (Ksh/unit, optional)</label>
               <input type='number' min='0' step='0.01' placeholder='e.g. 80'
                 value={settings.waterRatePerUnit}
                 onChange={e => setSettings(s => ({ ...s, waterRatePerUnit: e.target.value }))}
@@ -367,7 +367,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
             <button onClick={() => setShowSettings(false)} className='px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'>Cancel</button>
             <button onClick={saveSettings} disabled={savingSettings}
               className='px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm rounded-lg font-medium transition-colors'>
-              {savingSettings ? 'Saving…' : 'Save Settings'}
+              {savingSettings ? 'Saving...' : 'Save Settings'}
             </button>
           </div>
         </div>
@@ -425,7 +425,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
         {typeFilter === 'electricity' ? <Zap className='w-3.5 h-3.5' /> : <Droplets className='w-3.5 h-3.5' />}
         {isTenantPays
           ? `Tenants are responsible for their own ${typeFilter} payments.${ratePerUnit ? ` Rate: Ksh ${ratePerUnit}/unit.` : ''}`
-          : `${typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)} is included in rent — no charges to track per tenant.`
+          : `${typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)} is included in rent - no charges to track per tenant.`
         }
         <button onClick={() => setShowSettings(true)} className='ml-auto underline opacity-70 hover:opacity-100'>Change</button>
       </div>
@@ -537,10 +537,10 @@ const UtilityManager = ({ initialProperties } = {}) => {
                                   onClick={() => sendReminder(building.id, rowIdx, colIdx, `Room ${roomNum}`)}
                                   disabled={sendingReminder === key}
                                   className='px-2.5 py-1.5 text-xs border border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-1'
-                                  title={hasContact ? 'Contact saved — click to remind' : 'Click to remind or save tenant contact'}
+                                  title={hasContact ? 'Contact saved - click to remind' : 'Click to remind or save tenant contact'}
                                 >
                                   <Bell className='w-3 h-3' />
-                                  {sendingReminder === key ? 'Sending…' : 'Remind'}
+                                  {sendingReminder === key ? 'Sending...' : 'Remind'}
                                   {hasContact && <span className='w-1.5 h-1.5 rounded-full bg-orange-400 ml-0.5' title='Contact saved' />}
                                 </button>
                               )
@@ -562,7 +562,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4' onClick={() => setRecordForm(null)}>
           <div className='bg-white dark:bg-gray-800 rounded-xl w-full max-w-sm p-5 shadow-2xl' onClick={e => e.stopPropagation()}>
             <h3 className='font-bold text-gray-900 dark:text-white mb-1'>
-              {typeFilter === 'electricity' ? '?' : '??'} {typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)} — {recordForm.roomLabel}
+              {typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)} - {recordForm.roomLabel}
             </h3>
             <p className='text-xs text-gray-400 mb-4'>{MONTHS[month - 1]} {year}</p>
 
@@ -598,7 +598,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
               {!recordData.applyToAll && recordData.previousReading !== '' && recordData.currentReading !== '' && (
                 <p className='text-xs text-indigo-600 dark:text-indigo-400'>
                   Units used: {Math.max(0, parseFloat(recordData.currentReading || 0) - parseFloat(recordData.previousReading || 0))}
-                  {ratePerUnit ? ` × Ksh ${ratePerUnit} = Ksh ${Math.max(0, parseFloat(recordData.currentReading || 0) - parseFloat(recordData.previousReading || 0)) * parseFloat(ratePerUnit)}` : ''}
+                  {ratePerUnit ? ` x Ksh ${ratePerUnit} = Ksh ${Math.max(0, parseFloat(recordData.currentReading || 0) - parseFloat(recordData.previousReading || 0)) * parseFloat(ratePerUnit)}` : ''}
                 </p>
               )}
 
@@ -641,7 +641,7 @@ const UtilityManager = ({ initialProperties } = {}) => {
                 Cancel
               </button>
               <button onClick={saveRecord} disabled={saving} className='flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm rounded-lg font-medium transition-colors'>
-                {saving ? 'Saving…' : recordData.applyToAll ? 'Apply to All Rooms' : 'Save Record'}
+                {saving ? 'Saving...' : recordData.applyToAll ? 'Apply to All Rooms' : 'Save Record'}
               </button>
             </div>
           </div>

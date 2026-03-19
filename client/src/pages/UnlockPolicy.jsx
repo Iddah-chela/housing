@@ -34,13 +34,13 @@ const UnlockPolicy = () => {
             <div className='flex items-start gap-4'>
               <div className='bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap'>1-Day Pass</div>
               <div>
-                <p className='text-gray-700'><strong>Ksh 100</strong> � Full access to all owner contact details for 24 hours. Ideal for a quick search in one day.</p>
+                <p className='text-gray-700'><strong>Ksh 100</strong> - Full access to all owner contact details for 24 hours. Ideal for a quick search in one day.</p>
               </div>
             </div>
             <div className='flex items-start gap-4'>
               <div className='bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap'>7-Day Pass</div>
               <div>
-                <p className='text-gray-700'><strong>Ksh 300</strong> � Full access for 7 days. Best for active house hunters comparing multiple properties.</p>
+                <p className='text-gray-700'><strong>Ksh 300</strong> - Full access for 7 days. Best for active house hunters comparing multiple properties.</p>
               </div>
             </div>
           </div>
@@ -53,7 +53,7 @@ const UnlockPolicy = () => {
             <li>Enter your M-Pesa phone number (Safaricom).</li>
             <li>An STK push notification will appear on your phone.</li>
             <li>Enter your M-Pesa PIN to complete payment.</li>
-            <li>Click "Verify Payment" � once confirmed, your pass activates immediately.</li>
+            <li>Click "Verify Payment" - once confirmed, your pass activates immediately.</li>
           </ol>
           <p className='text-gray-700 mt-2'>Payments are processed securely through IntaSend, a licensed Kenyan payment gateway.</p>
         </section>

@@ -225,7 +225,7 @@ export const AppProvider = ({children})=>{
     useEffect(() => {
         const controller = new AbortController();
         axios.get('/api/health', { signal: controller.signal, timeout: 90000 })
-            .catch(() => {}); // Silence errors — this is fire-and-forget
+            .catch(() => {}); // Silence errors - this is fire-and-forget
         return () => controller.abort();
     }, []);
 

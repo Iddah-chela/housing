@@ -14,7 +14,7 @@ const Safety = () => {
 
       <div className='space-y-8'>
 
-        {/* For Tenants + For Landlords � side by side on lg screens */}
+        {/* For Tenants + For Landlords - side by side on lg screens */}
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
           {/* For Tenants */}
           <section className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4'>

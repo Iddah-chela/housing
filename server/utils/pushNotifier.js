@@ -30,7 +30,7 @@ export const sendPushNotification = async (userId, payload) => {
     }
 
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-        return; // Push not configured — in-app already saved above
+        return; // Push not configured - in-app already saved above
     }
 
     try {
