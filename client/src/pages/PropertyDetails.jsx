@@ -416,7 +416,7 @@ const PropertyDetails = () => {
                                 {cell.type === 'common' && <div style={{ fontSize: Math.max(7, Math.floor(zCellPx * 0.15)) + 'px' }} className='text-gray-500 dark:text-gray-400 font-medium'>Common</div>}
                                 {cell.type !== 'room' && cell.type !== 'common' && <div className='text-gray-300'>-</div>}
                                 {cell.type === 'room' && (
-                                  <div className='hidden group-hover:flex flex-col absolute top-full left-1/2 -translate-x-1/2 mt-1.5 z-50 pointer-events-none items-center'>
+                                  <div className='hidden group-hover:flex flex-col absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none items-center'>
                                     <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 shadow-xl text-left max-w-xs overflow-hidden'>
                                       <div className='font-bold text-[11px] truncate'>R{roomNum} - {cell.roomType}</div>
                                       <div className='text-[10px] text-gray-300 mt-0.5'>Ksh {cell.pricePerMonth?.toLocaleString()}/mo</div>
@@ -429,7 +429,7 @@ const PropertyDetails = () => {
                                         </div>
                                       )}
                                     </div>
-                                    <div className='w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mb-1 shrink-0 order-first'></div>
+                                    <div className='w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1 shrink-0'></div>
                                   </div>
                                 )}
                               </div>

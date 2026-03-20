@@ -46,7 +46,8 @@ const ManagedProperties = () => {
       if (bookRes.data.success) {
         const map = {}
         bookRes.data.bookings.forEach(b => {
-          const key = `${b.property}-${b.roomDetails.buildingId}-${b.roomDetails.row}-${b.roomDetails.col}`
+          const propId = b?.property?._id || b?.property
+          const key = `${propId}-${b.roomDetails.buildingId}-${b.roomDetails.row}-${b.roomDetails.col}`
           map[key] = b
         })
         setBookingMap(map)
@@ -145,8 +146,8 @@ const ManagedProperties = () => {
       } else {
         toast.error(data.message || 'Failed to confirm move-out')
       }
-    } catch {
-      toast.error('Failed to confirm move-out')
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to confirm move-out')
     } finally {
       setConfirmingMoveOut(null)
     }

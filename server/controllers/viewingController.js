@@ -6,6 +6,7 @@ import UserPass from "../models/userPass.js";
 import Booking from "../models/booking.js";
 import { sendEmail } from "../utils/mailer.js";
 import { sendPushNotification } from "../utils/pushNotifier.js";
+const API_BASE = (process.env.BACKEND_URL || 'https://housing-production-89b4.up.railway.app').replace(/\/$/, '');
 const normalizeDate = (value) => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return null;
@@ -181,7 +182,6 @@ export const createViewingRequest = async (req, res) => {
                         </div>`
                     ).catch(e => console.warn('[Viewing] Email to landlord failed:', e.message));
 
-                    const SERVER = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
                     sendPushNotification(ownerId, {
                         title: 'New Viewing Request 👁',
                         body: `${renterUser?.username || 'A tenant'} wants to view ${roomDetails.roomType} at ${property.name}`,
@@ -192,8 +192,8 @@ export const createViewingRequest = async (req, res) => {
                             { action: 'bg-decline', title: '✖ Decline' }
                         ],
                         actionUrls: {
-                            'bg-confirm': `${SERVER}/api/viewing/owner-action?token=${ownerToken}&answer=confirm&bg=1`,
-                            'bg-decline': `${SERVER}/api/viewing/owner-action?token=${ownerToken}&answer=decline&bg=1`
+                            'bg-confirm': `${API_BASE}/api/viewing/owner-action?token=${ownerToken}&answer=confirm&bg=1`,
+                            'bg-decline': `${API_BASE}/api/viewing/owner-action?token=${ownerToken}&answer=decline&bg=1`
                         }
                     });
                 }
@@ -807,12 +807,12 @@ export const handleOwnerAction = async (req, res) => {
                             url: `/my-viewings`,
                             tag: `nudge-${viewing._id}`,
                             actions: [
-                                { action: 'yes', title: '✓ Book it!' },
-                                { action: 'no', title: 'Not for me' }
+                                { action: 'bg-yes', title: '✓ Book it!' },
+                                { action: 'bg-no', title: 'Not for me' }
                             ],
                             actionUrls: {
-                                yes: yesUrl,
-                                no: `/my-viewings`
+                                'bg-yes': `${API_BASE}/api/viewing/nudge-response?token=${token}&answer=yes&bg=1`,
+                                'bg-no': `${API_BASE}/api/viewing/nudge-response?token=${token}&answer=no&bg=1`
                             }
                         });
                     }

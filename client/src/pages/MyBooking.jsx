@@ -73,7 +73,7 @@ const MyBooking = () => {
         setConfirmingMoveOut(bookingId)
         try {
             const token = await getToken()
-            const { data } = await axios.post('/api/bookings/move-out-now', { bookingId }, {
+            const { data } = await axios.post('/api/bookings/confirm-move-out', { bookingId, completeNow: true }, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (data.success) {

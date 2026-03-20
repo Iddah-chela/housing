@@ -7,6 +7,8 @@ import User from "../models/user.js";
 import { sendEmail } from "./mailer.js";
 import { sendPushNotification } from "./pushNotifier.js";
 
+const API_BASE = (process.env.BACKEND_URL || 'https://housing-production-89b4.up.railway.app').replace(/\/$/, '');
+
 const DAYS_14 = 14 * 24 * 60 * 60 * 1000;
 const DAYS_30 = 30 * 24 * 60 * 60 * 1000;
 const HOURS_48 = 48 * 60 * 60 * 1000;
@@ -162,7 +164,6 @@ export const sendPostViewingNudges = async () => {
                     </div>`
                 ).catch(e => console.warn('[Nudge] Email failed:', e.message));
 
-                const SERVER = process.env.SERVER_URL || process.env.BACKEND_URL || `https://housing-production-89b4.up.railway.app/`;
                 sendPushNotification(viewing.renter, {
                     title: 'Want this room?',
                     body: `You visited ${roomLabel} at ${property.name}. Ready to book?`,
@@ -173,8 +174,8 @@ export const sendPostViewingNudges = async () => {
                         { action: 'bg-no',  title: 'Not for me' }
                     ],
                     actionUrls: {
-                        'bg-yes': `${SERVER}/api/viewing/nudge-response?token=${token}&answer=yes&bg=1`,
-                        'bg-no':  `${SERVER}/api/viewing/nudge-response?token=${token}&answer=no&bg=1`
+                        'bg-yes': `${API_BASE}/api/viewing/nudge-response?token=${token}&answer=yes&bg=1`,
+                        'bg-no':  `${API_BASE}/api/viewing/nudge-response?token=${token}&answer=no&bg=1`
                     }
                 });
 
@@ -304,9 +305,8 @@ export const sendMoveInNudges = async () => {
                     booking.moveInNudgeSentAt = new Date();
                     await booking.save();
 
-                    const SERVER_BASE = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
-                    const yesUrl = `${SERVER_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=yes`;
-                    const noUrl  = `${SERVER_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=no`;
+                    const yesUrl = `${API_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=yes`;
+                    const noUrl  = `${API_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=no`;
 
                     sendEmail(renterUser.email,
                         `Did you move in? — ${property.name}`,
@@ -333,7 +333,7 @@ export const sendMoveInNudges = async () => {
                         url: '/my-bookings',
                         tag: `movein-${booking._id}`,
                         actions: [{ action: 'bg-yes', title: '✓ Moved in!' }, { action: 'dismiss', title: 'Later' }],
-                        actionUrls: { 'bg-yes': `${SERVER_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=yes&bg=1` }
+                        actionUrls: { 'bg-yes': `${API_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=yes&bg=1` }
                     });
                 }
 
@@ -341,14 +341,13 @@ export const sendMoveInNudges = async () => {
                 else if (booking.moveInNudgeSentAt && !booking.moveInOwnerNudgeSentAt && hoursDiff >= 24 && hoursDiff < 48) {
                     const hoursSinceFirst = (now - new Date(booking.moveInNudgeSentAt)) / (1000 * 60 * 60);
                     if (hoursSinceFirst >= 20) { // at least 20h after first nudge
-                        const SERVER_BASE2 = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
                         sendPushNotification(booking.user, {
                             title: 'Reminder: Confirm your move-in',
                             body: `Still waiting for confirmation of your move-in at ${property.name}`,
                             url: '/my-bookings',
                             tag: `movein-nudge2-${booking._id}`,
                             actions: [{ action: 'bg-yes', title: '✓ Moved in!' }, { action: 'dismiss', title: 'Later' }],
-                            actionUrls: { 'bg-yes': `${SERVER_BASE2}/api/bookings/move-in-action?id=${booking._id}&answer=yes&bg=1` }
+                            actionUrls: { 'bg-yes': `${API_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=yes&bg=1` }
                         });
                     }
                 }
@@ -363,8 +362,8 @@ export const sendMoveInNudges = async () => {
                     booking.moveInOwnerNudgeSentAt = new Date();
                     await booking.save();
 
-                    const ownerYes = `${SERVER}/api/bookings/move-in-action?id=${booking._id}&answer=owner-yes&token=${token}`;
-                    const ownerNo  = `${SERVER}/api/bookings/move-in-action?id=${booking._id}&answer=owner-no&token=${token}`;
+                    const ownerYes = `${API_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=owner-yes&token=${token}`;
+                    const ownerNo  = `${API_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=owner-no&token=${token}`;
 
                     sendEmail(ownerUser.email,
                         `Did ${renterUser.username} move in? — ${property.name}`,
@@ -384,7 +383,6 @@ export const sendMoveInNudges = async () => {
                         </div>`
                     ).catch(() => {});
 
-                    const SERVER = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
                     sendPushNotification(property.owner, {
                         title: '🏠 Move-in check',
                         body: `Did ${renterUser.username} move into ${property.name}?`,
@@ -395,8 +393,8 @@ export const sendMoveInNudges = async () => {
                             { action: 'bg-no',  title: '✗ Not yet' }
                         ],
                         actionUrls: {
-                            'bg-yes': `${SERVER}/api/bookings/move-in-action?id=${booking._id}&answer=owner-yes&token=${token}&bg=1`,
-                            'bg-no':  `${SERVER}/api/bookings/move-in-action?id=${booking._id}&answer=owner-no&token=${token}&bg=1`
+                            'bg-yes': `${API_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=owner-yes&token=${token}&bg=1`,
+                            'bg-no':  `${API_BASE}/api/bookings/move-in-action?id=${booking._id}&answer=owner-no&token=${token}&bg=1`
                         }
                     });
                 }
@@ -506,12 +504,12 @@ export const sendMoveOutNudges = async () => {
                     url: '/my-bookings',
                     tag: `moveout-${booking._id}`,
                     actions: [
-                        { action: 'yes', title: 'Yes, moved out' },
-                        { action: 'no', title: 'Not yet' }
+                        { action: 'bg-yes', title: 'Yes, moved out' },
+                        { action: 'bg-no', title: 'Not yet' }
                     ],
                     actionUrls: {
-                        yes: yesUrl,
-                        no: noUrl
+                        'bg-yes': `${API_BASE}/api/bookings/move-out-action?id=${booking._id}&answer=yes&token=${booking.moveOutToken}&bg=1`,
+                        'bg-no': `${API_BASE}/api/bookings/move-out-action?id=${booking._id}&answer=no&token=${booking.moveOutToken}&bg=1`
                     }
                 });
             } catch (e) {

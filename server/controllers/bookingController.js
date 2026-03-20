@@ -420,7 +420,7 @@ export const giveNotice = async (req, res) => {
 // Body: { bookingId }
 export const confirmMoveOut = async (req, res) => {
     try {
-        const { bookingId } = req.body;
+        const { bookingId, completeNow } = req.body;
         const booking = await Booking.findById(bookingId).populate('property');
         if (!booking) return res.json({ success: false, message: 'Booking not found' });
 
@@ -439,6 +439,47 @@ export const confirmMoveOut = async (req, res) => {
         }
         if (booking.moveOutStatus === 'completed') {
             return res.json({ success: true, message: 'Move-out already completed' });
+        }
+
+        if (completeNow) {
+            const today = new Date();
+            const dueDate = new Date(booking.moveOutDate);
+            today.setHours(0, 0, 0, 0);
+            dueDate.setHours(0, 0, 0, 0);
+            if (dueDate > today) {
+                return res.json({
+                    success: false,
+                    message: `You can confirm move-out on or after ${dueDate.toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                });
+            }
+
+            booking.moveOutStatus = 'completed';
+            booking.moveOutToken = null;
+            booking.moveOutNudgeSentAt = new Date();
+            booking.moveOutConfirmedBy = req.user._id;
+            await booking.save();
+
+            try {
+                if (property) {
+                    await setRoomMoveOutState(property, booking.roomDetails, {
+                        isVacant: true,
+                        isBooked: false,
+                        isMoveOutSoon: false,
+                        availableFrom: null
+                    });
+                }
+            } catch (_) {}
+
+            if (property) {
+                await notifyOwnerAndCaretakers({
+                    property,
+                    title: 'Tenant moved out',
+                    body: `Move-out at ${property.name} has been confirmed. Room is now vacant.`,
+                    url: '/owner/bookings'
+                });
+            }
+
+            return res.json({ success: true, message: 'Move-out confirmed. Room is now vacant.' });
         }
 
         // This confirms the planned move-out (available soon), not the physical vacate yet.
