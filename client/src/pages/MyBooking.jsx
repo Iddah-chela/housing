@@ -191,9 +191,9 @@ const MyBooking = () => {
                                 </p>
                             </div>
                             <div className='flex items-center gap-2 mt-1'>
-                                <div className={`h-3 w-3 rounded-full ${booking.hasMoved ? "bg-green-500" : "bg-yellow-500" }`}></div>
-                                <p className={`text-sm font-medium ${booking.hasMoved ? "text-green-600" : "text-yellow-600" }`}>
-                                    {booking.hasMoved ? "Moved In" : "Not Moved In"}
+                                <div className={`h-3 w-3 rounded-full ${booking.moveOutStatus === 'completed' ? "bg-blue-500" : booking.hasMoved ? "bg-green-500" : "bg-yellow-500" }`}></div>
+                                <p className={`text-sm font-medium ${booking.moveOutStatus === 'completed' ? "text-blue-600" : booking.hasMoved ? "text-green-600" : "text-yellow-600" }`}>
+                                    {booking.moveOutStatus === 'completed' ? "Moved Out" : booking.hasMoved ? "Moved In" : "Not Moved In"}
                                 </p>
                             </div>
                             {booking.status === 'confirmed' && !booking.hasMoved && (() => {
