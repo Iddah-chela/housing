@@ -418,11 +418,52 @@ export const sendMoveOutNudges = async () => {
     try {
         const now = new Date();
         const BASE = process.env.CLIENT_URL || 'http://localhost:5173';
-        const SERVER = process.env.SERVER_URL || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+
+        // 1) Auto-complete scheduled move-outs on/after due date so rooms don't stay "available soon" forever.
+        const dueScheduled = await Booking.find({
+            hasMoved: true,
+            moveOutStatus: 'scheduled',
+            moveOutDate: { $lte: now }
+        }).populate('property');
+
+        for (const booking of dueScheduled) {
+            try {
+                booking.moveOutStatus = 'completed';
+                booking.moveOutToken = null;
+                booking.moveOutNudgeSentAt = booking.moveOutNudgeSentAt || new Date();
+                await booking.save();
+
+                const property = booking.property;
+                if (property) {
+                    const building = property.buildings?.find(b => String(b.id) === String(booking.roomDetails?.buildingId));
+                    const cell = building?.grid?.[booking.roomDetails?.row]?.[booking.roomDetails?.col];
+                    if (cell && cell.type === 'room') {
+                        cell.isVacant = true;
+                        cell.isBooked = false;
+                        cell.isMoveOutSoon = false;
+                        cell.availableFrom = null;
+                        property.markModified('buildings');
+                        await property.save();
+                    }
+
+                    const owner = await User.findById(property.owner);
+                    if (owner?._id) {
+                        sendPushNotification(owner._id, {
+                            title: 'Room now vacant',
+                            body: `A scheduled move-out at ${property.name} has been completed and the room is now vacant.`,
+                            url: '/owner/bookings',
+                            tag: `moveout-auto-${booking._id}`
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('[MoveOut] Auto-complete failed for booking', booking._id, ':', e.message);
+            }
+        }
 
         const due = await Booking.find({
             hasMoved: true,
-            moveOutStatus: { $in: ['notice_given', 'scheduled'] },
+            moveOutStatus: 'notice_given',
             moveOutDate: { $lte: now },
             moveOutNudgeSentAt: null
         }).populate('property');
@@ -436,8 +477,9 @@ export const sendMoveOutNudges = async () => {
                 booking.moveOutToken = crypto.randomUUID();
                 await booking.save();
 
-                const yesUrl = `${SERVER}/api/bookings/move-out-action?id=${booking._id}&answer=yes&token=${booking.moveOutToken}`;
-                const noUrl = `${SERVER}/api/bookings/move-out-action?id=${booking._id}&answer=no&token=${booking.moveOutToken}`;
+                // Use app URL for links to avoid stale SERVER_URL/ngrok action failures.
+                const yesUrl = `${BASE}/my-bookings?moveOutAction=yes&bookingId=${booking._id}&token=${booking.moveOutToken}`;
+                const noUrl = `${BASE}/my-bookings?moveOutAction=no&bookingId=${booking._id}&token=${booking.moveOutToken}`;
 
                 sendEmail(
                     renter.email,
@@ -464,12 +506,12 @@ export const sendMoveOutNudges = async () => {
                     url: '/my-bookings',
                     tag: `moveout-${booking._id}`,
                     actions: [
-                        { action: 'bg-yes', title: 'Yes, moved out' },
-                        { action: 'bg-no', title: 'Not yet' }
+                        { action: 'yes', title: 'Yes, moved out' },
+                        { action: 'no', title: 'Not yet' }
                     ],
                     actionUrls: {
-                        'bg-yes': `${SERVER}/api/bookings/move-out-action?id=${booking._id}&answer=yes&token=${booking.moveOutToken}&bg=1`,
-                        'bg-no': `${SERVER}/api/bookings/move-out-action?id=${booking._id}&answer=no&token=${booking.moveOutToken}&bg=1`
+                        yes: yesUrl,
+                        no: noUrl
                     }
                 });
             } catch (e) {

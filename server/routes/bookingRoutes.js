@@ -1,5 +1,5 @@
 import express from 'express';
-import { createBooking, getPropertyBookings, getUserBookings, confirmMoveIn, confirmMoveInAsOwner, handleMoveInAction, giveNotice, confirmMoveOut, handleMoveOutAction } from '../controllers/bookingController.js';
+import { createBooking, getPropertyBookings, getUserBookings, confirmMoveIn, confirmMoveInAsOwner, handleMoveInAction, giveNotice, confirmMoveOut, confirmMoveOutNow, handleMoveOutAction } from '../controllers/bookingController.js';
 import { protect } from './../middleware/authMiddleware.js';
 
 const  bookingRouter = express.Router();
@@ -9,6 +9,7 @@ bookingRouter.post('/move-in', protect, confirmMoveIn);
 bookingRouter.post('/move-in-as-owner', protect, confirmMoveInAsOwner);
 bookingRouter.post('/give-notice', protect, giveNotice);
 bookingRouter.post('/confirm-move-out', protect, confirmMoveOut);
+bookingRouter.post('/move-out-now', protect, confirmMoveOutNow);
 bookingRouter.get('/user', protect, getUserBookings);
 bookingRouter.get('/property', protect, getPropertyBookings);
 bookingRouter.get('/move-in-action', handleMoveInAction); // token-based, no auth

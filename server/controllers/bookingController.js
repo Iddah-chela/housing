@@ -9,7 +9,7 @@ const CLIENT_BASE = process.env.CLIENT_URL || 'http://localhost:5173';
 
 const setRoomMoveOutState = async (property, roomDetails, state = {}) => {
     if (!property) return;
-    const building = property.buildings?.find(b => b.id === roomDetails?.buildingId);
+    const building = property.buildings?.find(b => String(b.id) === String(roomDetails?.buildingId));
     const cell = building?.grid?.[roomDetails?.row]?.[roomDetails?.col];
     if (!cell || cell.type !== 'room') return;
 
@@ -376,7 +376,7 @@ export const giveNotice = async (req, res) => {
         if (!booking) return res.json({ success: false, message: 'Booking not found' });
         if (String(booking.user) !== String(req.user._id))
             return res.json({ success: false, message: 'Unauthorized' });
-        if (!booking.hasMoved)
+        if (!booking.hasMoved && booking.status !== 'completed')
             return res.json({ success: false, message: 'You must have moved in before giving notice' });
         if (booking.moveOutStatus === 'completed')
             return res.json({ success: false, message: 'This booking is already marked as moved out' });
@@ -558,5 +558,71 @@ export const handleMoveOutAction = async (req, res) => {
     } catch (error) {
         if (req.query.bg === '1') return res.status(500).json({ success: false, message: error.message });
         return res.status(500).send('<h2>Something went wrong.</h2>');
+    }
+};
+
+// Authenticated explicit move-out confirmation from app
+// POST /api/bookings/move-out-now
+// Body: { bookingId }
+export const confirmMoveOutNow = async (req, res) => {
+    try {
+        const { bookingId } = req.body;
+        const booking = await Booking.findById(bookingId).populate('property');
+        if (!booking) return res.json({ success: false, message: 'Booking not found' });
+
+        const property = booking.property;
+        const isOwner = property && String(property.owner) === String(req.user._id);
+        const isCaretaker = property?.caretakers?.some(
+            e => e.toLowerCase() === req.user?.email?.toLowerCase()
+        );
+        const isTenant = String(booking.user) === String(req.user._id);
+        if (!isOwner && !isCaretaker && !isTenant) {
+            return res.json({ success: false, message: 'Unauthorized' });
+        }
+
+        if (!booking.moveOutDate) {
+            return res.json({ success: false, message: 'No move-out date set for this booking' });
+        }
+        if (booking.moveOutStatus === 'completed') {
+            return res.json({ success: true, message: 'Move-out already completed' });
+        }
+
+        const today = new Date();
+        const dueDate = new Date(booking.moveOutDate);
+        today.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+        if (dueDate > today) {
+            return res.json({
+                success: false,
+                message: `You can confirm move-out on or after ${dueDate.toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}`
+            });
+        }
+
+        booking.moveOutStatus = 'completed';
+        booking.moveOutToken = null;
+        booking.moveOutNudgeSentAt = new Date();
+        await booking.save();
+
+        try {
+            await setRoomMoveOutState(property, booking.roomDetails, {
+                isVacant: true,
+                isBooked: false,
+                isMoveOutSoon: false,
+                availableFrom: null
+            });
+        } catch (_) {}
+
+        if (property) {
+            await notifyOwnerAndCaretakers({
+                property,
+                title: 'Tenant moved out',
+                body: `Move-out at ${property.name} has been confirmed. Room is now vacant.`,
+                url: '/owner/bookings'
+            });
+        }
+
+        return res.json({ success: true, message: 'Move-out confirmed. Room is now vacant.' });
+    } catch (error) {
+        return res.json({ success: false, message: error.message });
     }
 };

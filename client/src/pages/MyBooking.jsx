@@ -25,6 +25,7 @@ const MyBooking = () => {
     const [searchParams] = useSearchParams()
     const [noticeDates, setNoticeDates] = useState({}) // bookingId -> date string
     const [givingNotice, setGivingNotice] = useState(null)
+    const [confirmingMoveOut, setConfirmingMoveOut] = useState(null)
 
     useEffect(() => {
         if (searchParams.get('moved') === '1') {
@@ -43,6 +44,50 @@ const MyBooking = () => {
             fetchBookings()
         }
     }, [user])
+
+    useEffect(() => {
+        const bookingId = searchParams.get('bookingId')
+        const token = searchParams.get('token')
+        const answer = searchParams.get('moveOutAction')
+        if (!bookingId || !token || !['yes', 'no'].includes(answer || '')) return
+
+        const run = async () => {
+            try {
+                const { data } = await axios.get('/api/bookings/move-out-action', {
+                    params: { id: bookingId, token, answer }
+                })
+                if (data?.success) toast.success(data.message || 'Move-out action recorded')
+                else toast.error(data?.message || 'Move-out action failed')
+            } catch {
+                toast.error('Move-out action failed')
+            } finally {
+                fetchBookings()
+            }
+        }
+
+        run()
+    }, [searchParams])
+
+    const handleMoveOutNow = async (bookingId) => {
+        if (!confirm('Confirm you have now moved out? This will mark the room as vacant.')) return
+        setConfirmingMoveOut(bookingId)
+        try {
+            const token = await getToken()
+            const { data } = await axios.post('/api/bookings/move-out-now', { bookingId }, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            if (data.success) {
+                toast.success(data.message || 'Move-out confirmed')
+                fetchBookings()
+            } else {
+                toast.error(data.message || 'Failed to confirm move-out')
+            }
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Failed to confirm move-out')
+        } finally {
+            setConfirmingMoveOut(null)
+        }
+    }
 
     const handleGiveNotice = async (bookingId) => {
         const moveOutDate = noticeDates[bookingId]
@@ -212,6 +257,15 @@ const MyBooking = () => {
                                 <div className='mt-3 p-2 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg'>
                                     <p className='text-xs text-amber-700 dark:text-amber-300 font-medium'>Available soon: owner/caretaker confirmed your move-out date{booking.moveOutDate ? ` (${new Date(booking.moveOutDate).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' })})` : ''}. You'll be asked to confirm on that day.</p>
                                 </div>
+                            )}
+                            {booking.moveOutStatus === 'scheduled' && booking.moveOutDate && new Date(booking.moveOutDate) <= new Date() && (
+                                <button
+                                    onClick={() => handleMoveOutNow(booking._id)}
+                                    disabled={confirmingMoveOut === booking._id}
+                                    className='mt-2 px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 disabled:opacity-60 transition-colors'
+                                >
+                                    {confirmingMoveOut === booking._id ? 'Confirming...' : 'I Moved Out'}
+                                </button>
                             )}
                         </div>
 
