@@ -5,6 +5,43 @@ import {v2 as cloudinary} from "cloudinary";
 import Subscriber from "../models/subscriber.js";
 import { sendNewListingAlert } from "../utils/mailer.js";
 
+const inferTierAndStatus = (property) => {
+  const hasRoomLevelData = property.hasRoomLevelData ?? (
+    Array.isArray(property.buildings) && property.buildings.some(
+      (building) => Array.isArray(building.grid) && building.grid.some(
+        (row) => Array.isArray(row) && row.some((cell) => cell.type === 'room')
+      )
+    )
+  );
+  const hasImages = property.hasImages ?? (Array.isArray(property.images) && property.images.length > 0);
+
+  const listingTier = property.listingTier || (hasRoomLevelData ? 'live' : 'directory');
+
+  let vacancyStatus = property.vacancyStatus;
+  if (!vacancyStatus || (listingTier === 'live' && vacancyStatus === 'unknown')) {
+    const vacantRooms = Number(property.vacantRooms || 0);
+    if (listingTier !== 'live') vacancyStatus = 'unknown';
+    else if (vacantRooms > 3) vacancyStatus = 'available';
+    else if (vacantRooms > 0) vacancyStatus = 'limited';
+    else vacancyStatus = 'full';
+  }
+
+  const actionability = property.actionability || (
+    listingTier === 'directory' ? 'info_only' :
+    listingTier === 'claimed' ? 'inquiry_only' :
+    'full_transaction'
+  );
+
+  return {
+    ...property,
+    listingTier,
+    vacancyStatus,
+    actionability,
+    hasImages,
+    hasRoomLevelData,
+  };
+};
+
 // Returns true if the requester has access to full property details (contact/whatsapp).
 // Access is granted to: active pass holder, property owner, or caretaker.
 // For guests: pass a completed, non-expired UserPass _id via x-guest-token header or guestToken query.
@@ -53,7 +90,29 @@ const hasContactAccess = async (propertyId, req) => {
 // Create a new property with buildings and grid layout
 export const createProperty = async (req, res) => {
   try {
-    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl, landlordName } = req.body;
+    const {
+      name,
+      address,
+      contact,
+      whatsappNumber,
+      place,
+      estate,
+      propertyType,
+      buildings,
+      images,
+      amenities,
+      listedRentMin,
+      listedRentMax,
+      declaredUnits,
+      listingTier,
+      vacancyStatus,
+      sourceType,
+      contactDisplayMode,
+      consentStatus,
+      compoundGate,
+      googleMapsUrl,
+      landlordName
+    } = req.body;
     const owner = req.user._id;
 
 
@@ -80,7 +139,9 @@ export const createProperty = async (req, res) => {
     }
 
     // Parse buildings if they come as JSON string
-    const parsedBuildings = typeof buildings === 'string' ? JSON.parse(buildings) : buildings;
+    const parsedBuildings = typeof buildings === 'string'
+      ? (buildings.trim() ? JSON.parse(buildings) : [])
+      : (Array.isArray(buildings) ? buildings : []);
 
     const property = await Property.create({
       owner,
@@ -91,6 +152,15 @@ export const createProperty = async (req, res) => {
       place,
       estate: estate?.trim() || name,
       propertyType,
+      amenities: Array.isArray(amenities) ? amenities : [],
+      listedRentMin: listedRentMin ?? null,
+      listedRentMax: listedRentMax ?? null,
+      declaredUnits: declaredUnits ?? null,
+      listingTier: listingTier || (parsedBuildings.length > 0 ? 'live' : 'directory'),
+      vacancyStatus: vacancyStatus || (parsedBuildings.length > 0 ? 'full' : 'unknown'),
+      sourceType: sourceType || 'landlord_submitted',
+      contactDisplayMode: contactDisplayMode || 'public',
+      consentStatus: consentStatus || 'unknown',
       googleMapsUrl: googleMapsUrl || '',
       landlordName: landlordName?.trim() || '',
       buildings: parsedBuildings,
@@ -135,11 +205,10 @@ export const getAllProperties = async (req, res) => {
           }));
           return acc;
         }, 0) || 0;
-        const obj = p.toObject();
+        const obj = inferTierAndStatus(p.toObject());
         obj.soonAvailableRooms = soon;
         return obj;
-      })
-      .filter((p) => (p.vacantRooms || 0) > 0 || (p.soonAvailableRooms || 0) > 0);
+      });
     
     res.json({ success: true, properties });
   } catch (error) {
@@ -158,7 +227,7 @@ export const getPropertyById = async (req, res) => {
       return res.json({ success: false, message: "Property not found" });
     }
 
-    const propertyObj = property.toObject();
+    const propertyObj = inferTierAndStatus(property.toObject());
 
     // Only reveal contact details to paying/authorised users
     if (!await hasContactAccess(id, req)) {
@@ -190,7 +259,29 @@ export const getOwnerProperties = async (req, res) => {
 export const updateProperty = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl, landlordName } = req.body;
+    const {
+      name,
+      address,
+      contact,
+      whatsappNumber,
+      place,
+      estate,
+      propertyType,
+      buildings,
+      images,
+      amenities,
+      listedRentMin,
+      listedRentMax,
+      declaredUnits,
+      listingTier,
+      vacancyStatus,
+      sourceType,
+      contactDisplayMode,
+      consentStatus,
+      compoundGate,
+      googleMapsUrl,
+      landlordName
+    } = req.body;
     const owner = req.user._id;
 
     // Verify ownership
@@ -215,7 +306,9 @@ export const updateProperty = async (req, res) => {
     }
 
     // Parse buildings
-    const parsedBuildings = typeof buildings === 'string' ? JSON.parse(buildings) : buildings;
+    const parsedBuildings = typeof buildings === 'string'
+      ? (buildings.trim() ? JSON.parse(buildings) : [])
+      : buildings;
 
     // Manually recalculate vacantRooms and totalRooms from the new grid
     let totalRooms = 0;
@@ -240,6 +333,15 @@ export const updateProperty = async (req, res) => {
       place: place || existing.place,
       estate: estate?.trim() || name || existing.estate,
       propertyType: propertyType || existing.propertyType,
+      amenities: amenities !== undefined ? (Array.isArray(amenities) ? amenities : []) : existing.amenities,
+      listedRentMin: listedRentMin !== undefined ? listedRentMin : existing.listedRentMin,
+      listedRentMax: listedRentMax !== undefined ? listedRentMax : existing.listedRentMax,
+      declaredUnits: declaredUnits !== undefined ? declaredUnits : existing.declaredUnits,
+      listingTier: listingTier || existing.listingTier,
+      vacancyStatus: vacancyStatus || existing.vacancyStatus,
+      sourceType: sourceType || existing.sourceType,
+      contactDisplayMode: contactDisplayMode || existing.contactDisplayMode,
+      consentStatus: consentStatus || existing.consentStatus,
       googleMapsUrl: googleMapsUrl !== undefined ? googleMapsUrl : (existing.googleMapsUrl || ''),
       landlordName: landlordName !== undefined ? (landlordName?.trim() || '') : (existing.landlordName || ''),
       images: updatedImages,

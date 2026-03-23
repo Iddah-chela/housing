@@ -214,6 +214,10 @@ const PropertyDetails = () => {
     }
 
     const handleRequestViewing = () => {
+      if (property?.actionability !== 'full_transaction') {
+        toast('This is an informational listing. Save it and wait for a live vacancy update.')
+        return
+      }
       if (!user) {
         toast.error('Please sign in to request a viewing')
         return
@@ -234,6 +238,10 @@ const PropertyDetails = () => {
     }
 
     const handleDirectApply = () => {
+      if (property?.actionability !== 'full_transaction') {
+        toast('This listing is not accepting direct applications yet.')
+        return
+      }
       if (!user) {
         toast.error('Please sign in to apply directly')
         return
@@ -261,9 +269,57 @@ const PropertyDetails = () => {
     return <div className='py-28 text-center'>Property not found</div>
   }
 
-  // Safety check for buildings
-  if (!property.buildings || property.buildings.length === 0) {
-    return <div className='py-28 text-center'>No buildings configured for this property</div>
+  const hasRoomGrid = Array.isArray(property.buildings) && property.buildings.length > 0
+  const isInquiryOnly = property.actionability === 'inquiry_only'
+
+  // Informational mode fallback for directory records with no room map.
+  if (!hasRoomGrid) {
+    const image = mainImage || property.images?.[0] || assets.house1
+    return (
+      <div className='py-28 md:py-35 px-4 md:px-16 lg:px-24 xl:px-32'>
+        <div className='flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6'>
+          <div>
+            <h1 className='text-3xl md:text-4xl font-medium'>{property.name}</h1>
+            <p className='text-gray-600 dark:text-gray-400 mt-1'>{property.propertyType}</p>
+            <div className='flex items-center gap-2 text-gray-600 dark:text-gray-400 mt-2'>
+              <img src={assets.locationIcon} alt='' className='w-5 h-5' />
+              <span>{property.estate}, {property.place}</span>
+            </div>
+          </div>
+          <div className='flex flex-wrap gap-2'>
+            <span className='px-4 py-2 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'>
+              {(property.listingTier || 'directory').toUpperCase()}
+            </span>
+            <span className='px-4 py-2 rounded-full text-sm font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300'>
+              {(property.vacancyStatus || 'unknown').toUpperCase()}
+            </span>
+          </div>
+        </div>
+
+        <img src={image} alt='' className='w-full max-h-[420px] rounded-xl object-cover border border-gray-200 dark:border-gray-700' />
+
+        <div className='mt-6 p-5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200'>
+          <p className='font-semibold'>Informational Listing</p>
+          <p className='text-sm mt-1'>This listing is currently directory-only. Vacancy and room-level availability are not confirmed yet.</p>
+          <div className='mt-4 flex flex-wrap gap-3'>
+            <button
+              onClick={() => toast('Vacancy alerts are coming next. For now, save this listing and check back soon.')}
+              className='px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-medium'
+            >
+              Notify Me When Live
+            </button>
+            {isInquiryOnly && (
+              <button
+                onClick={() => toast('Inquiry channel will open once contact verification is complete.')}
+                className='px-4 py-2 rounded-lg border border-indigo-600 text-indigo-700 dark:text-indigo-300 dark:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-sm font-medium'
+              >
+                Send Inquiry
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const currentBuilding = property.buildings[selectedBuilding]
@@ -320,9 +376,15 @@ const PropertyDetails = () => {
                       <Check className='w-4 h-4' /> Verified
                     </div>
                   )}
+                {property.vacancyStatus === 'unknown' ? (
+                  <div className='px-4 py-2 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'>
+                    Vacancy Unknown
+                  </div>
+                ) : (
                   <div className='px-4 py-2 rounded-full text-sm font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300'>
-                  {vacantCount} {vacantCount === 1 ? 'Vacancy' : 'Vacancies'}
-                </div>
+                    {vacantCount} {vacantCount === 1 ? 'Vacancy' : 'Vacancies'}
+                  </div>
+                )}
                 {soonAvailableCount > 0 && (
                   <div className='px-4 py-2 rounded-full text-sm font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'>
                     {soonAvailableCount} Available Soon

@@ -9,7 +9,8 @@
     "reset-test-user": "node resetTestUser.js",
     "dev": "nodemon server.js",
     "cleanup-test-accounts": "node cleanupTestAccounts.js",
-    "cleanup-test-accounts:apply": "node cleanupTestAccounts.js --apply"
+    "cleanup-test-accounts:apply": "node cleanupTestAccounts.js --apply",
+    "backfill:listing-metadata": "node backfillListingMetadata.js"
   },
   "keywords": [],
   "author": "",

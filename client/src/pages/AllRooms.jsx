@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { assets, facilityIcons } from '../assets/assets'
+import { assets } from '../assets/assets'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useAppContext } from '../context/AppContext'
 import axios from 'axios'
 import toast from 'react-hot-toast'
-import { X, MapPin, Coins } from 'lucide-react'
+import { X, Coins } from 'lucide-react'
 import { PropertyCardSkeleton } from '../components/Skeletons'
 
 const CheckBox = ({label, selected = false, onChange =() =>{}}) => {
@@ -40,6 +39,8 @@ const AllRooms = () => {
   const [selectedFilters, setSelectedFilters] = useState({
     roomType: [],
     priceRange: [],
+    listingTier: [],
+    vacancyStatus: [],
   });
 
   const [selectedSort, setSelectedSort] = useState('')
@@ -66,8 +67,8 @@ const AllRooms = () => {
           const processedProperties = response.data.properties.map(property => {
             const prices = []
             
-            property.buildings.forEach(building => {
-              building.grid.forEach(row => {
+            ;(property.buildings || []).forEach(building => {
+              ;(building.grid || []).forEach(row => {
                 row.forEach(cell => {
                   if (cell.type === 'room' && cell.pricePerMonth) {
                     prices.push(cell.pricePerMonth)
@@ -75,11 +76,17 @@ const AllRooms = () => {
                 })
               })
             })
+
+            const fallbackMin = property.listedRentMin || property.listedRentMax || 0
+            const fallbackMax = property.listedRentMax || property.listedRentMin || 0
             
             return {
               ...property,
               minPrice: prices.length > 0 ? Math.min(...prices) : 0,
               maxPrice: prices.length > 0 ? Math.max(...prices) : 0,
+              minPriceDisplay: prices.length > 0 ? Math.min(...prices) : fallbackMin,
+              maxPriceDisplay: prices.length > 0 ? Math.max(...prices) : fallbackMax,
+              hasRealImages: !!(property.images && property.images.length > 0),
               images: property.images && property.images.length > 0 ? property.images : [assets.house1]
             }
           })
@@ -111,11 +118,15 @@ const AllRooms = () => {
     '4000 to 4500',
   ];
 
+  const listingTiers = ['directory', 'claimed', 'live']
+  const vacancyStates = ['available', 'limited', 'full', 'unknown']
+
   const sortOptions = [
     "Price Low to High",
     "Price High to Low",
     "Most Vacancies",
-    "Newest First"
+    "Newest First",
+    "Live Listings First"
   ];
 
   // Handle changes for filter and sorting
@@ -139,6 +150,8 @@ const AllRooms = () => {
     setSelectedFilters({
       roomType: [],
       priceRange: [],
+      listingTier: [],
+      vacancyStatus: [],
     });
     setSelectedSort('');
     setSearchQuery('');
@@ -156,20 +169,32 @@ const AllRooms = () => {
     if (selectedFilters.roomType.length === 0) return true;
     
     // Check if any cell in any building matches the selected room types
-    return property.buildings.some(building => 
-      building.grid.some(row =>
+    return (property.buildings || []).some(building => 
+      (building.grid || []).some(row =>
         row.some(cell => 
           cell.type === 'room' && selectedFilters.roomType.includes(cell.roomType)
         )
       )
+    ) || selectedFilters.roomType.some((roomType) =>
+      String(property.propertyType || '').toLowerCase().includes(String(roomType).toLowerCase())
     );
   }
 
   const matchesPriceRange = (property) => {
     return selectedFilters.priceRange.length === 0 || selectedFilters.priceRange.some(range => {
       const [min, max] = range.split('to').map(Number);
-      return property.minPrice >= min && property.minPrice <= max;
+      return property.minPriceDisplay >= min && property.minPriceDisplay <= max;
     })
+  }
+
+  const matchesListingTier = (property) => {
+    if (selectedFilters.listingTier.length === 0) return true
+    return selectedFilters.listingTier.includes(String(property.listingTier || '').toLowerCase())
+  }
+
+  const matchesVacancyStatus = (property) => {
+    if (selectedFilters.vacancyStatus.length === 0) return true
+    return selectedFilters.vacancyStatus.includes(String(property.vacancyStatus || '').toLowerCase())
   }
 
   const matchesSearch = (property) => {
@@ -201,16 +226,37 @@ const AllRooms = () => {
     
     if (!urlMinPrice && !urlMaxPrice) return true;
     
-    return property.minPrice >= min && property.minPrice <= max;
+    return property.minPriceDisplay >= min && property.minPriceDisplay <= max;
+  }
+
+  const getFreshnessRank = (property) => {
+    const baseline = property.lastVerifiedAt || property.createdAt
+    if (!baseline) return 3
+    const days = Math.floor((Date.now() - new Date(baseline)) / 86400000)
+    if (days <= 7) return 0
+    if (days <= 30) return 1
+    return 2
   }
 
   // Sort properties
   const sortProperties = (a, b) => {
+    const tierPriority = { live: 0, claimed: 1, directory: 2 }
+
+    if (!selectedSort || selectedSort === 'Live Listings First') {
+      const tierDiff = (tierPriority[a.listingTier] ?? 3) - (tierPriority[b.listingTier] ?? 3)
+      if (tierDiff !== 0) return tierDiff
+
+      const freshnessDiff = getFreshnessRank(a) - getFreshnessRank(b)
+      if (freshnessDiff !== 0) return freshnessDiff
+
+      return new Date(b.createdAt) - new Date(a.createdAt)
+    }
+
     if (selectedSort === 'Price Low to High') {
-      return a.minPrice - b.minPrice;
+      return a.minPriceDisplay - b.minPriceDisplay;
     }
     if (selectedSort === 'Price High to Low') {
-      return b.maxPrice - a.maxPrice;
+      return b.maxPriceDisplay - a.maxPriceDisplay;
     }
     if (selectedSort === 'Most Vacancies') {
       return b.vacantRooms - a.vacantRooms;
@@ -220,6 +266,16 @@ const AllRooms = () => {
     }
     return 0;
   }
+
+  const filteredProperties = properties
+    .filter(matchesSearch)
+    .filter(matchesRoomType)
+    .filter(matchesPriceRange)
+    .filter(matchesListingTier)
+    .filter(matchesVacancyStatus)
+    .filter(matchesURLLocation)
+    .filter(matchesURLPriceRange)
+    .sort(sortProperties)
 
   if (loading) {
     return (
@@ -236,7 +292,7 @@ const AllRooms = () => {
       <div className='flex-1 w-full lg:w-auto'>
         <div className='flex flex-col items-start text-left'> 
           <h1 className='font-playfair text-4xl md:text-[40px]'>Available Houses</h1>
-        <p className='text-sm md:text-base text-gray-500/90 dark:text-gray-400 mt-2 max-w-2xl'>Find your perfect rental house near campus. Browse available rooms with great amenities and book your next home.</p>
+        <p className='text-sm md:text-base text-gray-500/90 dark:text-gray-400 mt-2 max-w-2xl'>Browse live listings and informational directory records. When vacancy is unknown, follow listings and get notified when availability is confirmed.</p>
         </div>
 
         {/* Search Bar */}
@@ -278,26 +334,30 @@ const AllRooms = () => {
           )}
         </div>
 
-        {properties
-          .filter(matchesSearch)
-          .filter(matchesRoomType)
-          .filter(matchesPriceRange)
-          .filter(matchesURLLocation)  // Apply URL location filter
-          .filter(matchesURLPriceRange)  // Apply URL price filter
-          .sort(sortProperties)
-          .map((property) => (
+        {filteredProperties.map((property) => (
           <div key={property._id} className='flex flex-col md:flex-row items-start py-10 gap-6 border-b border-gray-300 dark:border-gray-700 last:pb-30 last:border-0'>
-            <img 
-              onClick={() => {navigate(`/rooms/${property._id}`), scrollTo(0,0)}}
-              src={property.images[0]} 
-              alt="" 
-              title='View Property Details' 
-              className='max-h-65 md:w-1/2 rounded-xl shadow-lg object-cover cursor-pointer hover:shadow-2xl transition-shadow relative'
-            />
+            <div className='relative md:w-1/2'>
+              <img 
+                onClick={() => {navigate(`/rooms/${property._id}`), scrollTo(0,0)}}
+                src={property.images[0]} 
+                alt="" 
+                title='View Property Details' 
+                className='max-h-65 w-full rounded-xl shadow-lg object-cover cursor-pointer hover:shadow-2xl transition-shadow relative'
+              />
+              {!property.hasRealImages && (
+                <span className='absolute top-3 left-3 bg-gray-900/75 text-white text-xs px-2.5 py-1 rounded-full font-medium'>Photos pending</span>
+              )}
+            </div>
 
             <div className='md:w-1/2 flex flex-col gap-2'>
               <div className='flex items-center gap-2'>
                 <p className='text-gray-500 dark:text-gray-400'>{property.place}</p>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide ${
+                  property.listingTier === 'live' ? 'bg-green-600 text-white' :
+                  property.listingTier === 'claimed' ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white'
+                }`}>
+                  {(property.listingTier || 'directory').toUpperCase()}
+                </span>
                 {property.isVerified && (
                   <span className='bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>VERIFIED</span>
                 )}
@@ -326,15 +386,27 @@ const AllRooms = () => {
                   </div>
                 )}
                 
-                {property.vacantRooms > 0 && (
+                {property.vacancyStatus === 'available' && (
                   <div className='px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium'>
                     {property.vacantRooms} {property.vacantRooms === 1 ? 'Vacancy' : 'Vacancies'}
+                  </div>
+                )}
+
+                {property.vacancyStatus === 'limited' && (
+                  <div className='px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-sm font-medium'>
+                    Limited Vacancy
                   </div>
                 )}
 
                 {(property.soonAvailableRooms || 0) > 0 && (
                   <div className='px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-sm font-medium'>
                     {property.soonAvailableRooms} Available Soon
+                  </div>
+                )}
+
+                {property.vacancyStatus === 'unknown' && (
+                  <div className='px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-full text-sm font-medium'>
+                    Vacancy Unknown
                   </div>
                 )}
                 
@@ -345,7 +417,7 @@ const AllRooms = () => {
                   </div>
                 )}
                 
-                {property.vacantRooms === 0 && (property.soonAvailableRooms || 0) === 0 && (
+                {property.vacancyStatus === 'full' && (property.soonAvailableRooms || 0) === 0 && (
                   <div className='px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm font-medium'>
                     Fully Occupied
                   </div>
@@ -366,10 +438,10 @@ const AllRooms = () => {
               
               {/* Price Range */}
               <p className='text-xl font-medium text-gray-700 dark:text-gray-200'>
-                {property.minPrice === property.maxPrice ? (
-                  `Ksh ${property.minPrice.toLocaleString()}/Month`
+                {property.minPriceDisplay === property.maxPriceDisplay ? (
+                  property.minPriceDisplay > 0 ? `Ksh ${property.minPriceDisplay.toLocaleString()}/Month` : 'Rent on request'
                 ) : (
-                  `Ksh ${property.minPrice.toLocaleString()} - ${property.maxPrice.toLocaleString()}/Month`
+                  `Ksh ${property.minPriceDisplay.toLocaleString()} - ${property.maxPriceDisplay.toLocaleString()}/Month`
                 )}
               </p>
               {(property.lastVerifiedAt || property.createdAt) && (() => {
@@ -386,13 +458,15 @@ const AllRooms = () => {
                 onClick={() => {navigate(`/rooms/${property._id}`), scrollTo(0,0)}}
                 className='mt-4 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-all w-fit'
               >
-                View Units & Select Room
+                {property.actionability === 'info_only' ? 'View Details & Notify Me' :
+                  property.actionability === 'inquiry_only' ? 'View Details & Send Inquiry' :
+                  'View Units & Select Room'}
               </button>
             </div>
           </div>
         ))}
         
-        {properties.filter(matchesSearch).filter(matchesRoomType).filter(matchesPriceRange).length === 0 && (
+        {filteredProperties.length === 0 && (
           <div className='text-center py-20'>
             <p className='text-gray-500 text-lg'>No properties found matching your criteria.</p>
             <button onClick={clearAllFilters} className='mt-4 text-indigo-600 hover:text-indigo-700 font-medium'>
@@ -445,6 +519,42 @@ const AllRooms = () => {
                     }`}
                   >
                     Ksh {range}
+                  </button>
+                ))}
+              </div>
+          </div>
+          <div className='px-3 pt-2 pb-2 border-t border-gray-100 dark:border-gray-700'>
+              <p className='font-medium text-gray-800 dark:text-gray-200 text-xs pb-2'>Listing Type</p>
+              <div className='flex flex-wrap gap-1.5'>
+                {listingTiers.map((tier, index)=>(
+                  <button
+                    key={index}
+                    onClick={() => handleFiltersChange(!selectedFilters.listingTier.includes(tier), tier, 'listingTier')}
+                    className={`px-2 py-1 rounded-full text-xs font-medium border transition-all ${
+                      selectedFilters.listingTier.includes(tier)
+                        ? 'bg-slate-700 text-white border-slate-700'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-slate-500'
+                    }`}
+                  >
+                    {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                  </button>
+                ))}
+              </div>
+          </div>
+          <div className='px-3 pt-2 pb-2 border-t border-gray-100 dark:border-gray-700'>
+              <p className='font-medium text-gray-800 dark:text-gray-200 text-xs pb-2'>Vacancy</p>
+              <div className='flex flex-wrap gap-1.5'>
+                {vacancyStates.map((status, index)=>(
+                  <button
+                    key={index}
+                    onClick={() => handleFiltersChange(!selectedFilters.vacancyStatus.includes(status), status, 'vacancyStatus')}
+                    className={`px-2 py-1 rounded-full text-xs font-medium border transition-all ${
+                      selectedFilters.vacancyStatus.includes(status)
+                        ? 'bg-indigo-700 text-white border-indigo-700'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-500'
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
                   </button>
                 ))}
               </div>
