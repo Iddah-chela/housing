@@ -36,6 +36,7 @@ const PropertyDetails = () => {
     const [claimData, setClaimData] = useState(null)
     const [showClaimForm, setShowClaimForm] = useState(false)
     const [claimSubmitting, setClaimSubmitting] = useState(false)
+    const [alertSubmitting, setAlertSubmitting] = useState(false)
     const [claimForm, setClaimForm] = useState({
       claimantName: '',
       claimPhone: '',
@@ -339,6 +340,58 @@ const PropertyDetails = () => {
       }
     }
 
+    const subscribeToVacancyAlerts = async () => {
+      const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ''
+      const inputEmail = window.prompt('Enter your email for vacancy alerts:', userEmail)
+      const email = String(inputEmail || '').trim().toLowerCase()
+
+      if (!email) {
+        toast('Email is required to receive alerts.')
+        return
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        toast.error('Please enter a valid email address.')
+        return
+      }
+
+      setAlertSubmitting(true)
+      try {
+        const { data } = await axios.post('/api/newsletter/subscribe', { email })
+        if (data?.success) {
+          toast.success('Alert subscription saved. We will email you when live listings update.')
+        } else if ((data?.message || '').toLowerCase().includes('already subscribed')) {
+          toast.success('You are already subscribed for alerts on new/updated listings.')
+        } else {
+          toast.error(data?.message || 'Could not subscribe right now')
+        }
+      } catch (error) {
+        toast.error('Could not subscribe right now')
+      } finally {
+        setAlertSubmitting(false)
+      }
+    }
+
+    const sendInquiryViaWhatsApp = () => {
+      const preferredPhone = property?.whatsappNumber || property?.claimPhone || property?.contact || ''
+      const digitsOnly = String(preferredPhone).replace(/\D/g, '')
+
+      if (!digitsOnly) {
+        toast('No verified contact number yet. You can subscribe for alerts or check back after claim review.')
+        return
+      }
+
+      let normalized = digitsOnly
+      if (normalized.startsWith('0')) normalized = `254${normalized.slice(1)}`
+      if (normalized.length < 9) {
+        toast('Contact number looks incomplete. Please try again later.')
+        return
+      }
+
+      const message = `Hi, I am interested in ${property?.name || 'this listing'} at ${property?.estate || ''}. Is there current availability?`
+      window.open(`https://wa.me/${normalized}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+    }
+
   if (loading) {
     return <PropertyDetailSkeleton />
   }
@@ -349,6 +402,13 @@ const PropertyDetails = () => {
 
   const hasRoomGrid = Array.isArray(property.buildings) && property.buildings.length > 0
   const isInquiryOnly = property.actionability === 'inquiry_only'
+  const userClaimStatus = claimData?.claim?.status || null
+  const propertyClaimStatus = claimData?.property?.claimStatus || property?.claimStatus || 'none'
+  const claimReviewNote = claimData?.claim?.reviewNote || claimData?.property?.claimReviewNote || property?.claimReviewNote || ''
+  const isApprovedForCurrentUser = userClaimStatus === 'approved' || (
+    propertyClaimStatus === 'verified' && claimData?.property?.claimedBy && user?.id && claimData.property.claimedBy === user.id
+  )
+  const hasPendingClaim = userClaimStatus === 'pending' || propertyClaimStatus === 'pending'
 
   // Informational mode fallback for directory records with no room map.
   if (!hasRoomGrid) {
@@ -379,23 +439,44 @@ const PropertyDetails = () => {
         <div className='mt-6 p-5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200'>
           <p className='font-semibold'>Informational Listing</p>
           <p className='text-sm mt-1'>This listing is currently directory-only. Vacancy and room-level availability are not confirmed yet.</p>
-          {property.claimStatus && property.claimStatus !== 'none' && (
-            <p className='text-xs mt-2 font-medium'>Claim status: {property.claimStatus}</p>
+          {(userClaimStatus || (property.claimStatus && property.claimStatus !== 'none')) && (
+            <div className='mt-3 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-white/70 dark:bg-gray-900/30'>
+              <p className='text-sm font-semibold'>Claim status: {(userClaimStatus || property.claimStatus).replaceAll('_', ' ')}</p>
+              {hasPendingClaim && (
+                <p className='text-xs mt-1'>Next: admin verifies ownership/caretaker evidence, then this listing is moved to claimed/live flow.</p>
+              )}
+              {isApprovedForCurrentUser && (
+                <div className='mt-2'>
+                  <p className='text-xs'>Your claim is approved. You can now manage this listing from the owner dashboard.</p>
+                  <button
+                    onClick={() => window.location.assign('/owner')}
+                    className='mt-2 px-3 py-1.5 rounded-md bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-medium'
+                  >
+                    Open Owner Dashboard
+                  </button>
+                </div>
+              )}
+              {(userClaimStatus === 'rejected' || propertyClaimStatus === 'rejected') && (
+                <p className='text-xs mt-1'>Claim was rejected. {claimReviewNote || 'You can submit a new claim with clearer evidence.'}</p>
+              )}
+            </div>
           )}
           <div className='mt-4 flex flex-wrap gap-3'>
             <button
-              onClick={() => toast('Vacancy alerts are coming next. For now, save this listing and check back soon.')}
-              className='px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-medium'
+              onClick={subscribeToVacancyAlerts}
+              disabled={alertSubmitting}
+              className='px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-60'
             >
-              Notify Me When Live
+              {alertSubmitting ? 'Saving Alert...' : 'Notify Me When Live'}
             </button>
             {property.listingTier === 'directory' && (
               user ? (
                 <button
                   onClick={() => setShowClaimForm((s) => !s)}
+                  disabled={hasPendingClaim}
                   className='px-4 py-2 rounded-lg border border-amber-700 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-sm font-medium'
                 >
-                  {showClaimForm ? 'Close Claim Form' : 'Claim This Hostel'}
+                  {hasPendingClaim ? 'Claim Under Review' : (showClaimForm ? 'Close Claim Form' : 'Claim This Hostel')}
                 </button>
               ) : (
                 <SignInButton mode='modal'>
@@ -407,10 +488,10 @@ const PropertyDetails = () => {
             )}
             {isInquiryOnly && (
               <button
-                onClick={() => toast('Inquiry channel will open once contact verification is complete.')}
+                onClick={sendInquiryViaWhatsApp}
                 className='px-4 py-2 rounded-lg border border-indigo-600 text-indigo-700 dark:text-indigo-300 dark:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-sm font-medium'
               >
-                Send Inquiry
+                Send Inquiry (WhatsApp)
               </button>
             )}
           </div>

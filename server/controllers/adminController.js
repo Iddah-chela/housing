@@ -345,6 +345,11 @@ export const approvePropertyClaim = async (req, res) => {
         const property = await Property.findById(claim.property);
         if (!property) return res.json({ success: false, message: 'Property not found for this claim' });
 
+        const claimantUser = await User.findById(claim.claimant);
+        if (!claimantUser) {
+            return res.json({ success: false, message: 'Claimant account no longer exists' });
+        }
+
         claim.status = 'approved';
         claim.reviewNote = String(reviewNote || '').trim();
         claim.reviewedBy = req.user._id;
@@ -363,13 +368,25 @@ export const approvePropertyClaim = async (req, res) => {
         property.claimedByEmail = claim.claimantEmail;
         property.claimRole = claim.claimRole;
         property.claimPhone = claim.claimPhone || '';
+        property.owner = claim.claimant;
+        if (claim.claimRole === 'caretaker') {
+            const normalizedEmail = String(claim.claimantEmail || '').trim().toLowerCase();
+            if (normalizedEmail && !property.caretakers.includes(normalizedEmail)) {
+                property.caretakers.push(normalizedEmail);
+            }
+        }
         property.claimReviewedAt = new Date();
         property.claimReviewNote = claim.reviewNote || '';
         property.lastConfirmedAt = new Date();
         if (property.listingTier === 'directory') property.listingTier = 'claimed';
         await property.save();
 
-        res.json({ success: true, message: 'Claim approved and listing moved to CLAIMED' });
+        if (!['houseOwner', 'admin'].includes(claimantUser.role)) {
+            claimantUser.role = 'houseOwner';
+            await claimantUser.save();
+        }
+
+        res.json({ success: true, message: 'Claim approved, ownership assigned, and claimant can now access owner tools' });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
