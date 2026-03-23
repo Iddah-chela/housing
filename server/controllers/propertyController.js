@@ -705,3 +705,17 @@ export const getPropertyClaimStatus = async (req, res) => {
     return res.json({ success: false, message: error.message });
   }
 };
+
+// Get all claim requests submitted by the current user.
+export const getMyPropertyClaims = async (req, res) => {
+  try {
+    const claims = await PropertyClaim.find({ claimant: req.user._id })
+      .populate('property', 'name estate place listingTier claimStatus images owner')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({ success: true, claims });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};

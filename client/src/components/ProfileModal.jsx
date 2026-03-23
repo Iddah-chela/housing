@@ -226,6 +226,16 @@ const ProfileModal = ({ onClose }) => {
                             <span className='text-gray-800 dark:text-gray-200 font-medium'>My Messages</span>
                         </button>
 
+                        <button 
+                            onClick={() => handleNavigation('/my-claims')}
+                            className='flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-all text-left'
+                        >
+                            <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                            </svg>
+                            <span className='text-gray-800 dark:text-gray-200 font-medium'>My Claims</span>
+                        </button>
+
                         {isOwner && (
                             <button 
                                 onClick={() => handleNavigation('/owner')}

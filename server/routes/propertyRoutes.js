@@ -14,7 +14,8 @@ import {
   getManagedProperties,
   caretakerToggleRoom,
   submitPropertyClaim,
-  getPropertyClaimStatus
+  getPropertyClaimStatus,
+  getMyPropertyClaims
 } from "../controllers/propertyController.js";
 
 const propertyRouter = express.Router();
@@ -30,6 +31,7 @@ propertyRouter.post('/toggle-room', protect, toggleRoomAvailability);
 // Caretaker routes
 propertyRouter.get('/managed', protect, getManagedProperties);
 propertyRouter.post('/caretaker-toggle-room', protect, caretakerToggleRoom);
+propertyRouter.get('/claims/my', protect, getMyPropertyClaims);
 propertyRouter.post('/:id/caretakers', protect, addCaretaker);
 propertyRouter.delete('/:id/caretakers', protect, removeCaretaker);
 propertyRouter.post('/:id/claim', protect, submitPropertyClaim);

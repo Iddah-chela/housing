@@ -16,6 +16,7 @@ const PropertyDetails = lazy(() => import('./pages/PropertyDetails'))
 const MyBooking       = lazy(() => import('./pages/MyBooking'))
 const MyChats         = lazy(() => import('./pages/MyChats'))
 const MyViewings      = lazy(() => import('./pages/MyViewings'))
+const MyClaims        = lazy(() => import('./pages/MyClaims'))
 const Layout          = lazy(() => import('./pages/HouseOwner/Layout'))
 const Dashboard       = lazy(() => import('./pages/HouseOwner/Dashboard'))
 const AddRoom         = lazy(() => import('./pages/HouseOwner/AddRoom'))
@@ -99,6 +100,7 @@ const App = () => {
           <Route path='/my-bookings' element={<MyBooking/>}/>
           <Route path='/my-viewings' element={<MyViewings/>}/>
           <Route path='/my-chats' element={<MyChats/>}/>
+          <Route path='/my-claims' element={<MyClaims/>}/>
           <Route path='/terms' element={<Terms/>}/>
           <Route path='/privacy' element={<Privacy/>}/>
           <Route path='/unlock-policy' element={<UnlockPolicy/>}/>
