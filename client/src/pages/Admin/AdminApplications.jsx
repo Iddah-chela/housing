@@ -153,7 +153,7 @@ const AdminApplications = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex gap-2 flex-wrap">
         <button
           onClick={() => setFilter('pending')}
           className={`px-4 py-2 rounded-lg ${filter === 'pending' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'}`}
@@ -186,7 +186,40 @@ const AdminApplications = () => {
           <p className="text-gray-500">No applications found</p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <>
+        <div className="md:hidden space-y-3">
+          {applications.map((app) => (
+            <div key={app._id} className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex items-start gap-3">
+                <img
+                  className="h-11 w-11 rounded-full shrink-0"
+                  src={app.userId?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.fullName || 'U')}&background=6366f1&color=fff&bold=true`}
+                  alt=""
+                  onError={(e) => { const fb = `https://ui-avatars.com/api/?name=${encodeURIComponent(app.fullName || 'U')}&background=6366f1&color=fff&bold=true`; if (e.target.src !== fb) e.target.src = fb }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{app.fullName}</p>
+                  <p className="text-xs text-gray-500 truncate">{app.userId?.email}</p>
+                  <div className="mt-2">{getStatusBadge(app.status)}</div>
+                </div>
+              </div>
+              <div className="mt-3 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                <p>Phone: {app.phoneNumber}</p>
+                <p>ID: {app.idNumber}</p>
+                <p>{app.numberOfProperties} properties · {app.totalRooms} rooms</p>
+                <p className="truncate">{app.propertiesLocation}</p>
+                <p>Submitted: {new Date(app.createdAt).toLocaleDateString()}</p>
+              </div>
+              <button
+                onClick={() => setSelectedApplication(app)}
+                className="mt-3 w-full text-sm bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+              >
+                View Details
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -261,6 +294,7 @@ const AdminApplications = () => {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Application Details Modal */}
@@ -273,7 +307,7 @@ const AdminApplications = () => {
             className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-4 md:p-6 border-b border-gray-200">
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
@@ -292,11 +326,11 @@ const AdminApplications = () => {
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 md:p-6">
               {/* Applicant Info */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4">Applicant Information</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Full Name</p>
                     <p className="font-medium">{selectedApplication.fullName}</p>
@@ -319,7 +353,7 @@ const AdminApplications = () => {
               {/* Property Details */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4">Property Details</h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Number of Properties</p>
                     <p className="font-medium">{selectedApplication.numberOfProperties}</p>
@@ -338,7 +372,7 @@ const AdminApplications = () => {
               {/* Documents */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4">Documents</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500 mb-2">ID Document</p>
                     {isImageUrl(selectedApplication.idDocument) ? (
@@ -418,7 +452,7 @@ const AdminApplications = () => {
                 <div className="border-t border-gray-200 pt-6">
                   <h3 className="text-lg font-semibold mb-4">Review Application</h3>
                   
-                  <div className="flex gap-4">
+                  <div className="flex flex-col md:flex-row gap-4">
                     <button
                       onClick={() => handleApprove(selectedApplication._id)}
                       disabled={actionLoading}

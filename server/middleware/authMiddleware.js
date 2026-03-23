@@ -6,6 +6,23 @@ const clerk = createClerkClient({
     secretKey: process.env.CLERK_SECRET_KEY
 });
 
+const upsertUserSafely = async (userId, userData) => {
+    try {
+        return await User.findOneAndUpdate(
+            { _id: userId },
+            { $setOnInsert: { _id: userId, ...userData } },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+    } catch (err) {
+        // If two requests try creating the same user at once, fetch the winner.
+        if (err?.code === 11000) {
+            const existing = await User.findById(userId);
+            if (existing) return existing;
+        }
+        throw err;
+    }
+};
+
 // middleware to check if the user is authenticated  
 export const protect = async (req, res, next)=>{
     try {
@@ -44,9 +61,8 @@ export const protect = async (req, res, next)=>{
                 const realEmail = clerkUser.emailAddresses?.[0]?.emailAddress || '';
                 const realName = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'User';
                 const realImage = clerkUser.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(realName)}&background=6366f1&color=fff&bold=true`;
-                
-                user = await User.create({
-                    _id: userId,
+
+                user = await upsertUserSafely(userId, {
                     username: realName,
                     email: realEmail,
                     image: realImage,
@@ -55,8 +71,7 @@ export const protect = async (req, res, next)=>{
             } catch (clerkErr) {
                 // Clerk API failed — last resort fallback
                 console.warn('[Auth] Clerk API fetch failed for new user:', clerkErr.message);
-                user = await User.create({
-                    _id: userId,
+                user = await upsertUserSafely(userId, {
                     username: 'User',
                     email: `${userId}@temp.clerk.dev`,
                     image: `https://ui-avatars.com/api/?name=User&background=6366f1&color=fff&bold=true`,

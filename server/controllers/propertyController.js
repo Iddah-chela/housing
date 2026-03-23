@@ -53,7 +53,7 @@ const hasContactAccess = async (propertyId, req) => {
 // Create a new property with buildings and grid layout
 export const createProperty = async (req, res) => {
   try {
-    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl } = req.body;
+    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl, landlordName } = req.body;
     const owner = req.user._id;
 
 
@@ -89,9 +89,10 @@ export const createProperty = async (req, res) => {
       contact,
       whatsappNumber,
       place,
-      estate,
+      estate: estate?.trim() || name,
       propertyType,
       googleMapsUrl: googleMapsUrl || '',
+      landlordName: landlordName?.trim() || '',
       buildings: parsedBuildings,
       images: uploadedImageUrls,
       compoundGate: compoundGate || { side: 'bottom' }
@@ -189,7 +190,7 @@ export const getOwnerProperties = async (req, res) => {
 export const updateProperty = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl } = req.body;
+    const { name, address, contact, whatsappNumber, place, estate, propertyType, buildings, images, compoundGate, googleMapsUrl, landlordName } = req.body;
     const owner = req.user._id;
 
     // Verify ownership
@@ -237,9 +238,10 @@ export const updateProperty = async (req, res) => {
       contact: contact || existing.contact,
       whatsappNumber: whatsappNumber || existing.whatsappNumber,
       place: place || existing.place,
-      estate: estate || existing.estate,
+      estate: estate?.trim() || name || existing.estate,
       propertyType: propertyType || existing.propertyType,
       googleMapsUrl: googleMapsUrl !== undefined ? googleMapsUrl : (existing.googleMapsUrl || ''),
+      landlordName: landlordName !== undefined ? (landlordName?.trim() || '') : (existing.landlordName || ''),
       images: updatedImages,
       totalRooms,
       vacantRooms,

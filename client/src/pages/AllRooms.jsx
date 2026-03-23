@@ -44,6 +44,16 @@ const AllRooms = () => {
 
   const [selectedSort, setSelectedSort] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const formatLocationLine = (property) => {
+    const address = (property.address || '').trim()
+    const estate = (property.estate || '').trim()
+    if (!address && !estate) return property.place || ''
+    if (!address) return estate
+    if (!estate) return address
+    if (address.toLowerCase() === estate.toLowerCase()) return address
+    return `${address}, ${estate}`
+  }
   
   useEffect(() => {
     const fetchProperties = async () => {
@@ -344,7 +354,7 @@ const AllRooms = () => {
               
               <div className='flex items-center gap-1 text-gray-500 mt-2 text-sm'>
                 <img src={assets.locationIcon} alt="" />
-                <span>{property.address}, {property.estate}</span>
+                <span>{formatLocationLine(property)}</span>
               </div>
               
               <div className='mt-3 mb-4'>

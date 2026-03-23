@@ -95,8 +95,15 @@ const stkLimiter = rateLimit({
 });
 
 // ── Body parsing — small default, large only where needed ─────────────────────
-app.use(express.json({ limit: '1mb' }))
-app.use(express.urlencoded({ limit: '1mb', extended: true }))
+const largeBodyPrefixes = ['/api/properties', '/api/rooms', '/api/profile', '/api/landlord-application']
+app.use((req, res, next) => {
+    if (largeBodyPrefixes.some(prefix => req.path.startsWith(prefix))) return next()
+    return express.json({ limit: '1mb' })(req, res, next)
+})
+app.use((req, res, next) => {
+    if (largeBodyPrefixes.some(prefix => req.path.startsWith(prefix))) return next()
+    return express.urlencoded({ limit: '1mb', extended: true })(req, res, next)
+})
 
 // ── NoSQL injection sanitization ─────────────────────────────────────────────
 // Express 5 makes req.query a read-only getter, so we can't use mongoSanitize() globally.
@@ -123,6 +130,7 @@ app.use('/api/admin', authLimiter, adminRouter)
 app.use('/api/properties', express.json({ limit: '50mb' }), propertyRouter)
 app.use('/api/rooms', express.json({ limit: '50mb' }), roomRouter)
 app.use('/api/profile', express.json({ limit: '10mb' }), profileRouter)
+app.use('/api/landlord-application', express.json({ limit: '20mb' }), authLimiter, landlordApplicationRouter)
 
 // All other routes get general rate limit
 app.use('/api/user', generalLimiter, userRouter)
@@ -134,7 +142,6 @@ app.use('/api/reports', authLimiter, reportRouter)
 app.use('/api/feedback', generalLimiter, feedbackRouter)
 app.use('/api/rent-payment', generalLimiter, rentPaymentRouter)
 app.use('/api/utility', generalLimiter, utilityRouter)
-app.use('/api/landlord-application', authLimiter, landlordApplicationRouter)
 app.use('/api/newsletter', generalLimiter, newsletterRouter)
 app.use('/api/notifications', generalLimiter, notificationRouter)
 

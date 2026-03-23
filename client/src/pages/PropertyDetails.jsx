@@ -649,7 +649,7 @@ const PropertyDetails = () => {
           </div>
           )}
 
-          <div className='mt-4 flex gap-4 text-xs font-medium'>
+          <div className='mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium'>
             <div className='flex items-center gap-2'><div className='w-4 h-4 bg-emerald-200 border border-emerald-400 rounded-sm'></div><span>Vacant</span></div>
             <div className='flex items-center gap-2'><div className='w-4 h-4 bg-red-200 border border-red-400 rounded-sm'></div><span>Occupied</span></div>
             <div className='flex items-center gap-2'><div className='w-4 h-4 bg-amber-200 border border-amber-400 rounded-sm'></div><span>Booked</span></div>

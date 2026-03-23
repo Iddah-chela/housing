@@ -80,7 +80,15 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
     isVacant: true
   })
 
-  const [images, setImages] = useState({ 1: null, 2: null, 3: null, 4: null })
+  const [images, setImages] = useState(() => {
+    const existingImages = existingProperty?.images || []
+    return {
+      1: existingImages[0] || null,
+      2: existingImages[1] || null,
+      3: existingImages[2] || null,
+      4: existingImages[3] || null,
+    }
+  })
   const [loading, setLoading] = useState(false)
   const [locating, setLocating] = useState(false)
   const [selectMode, setSelectMode] = useState(false) // Multi-select mode
@@ -105,14 +113,25 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
-          toast.error('Location permission denied. Please paste a Google Maps link manually.')
+          toast.error('Location permission denied. Use address fallback or paste a Google Maps link manually.')
         } else {
-          toast.error('Could not get location. Paste a link manually.')
+          toast.error('Could not get location. Use address fallback or paste a Google Maps link manually.')
         }
         setLocating(false)
       },
       { enableHighAccuracy: true, timeout: 10000 }
     )
+  }
+
+  const handleBuildMapLinkFromAddress = () => {
+    const query = [propertyInfo.address, propertyInfo.estate, propertyInfo.place].filter(Boolean).join(', ').trim()
+    if (!query) {
+      toast.error('Enter address/place first, then use address fallback.')
+      return
+    }
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+    setPropertyInfo(prev => ({ ...prev, googleMapsUrl: url }))
+    toast.success('Map link generated from address details.')
   }
 
   // Drag-and-drop palette items
@@ -439,7 +458,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
   const onSubmitHandler = async (e) => {
     e.preventDefault()
 
-    if (!propertyInfo.name || !propertyInfo.address || !propertyInfo.contact || !propertyInfo.place || !propertyInfo.estate || !propertyInfo.propertyType) {
+    if (!propertyInfo.name || !propertyInfo.address || !propertyInfo.contact || !propertyInfo.place || !propertyInfo.propertyType) {
       toast.error("Please fill in all property details")
       return
     }
@@ -471,6 +490,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
         Object.values(images)
           .filter(img => img !== null)
           .map(img => {
+            if (typeof img === 'string') return Promise.resolve(img)
             return new Promise((resolve) => {
               const reader = new FileReader()
               reader.onloadend = () => resolve(reader.result)
@@ -481,6 +501,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
 
       const propertyData = {
         ...propertyInfo,
+        estate: propertyInfo.estate?.trim() || propertyInfo.name,
         buildings: buildings,
         compoundGate: compoundGate,
         // When editing with no new images chosen, pass existing URLs so server keeps them
@@ -533,7 +554,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
         <div className='border-l-4 border-indigo-500 pl-4 mb-6'>
           <h2 className='text-xl font-semibold mb-3'>Property Information</h2>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-            <input type="text" placeholder='Property Name *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.name} onChange={(e) => setPropertyInfo({ ...propertyInfo, name: e.target.value })} required />
+            <input type="text" placeholder='Property/Apartment Name *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.name} onChange={(e) => setPropertyInfo({ ...propertyInfo, name: e.target.value })} required />
             <select className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.propertyType} onChange={(e) => setPropertyInfo({ ...propertyInfo, propertyType: e.target.value })} required>
               <option value="">Select type *</option>
               <option value="Apartments">Apartment Complex</option>
@@ -547,7 +568,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
               <input type="text" placeholder="House Owner's Name (shown to tenants after unlock)" className='border border-indigo-300 dark:border-indigo-600 rounded px-3 py-2 outline-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:text-gray-100 md:col-span-2' value={propertyInfo.landlordName} onChange={(e) => setPropertyInfo({ ...propertyInfo, landlordName: e.target.value })} />
             )}
             <input type="text" placeholder='Street Address *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.address} onChange={(e) => setPropertyInfo({ ...propertyInfo, address: e.target.value })} required />
-            <input type="text" placeholder='Estate/Building Name *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.estate} onChange={(e) => setPropertyInfo({ ...propertyInfo, estate: e.target.value })} required />
+            <input type="text" placeholder='Estate/Area (optional if same as property name)' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.estate} onChange={(e) => setPropertyInfo({ ...propertyInfo, estate: e.target.value })} />
             <select className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 md:col-span-2' value={propertyInfo.place} onChange={(e) => setPropertyInfo({ ...propertyInfo, place: e.target.value })} required>
               <option value="">Select Location *</option>
               {Places.map((place) => (<option key={place} value={place}>{place}</option>))}
@@ -579,6 +600,13 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                     <><Navigation className='w-4 h-4' /> Use my location</>
                   )}
                 </button>
+                <button
+                  type='button'
+                  onClick={handleBuildMapLinkFromAddress}
+                  className='flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded text-sm font-medium transition-all'
+                >
+                  <MapPin className='w-4 h-4' /> Use address fallback
+                </button>
               </div>
               {propertyInfo.googleMapsUrl && (
                 <a
@@ -601,9 +629,18 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
             {Object.keys(images).map((key) => (
               <label htmlFor={`propertyImage${key}`} key={key} className='cursor-pointer group'>
                 <div className='h-20 w-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden group-hover:border-indigo-500 transition-all'>
-                  <img className='h-full w-full object-cover dark:opacity-88' src={images[key] ? URL.createObjectURL(images[key]) : assets.uploadArea} alt="" />
+                  <img className='h-full w-full object-cover dark:opacity-88' src={images[key] ? (typeof images[key] === 'string' ? images[key] : URL.createObjectURL(images[key])) : assets.uploadArea} alt="" />
                 </div>
                 <input type='file' accept='image/*' id={`propertyImage${key}`} hidden onChange={e => setImages({ ...images, [key]: e.target.files[0] })} />
+                {images[key] && (
+                  <button
+                    type='button'
+                    onClick={(e) => { e.preventDefault(); setImages({ ...images, [key]: null }) }}
+                    className='mt-1 w-full text-[10px] text-red-600 hover:text-red-700'
+                  >
+                    Remove
+                  </button>
+                )}
               </label>
             ))}
           </div>
@@ -704,13 +741,6 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                 Del Building
               </button>
             )}
-            <button type="button" onClick={() => { setSelectMode(!selectMode); setSelectedCells([]) }} className={`px-3 py-1.5 rounded font-medium ${selectMode ? 'bg-yellow-500 dark:bg-yellow-600 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200'}`}>
-              {selectMode ? 'Multi-Select ON' : 'Multi-Select'}
-            </button>
-            <button type="button" onClick={applyToAllCells} className='flex items-center gap-1 bg-teal-500 dark:bg-teal-600 hover:bg-teal-600 dark:hover:bg-teal-700 text-white px-3 py-1.5 rounded font-medium'>
-              <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2' /></svg>
-              Apply to All
-            </button>
           </div>
 
           {/* Drag & Drop Palette */}
@@ -974,6 +1004,15 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
         {/* Cell Configuration */}
         <div className='border-l-4 border-orange-500 pl-4 mb-6'>
           <h2 className='text-xl font-semibold mb-3'>Cell Configuration</h2>
+          <div className='flex gap-2 mb-3 flex-wrap text-sm'>
+            <button type="button" onClick={() => { setSelectMode(!selectMode); setSelectedCells([]) }} className={`px-3 py-1.5 rounded font-medium ${selectMode ? 'bg-yellow-500 dark:bg-yellow-600 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200'}`}>
+              {selectMode ? 'Multi-Select ON' : 'Multi-Select'}
+            </button>
+            <button type="button" onClick={applyToAllCells} className='flex items-center gap-1 bg-teal-500 dark:bg-teal-600 hover:bg-teal-600 dark:hover:bg-teal-700 text-white px-3 py-1.5 rounded font-medium'>
+              <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2' /></svg>
+              Apply to All
+            </button>
+          </div>
           {(selectedCell || selectedCells.length > 0) ? (
             <div className='space-y-3'>
               {selectMode && selectedCells.length > 0 && (
