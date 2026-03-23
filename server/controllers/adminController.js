@@ -3,6 +3,7 @@ import Room from "../models/room.js";
 import House from "../models/house.js";
 import Report from "../models/report.js";
 import Property from "../models/property.js";
+import PropertyClaim from "../models/propertyClaim.js";
 
 // Middleware to check if user is admin
 export const isAdmin = (req, res, next) => {
@@ -309,6 +310,95 @@ export const getDashboardStats = async (req, res) => {
                 suspendedUsers
             }
         });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// Get claim requests (admin)
+export const getPropertyClaims = async (req, res) => {
+    try {
+        const { status = 'pending' } = req.query;
+        const filter = status === 'all' ? {} : { status };
+
+        const claims = await PropertyClaim.find(filter)
+            .populate('property', 'name estate place listingTier claimStatus isClaimed')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        res.json({ success: true, claims });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// Approve claim request (admin)
+export const approvePropertyClaim = async (req, res) => {
+    try {
+        const { claimId } = req.params;
+        const { reviewNote = '' } = req.body;
+
+        const claim = await PropertyClaim.findById(claimId);
+        if (!claim) return res.json({ success: false, message: 'Claim not found' });
+        if (claim.status === 'approved') return res.json({ success: true, message: 'Claim already approved' });
+
+        const property = await Property.findById(claim.property);
+        if (!property) return res.json({ success: false, message: 'Property not found for this claim' });
+
+        claim.status = 'approved';
+        claim.reviewNote = String(reviewNote || '').trim();
+        claim.reviewedBy = req.user._id;
+        claim.reviewedAt = new Date();
+        await claim.save();
+
+        // Any other pending claims for this property are auto-rejected.
+        await PropertyClaim.updateMany(
+            { _id: { $ne: claim._id }, property: claim.property, status: 'pending' },
+            { $set: { status: 'rejected', reviewNote: 'Another claim was approved for this listing', reviewedBy: req.user._id, reviewedAt: new Date() } }
+        );
+
+        property.isClaimed = true;
+        property.claimStatus = 'verified';
+        property.claimedBy = claim.claimant;
+        property.claimedByEmail = claim.claimantEmail;
+        property.claimRole = claim.claimRole;
+        property.claimPhone = claim.claimPhone || '';
+        property.claimReviewedAt = new Date();
+        property.claimReviewNote = claim.reviewNote || '';
+        property.lastConfirmedAt = new Date();
+        if (property.listingTier === 'directory') property.listingTier = 'claimed';
+        await property.save();
+
+        res.json({ success: true, message: 'Claim approved and listing moved to CLAIMED' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// Reject claim request (admin)
+export const rejectPropertyClaim = async (req, res) => {
+    try {
+        const { claimId } = req.params;
+        const { reviewNote = '' } = req.body;
+
+        const claim = await PropertyClaim.findById(claimId);
+        if (!claim) return res.json({ success: false, message: 'Claim not found' });
+
+        claim.status = 'rejected';
+        claim.reviewNote = String(reviewNote || '').trim();
+        claim.reviewedBy = req.user._id;
+        claim.reviewedAt = new Date();
+        await claim.save();
+
+        const property = await Property.findById(claim.property);
+        if (property) {
+            property.claimStatus = 'rejected';
+            property.claimReviewedAt = new Date();
+            property.claimReviewNote = claim.reviewNote || '';
+            await property.save();
+        }
+
+        res.json({ success: true, message: 'Claim rejected' });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }

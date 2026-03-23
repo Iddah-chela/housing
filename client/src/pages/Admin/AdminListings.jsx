@@ -6,15 +6,23 @@ import PropertyListingModal from '../../components/PropertyListingModal';
 
 const AdminListings = () => {
   const { axios, getToken } = useAppContext();
+  const [activeTab, setActiveTab] = useState('listings');
   const [properties, setProperties] = useState([]);
+  const [claims, setClaims] = useState([]);
+  const [claimsLoading, setClaimsLoading] = useState(false);
+  const [claimStatusFilter, setClaimStatusFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [transferTarget, setTransferTarget] = useState(null); // property being transferred
   const [transferEmail, setTransferEmail] = useState('');
   const [transferring, setTransferring] = useState(false);
+  const [claimActionBusy, setClaimActionBusy] = useState(null);
 
   useEffect(() => { fetchProperties(); }, []);
+  useEffect(() => {
+    if (activeTab === 'claims') fetchClaims(claimStatusFilter);
+  }, [activeTab, claimStatusFilter]);
 
   const fetchProperties = async () => {
     try {
@@ -28,6 +36,23 @@ const AdminListings = () => {
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClaims = async (status = 'pending') => {
+    try {
+      setClaimsLoading(true);
+      const token = await getToken();
+      const { data } = await axios.get('/api/admin/claims', {
+        params: { status },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (data.success) setClaims(data.claims || []);
+      else toast.error(data.message);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setClaimsLoading(false);
     }
   };
 
@@ -101,6 +126,57 @@ const AdminListings = () => {
     }
   };
 
+  const approveClaim = async (claimId) => {
+    setClaimActionBusy(claimId);
+    try {
+      const token = await getToken();
+      const note = window.prompt('Optional admin note for approval:', '') || '';
+      const { data } = await axios.post(`/api/admin/claims/${claimId}/approve`,
+        { reviewNote: note },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) {
+        toast.success(data.message || 'Claim approved');
+        fetchClaims(claimStatusFilter);
+        fetchProperties();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setClaimActionBusy(null);
+    }
+  };
+
+  const rejectClaim = async (claimId) => {
+    const note = window.prompt('Reason for rejection (required):', 'Insufficient proof provided');
+    if (!note || !note.trim()) {
+      toast.error('Rejection reason is required');
+      return;
+    }
+
+    setClaimActionBusy(claimId);
+    try {
+      const token = await getToken();
+      const { data } = await axios.post(`/api/admin/claims/${claimId}/reject`,
+        { reviewNote: note.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) {
+        toast.success(data.message || 'Claim rejected');
+        fetchClaims(claimStatusFilter);
+        fetchProperties();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setClaimActionBusy(null);
+    }
+  };
+
   const filtered = properties.filter(p => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -158,10 +234,13 @@ const AdminListings = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl md:text-3xl font-semibold">Listings Management</h1>
         <div className="flex items-center gap-3">
-          <div className="text-sm text-gray-500">{filtered.length} properties</div>
+          <div className="text-sm text-gray-500">{activeTab === 'listings' ? `${filtered.length} properties` : `${claims.length} claims`}</div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+            disabled={activeTab !== 'listings'}
+            className={`flex items-center gap-1.5 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'listings' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-400 cursor-not-allowed'
+            }`}
           >
             <Plus className="w-4 h-4" />
             Add Listing
@@ -169,15 +248,46 @@ const AdminListings = () => {
         </div>
       </div>
 
-      <input
-        type="text"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="Search by name, estate, location, or owner email..."
-      className="w-full mb-6 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
-      />
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setActiveTab('listings')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${activeTab === 'listings' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+        >
+          Listings
+        </button>
+        <button
+          onClick={() => setActiveTab('claims')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${activeTab === 'claims' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+        >
+          Claims Queue
+        </button>
+      </div>
 
-      {loading ? (
+      {activeTab === 'listings' && (
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name, estate, location, or owner email..."
+          className="w-full mb-6 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+        />
+      )}
+
+      {activeTab === 'claims' && (
+        <div className="mb-6 flex items-center gap-2">
+          {['pending', 'approved', 'rejected', 'all'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setClaimStatusFilter(status)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${claimStatusFilter === status ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'listings' && (loading ? (
         <p>Loading listings...</p>
       ) : filtered.length === 0 ? (
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center text-gray-500">No properties found</div>
@@ -263,6 +373,73 @@ const AdminListings = () => {
             </div>
           ))}
         </div>
+      ))}
+
+      {activeTab === 'claims' && (
+        claimsLoading ? (
+          <p>Loading claims...</p>
+        ) : claims.length === 0 ? (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center text-gray-500">No claims found</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {claims.map((claim) => (
+              <div key={claim._id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 md:p-5">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold text-base">{claim.property?.name || 'Listing'}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">{claim.property?.estate}, {claim.property?.place}</p>
+                    <p className="text-sm mt-2">Claimant: <span className="font-medium">{claim.claimantName}</span> ({claim.claimRole})</p>
+                    <p className="text-xs text-gray-500">{claim.claimantEmail}{claim.claimPhone ? ` · ${claim.claimPhone}` : ''}</p>
+                    {claim.claimNotes && <p className="text-xs text-gray-600 dark:text-gray-300 mt-2">{claim.claimNotes}</p>}
+                    {claim.evidenceUrls?.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {claim.evidenceUrls.map((url, idx) => (
+                          <a
+                            key={idx}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2 py-0.5 text-xs rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                          >
+                            Evidence {idx + 1}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-start md:items-end gap-2">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      claim.status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                      claim.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                    }`}>
+                      {claim.status}
+                    </span>
+                    <span className="text-[11px] text-gray-400">{new Date(claim.createdAt).toLocaleString()}</span>
+                    {claim.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => approveClaim(claim._id)}
+                          disabled={claimActionBusy === claim._id}
+                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-xs rounded-lg"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => rejectClaim(claim._id)}
+                          disabled={claimActionBusy === claim._id}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-xs rounded-lg"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

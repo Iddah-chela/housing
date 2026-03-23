@@ -17,7 +17,10 @@ import {
     unverifyProperty,
     deleteUser,
     revokeHouseOwner,
-    transferProperty
+    transferProperty,
+    getPropertyClaims,
+    approvePropertyClaim,
+    rejectPropertyClaim
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -44,5 +47,8 @@ adminRouter.post("/verify-property", verifyProperty);
 adminRouter.post("/unverify-property", unverifyProperty);
 adminRouter.post("/revoke-landlord", revokeHouseOwner);
 adminRouter.post("/transfer-property", transferProperty);
+adminRouter.get("/claims", getPropertyClaims);
+adminRouter.post("/claims/:claimId/approve", approvePropertyClaim);
+adminRouter.post("/claims/:claimId/reject", rejectPropertyClaim);
 
 export default adminRouter;

@@ -10,7 +10,9 @@
     "dev": "nodemon server.js",
     "cleanup-test-accounts": "node cleanupTestAccounts.js",
     "cleanup-test-accounts:apply": "node cleanupTestAccounts.js --apply",
-    "backfill:listing-metadata": "node backfillListingMetadata.js"
+    "backfill:listing-metadata": "node backfillListingMetadata.js",
+    "import:directory-listings": "node importDirectoryListings.js",
+    "import:directory-listings:dry": "node importDirectoryListings.js --dry-run"
   },
   "keywords": [],
   "author": "",
@@ -33,7 +35,8 @@
     "nodemailer": "^8.0.1",
     "resend": "^6.9.3",
     "svix": "^1.76.1",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

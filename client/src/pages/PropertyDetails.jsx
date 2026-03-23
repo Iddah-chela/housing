@@ -33,6 +33,16 @@ const PropertyDetails = () => {
     const [referralCopied, setReferralCopied] = useState(false)
     const [loading, setLoading] = useState(true)
     const [showGuestPayment, setShowGuestPayment] = useState(false)
+    const [claimData, setClaimData] = useState(null)
+    const [showClaimForm, setShowClaimForm] = useState(false)
+    const [claimSubmitting, setClaimSubmitting] = useState(false)
+    const [claimForm, setClaimForm] = useState({
+      claimantName: '',
+      claimPhone: '',
+      claimRole: 'owner',
+      claimNotes: '',
+      evidenceText: '',
+    })
 
     useEffect(()=>{
       const fetchProperty = async () => {
@@ -97,6 +107,24 @@ const PropertyDetails = () => {
         }
       }
       fetchUnlockInfo()
+    }, [user, id])
+
+    useEffect(() => {
+      if (!user) return
+      const fetchClaimStatus = async () => {
+        try {
+          const token = await getToken()
+          const { data } = await axios.get(`/api/properties/${id}/claim-status`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          if (data?.success) {
+            setClaimData(data)
+          }
+        } catch (_) {
+          // Ignore claim status errors - listing still renders.
+        }
+      }
+      fetchClaimStatus()
     }, [user, id])
 
     // For guest users: check localStorage unlock (needs property loaded)
@@ -261,6 +289,56 @@ const PropertyDetails = () => {
       setShowDirectApplyForm(true)
     }
 
+    const submitClaim = async () => {
+      if (!user) {
+        toast.error('Please sign in to claim this listing')
+        return
+      }
+      if (!claimForm.claimantName.trim()) {
+        toast.error('Please provide your full name')
+        return
+      }
+
+      setClaimSubmitting(true)
+      try {
+        const token = await getToken()
+        const evidenceUrls = claimForm.evidenceText
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean)
+
+        const { data } = await axios.post(`/api/properties/${id}/claim`, {
+          claimantName: claimForm.claimantName,
+          claimPhone: claimForm.claimPhone,
+          claimRole: claimForm.claimRole,
+          claimNotes: claimForm.claimNotes,
+          evidenceUrls,
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+
+        if (data?.success) {
+          toast.success('Claim submitted. Admin review is pending.')
+          setShowClaimForm(false)
+          setProperty((prev) => prev ? { ...prev, claimStatus: 'pending' } : prev)
+          setClaimData((prev) => ({
+            ...(prev || {}),
+            claim: data.claim,
+            property: {
+              ...(prev?.property || {}),
+              claimStatus: 'pending'
+            }
+          }))
+        } else {
+          toast.error(data?.message || 'Failed to submit claim')
+        }
+      } catch (error) {
+        toast.error(error?.response?.data?.message || 'Failed to submit claim')
+      } finally {
+        setClaimSubmitting(false)
+      }
+    }
+
   if (loading) {
     return <PropertyDetailSkeleton />
   }
@@ -301,6 +379,9 @@ const PropertyDetails = () => {
         <div className='mt-6 p-5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200'>
           <p className='font-semibold'>Informational Listing</p>
           <p className='text-sm mt-1'>This listing is currently directory-only. Vacancy and room-level availability are not confirmed yet.</p>
+          {property.claimStatus && property.claimStatus !== 'none' && (
+            <p className='text-xs mt-2 font-medium'>Claim status: {property.claimStatus}</p>
+          )}
           <div className='mt-4 flex flex-wrap gap-3'>
             <button
               onClick={() => toast('Vacancy alerts are coming next. For now, save this listing and check back soon.')}
@@ -308,6 +389,22 @@ const PropertyDetails = () => {
             >
               Notify Me When Live
             </button>
+            {property.listingTier === 'directory' && (
+              user ? (
+                <button
+                  onClick={() => setShowClaimForm((s) => !s)}
+                  className='px-4 py-2 rounded-lg border border-amber-700 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-sm font-medium'
+                >
+                  {showClaimForm ? 'Close Claim Form' : 'Claim This Hostel'}
+                </button>
+              ) : (
+                <SignInButton mode='modal'>
+                  <button className='px-4 py-2 rounded-lg border border-amber-700 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-sm font-medium'>
+                    Sign In to Claim
+                  </button>
+                </SignInButton>
+              )
+            )}
             {isInquiryOnly && (
               <button
                 onClick={() => toast('Inquiry channel will open once contact verification is complete.')}
@@ -317,6 +414,56 @@ const PropertyDetails = () => {
               </button>
             )}
           </div>
+
+          {showClaimForm && (
+            <div className='mt-4 p-4 rounded-lg border border-amber-300 dark:border-amber-700 bg-white/70 dark:bg-gray-900/30'>
+              <p className='text-sm font-semibold mb-2'>Submit Claim Request</p>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
+                <input
+                  value={claimForm.claimantName}
+                  onChange={(e) => setClaimForm((prev) => ({ ...prev, claimantName: e.target.value }))}
+                  placeholder='Your full name'
+                  className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
+                />
+                <input
+                  value={claimForm.claimPhone}
+                  onChange={(e) => setClaimForm((prev) => ({ ...prev, claimPhone: e.target.value }))}
+                  placeholder='Phone number'
+                  className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
+                />
+                <select
+                  value={claimForm.claimRole}
+                  onChange={(e) => setClaimForm((prev) => ({ ...prev, claimRole: e.target.value }))}
+                  className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
+                >
+                  <option value='owner'>Owner</option>
+                  <option value='caretaker'>Caretaker</option>
+                </select>
+                <input
+                  value={claimForm.evidenceText}
+                  onChange={(e) => setClaimForm((prev) => ({ ...prev, evidenceText: e.target.value }))}
+                  placeholder='Evidence URLs (comma separated, optional)'
+                  className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
+                />
+              </div>
+              <textarea
+                value={claimForm.claimNotes}
+                onChange={(e) => setClaimForm((prev) => ({ ...prev, claimNotes: e.target.value }))}
+                placeholder='Notes for admin review (optional)'
+                rows={3}
+                className='w-full mt-2 px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
+              />
+              <div className='mt-3'>
+                <button
+                  onClick={submitClaim}
+                  disabled={claimSubmitting}
+                  className='px-4 py-2 rounded-lg bg-amber-700 text-white hover:bg-amber-800 disabled:opacity-60 text-sm font-medium'
+                >
+                  {claimSubmitting ? 'Submitting...' : 'Submit Claim'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )

@@ -143,6 +143,40 @@ const propertySchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  claimedBy: {
+    type: String,
+    ref: 'User',
+    default: null,
+    index: true
+  },
+  claimedByEmail: {
+    type: String,
+    default: '',
+    lowercase: true,
+    trim: true
+  },
+  claimRole: {
+    type: String,
+    enum: ['owner', 'caretaker', ''],
+    default: ''
+  },
+  claimPhone: {
+    type: String,
+    default: ''
+  },
+  claimSubmittedAt: {
+    type: Date,
+    default: null
+  },
+  claimReviewedAt: {
+    type: Date,
+    default: null
+  },
+  claimReviewNote: {
+    type: String,
+    default: '',
+    maxlength: 1000
+  },
   claimStatus: {
     type: String,
     enum: ['none', 'pending', 'verified', 'rejected'],

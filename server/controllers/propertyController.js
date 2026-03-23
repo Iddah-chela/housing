@@ -1,6 +1,7 @@
 import Property from "../models/property.js";
 import User from "../models/user.js";
 import UserPass from "../models/userPass.js";
+import PropertyClaim from "../models/propertyClaim.js";
 import {v2 as cloudinary} from "cloudinary";
 import Subscriber from "../models/subscriber.js";
 import { sendNewListingAlert } from "../utils/mailer.js";
@@ -585,5 +586,122 @@ export const caretakerToggleRoom = async (req, res) => {
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
+  }
+};
+
+// Submit claim request for an informational listing.
+export const submitPropertyClaim = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      claimantName,
+      claimPhone,
+      claimRole,
+      claimNotes,
+      evidenceUrls,
+    } = req.body;
+
+    if (!claimantName?.trim()) {
+      return res.json({ success: false, message: 'Claimant name is required' });
+    }
+
+    if (!['owner', 'caretaker'].includes(claimRole)) {
+      return res.json({ success: false, message: 'Claim role must be owner or caretaker' });
+    }
+
+    const property = await Property.findById(id);
+    if (!property) {
+      return res.json({ success: false, message: 'Property not found' });
+    }
+
+    if (property.listingTier === 'live') {
+      return res.json({ success: false, message: 'Live listings cannot be claimed through directory flow' });
+    }
+
+    const pendingForProperty = await PropertyClaim.findOne({
+      property: id,
+      status: 'pending',
+    }).lean();
+
+    if (pendingForProperty) {
+      return res.json({ success: false, message: 'A claim is already pending for this listing' });
+    }
+
+    const pendingForUser = await PropertyClaim.findOne({
+      property: id,
+      claimant: req.user._id,
+      status: { $in: ['pending', 'more_info_required'] },
+    }).lean();
+
+    if (pendingForUser) {
+      return res.json({ success: false, message: 'You already have an active claim request for this listing' });
+    }
+
+    const normalizedEvidence = Array.isArray(evidenceUrls)
+      ? evidenceUrls.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
+
+    const claim = await PropertyClaim.create({
+      property: id,
+      claimant: req.user._id,
+      claimantEmail: req.user.email,
+      claimantName: claimantName.trim(),
+      claimRole,
+      claimPhone: String(claimPhone || '').trim(),
+      claimNotes: String(claimNotes || '').trim(),
+      evidenceUrls: normalizedEvidence,
+      status: 'pending',
+    });
+
+    property.claimStatus = 'pending';
+    property.claimSubmittedAt = new Date();
+    property.claimReviewNote = '';
+    await property.save();
+
+    return res.json({
+      success: true,
+      message: 'Claim submitted. Admin will review it shortly.',
+      claim,
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.json({ success: false, message: 'A pending claim already exists for this listing' });
+    }
+    return res.json({ success: false, message: error.message });
+  }
+};
+
+// Get current user's latest claim status for a listing.
+export const getPropertyClaimStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const property = await Property.findById(id).select('listingTier claimStatus claimReviewNote isClaimed claimedBy claimRole');
+    if (!property) {
+      return res.json({ success: false, message: 'Property not found' });
+    }
+
+    let claim = null;
+    if (req.user?._id) {
+      claim = await PropertyClaim.findOne({
+        property: id,
+        claimant: req.user._id,
+      }).sort({ createdAt: -1 }).lean();
+    }
+
+    return res.json({
+      success: true,
+      claim,
+      property: {
+        listingTier: property.listingTier,
+        claimStatus: property.claimStatus,
+        claimReviewNote: property.claimReviewNote,
+        isClaimed: property.isClaimed,
+        claimedBy: property.claimedBy,
+        claimRole: property.claimRole,
+      },
+    });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
   }
 };
