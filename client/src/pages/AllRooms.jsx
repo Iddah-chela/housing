@@ -449,7 +449,7 @@ const AllRooms = () => {
                 )}
                 
                 {property.vacancyStatus === 'full' && (property.soonAvailableRooms || 0) === 0 && (
-                  <div className='px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm font-medium'>
+                  <div className='px-3 py-1 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-sm font-medium'>
                     Fully Occupied
                   </div>
                 )}

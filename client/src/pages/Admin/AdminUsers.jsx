@@ -82,7 +82,7 @@ const AdminUsers = () => {
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder="Search by name or email..."
-        className="w-full mb-4 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full mb-4 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
       />
 
       {loading ? (
@@ -113,16 +113,16 @@ const AdminUsers = () => {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                        user.role === 'houseOwner' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-700'
+                        user.role === 'admin' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300' :
+                        user.role === 'houseOwner' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+                        'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                       }`}>
                         {user.role === 'houseOwner' ? 'House Owner' : user.role}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        user.isSuspended ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                        user.isSuspended ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                       }`}>
                         {user.isSuspended ? 'Suspended' : 'Active'}
                       </span>
@@ -132,23 +132,23 @@ const AdminUsers = () => {
                         <div className="flex flex-wrap gap-1.5">
                           {user.isSuspended ? (
                             <button onClick={() => handleUnsuspend(user._id)}
-                              className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200">
+                              className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-900/50">
                               Unsuspend
                             </button>
                           ) : (
                             <button onClick={() => handleSuspend(user._id)}
-                              className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">
+                              className="px-2 py-1 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded hover:bg-yellow-200 dark:hover:bg-yellow-900/50">
                               Suspend
                             </button>
                           )}
                           {user.role === 'houseOwner' && (
                             <button onClick={() => handleRevokeLandlord(user._id)}
-                              className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200">
+                              className="px-2 py-1 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded hover:bg-orange-200 dark:hover:bg-orange-900/50">
                               Revoke Owner Status
                             </button>
                           )}
                           <button onClick={() => handleDelete(user._id, user.username)}
-                            className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">
+                            className="px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-900/50">
                             Delete
                           </button>
                         </div>

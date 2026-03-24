@@ -9,7 +9,7 @@ import PaymentModal from '../components/PaymentModal'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
 import { SignInButton, SignUpButton } from '@clerk/clerk-react'
-import { Gift, Lock, Unlock, Key, CreditCard, MessageCircle, Smartphone, PartyPopper, Check, Share2, Copy, Users } from 'lucide-react'
+import { Gift, Lock, Unlock, Key, CreditCard, MessageCircle, Smartphone, PartyPopper, Check, Share2, Copy, Users, User as UserIcon } from 'lucide-react'
 import { PropertyDetailSkeleton } from '../components/Skeletons'
 
 const PropertyDetails = () => {
@@ -456,6 +456,23 @@ const PropertyDetails = () => {
   )
   const hasPendingClaim = userClaimStatus === 'pending' || propertyClaimStatus === 'pending'
   const showClaimStatusPanel = !!userClaimStatus
+  const roomPrices = []
+  ;(property?.buildings || []).forEach((building) => {
+    ;(building?.grid || []).forEach((row) => {
+      ;(row || []).forEach((cell) => {
+        if (cell?.type === 'room' && Number(cell?.pricePerMonth) > 0) {
+          roomPrices.push(Number(cell.pricePerMonth))
+        }
+      })
+    })
+  })
+  const derivedMinPrice = roomPrices.length ? Math.min(...roomPrices) : null
+  const derivedMaxPrice = roomPrices.length ? Math.max(...roomPrices) : null
+  const fallbackMinPrice = Number(property?.listedRentMin || 0) > 0 ? Number(property.listedRentMin) : null
+  const fallbackMaxPrice = Number(property?.listedRentMax || 0) > 0 ? Number(property.listedRentMax) : null
+  const propertyPriceMin = derivedMinPrice ?? fallbackMinPrice
+  const propertyPriceMax = derivedMaxPrice ?? fallbackMaxPrice ?? propertyPriceMin
+  const hasPropertyPrice = Number(propertyPriceMin || 0) > 0
 
   // Informational mode fallback for directory records with no room map.
   if (!canShowRoomGrid) {
@@ -470,6 +487,13 @@ const PropertyDetails = () => {
               <img src={assets.locationIcon} alt='' className='w-5 h-5' />
               <span>{property.estate}, {property.place}</span>
             </div>
+            {hasPropertyPrice && (
+              <p className='text-sm mt-2 font-medium text-indigo-700 dark:text-indigo-300'>
+                Price range: Ksh {propertyPriceMin.toLocaleString()}
+                {Number(propertyPriceMax || 0) > Number(propertyPriceMin || 0) ? ` - ${propertyPriceMax.toLocaleString()}` : ''}
+                /month
+              </p>
+            )}
           </div>
           <div className='flex flex-wrap gap-2'>
             <span className='px-4 py-2 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'>
@@ -664,6 +688,13 @@ const PropertyDetails = () => {
                 <img src={assets.locationIcon} alt="" className='w-5 h-5' />
                 <span>{property.estate}, {property.place}</span>
               </div>
+              {hasPropertyPrice && (
+                <p className='text-sm mt-2 font-medium text-indigo-700 dark:text-indigo-300'>
+                  Price range: Ksh {propertyPriceMin.toLocaleString()}
+                  {Number(propertyPriceMax || 0) > Number(propertyPriceMin || 0) ? ` - ${propertyPriceMax.toLocaleString()}` : ''}
+                  /month
+                </p>
+              )}
             </div>
             <div className='flex flex-col items-end gap-2'>
               <div className='flex items-center gap-2'>
@@ -1332,24 +1363,31 @@ const PropertyDetails = () => {
         <div className='mt-10 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800'>
           <div className='flex items-start gap-4'>
             {(() => {
-              const isAdminWithoutLandlordName = String(property?.owner?.role || '').toLowerCase() === 'admin' && !String(property?.landlordName || '').trim()
-              const displayName = isAdminWithoutLandlordName ? '' : (property.landlordName || property.owner?.username || 'Property Contact')
-              const fallbackAvatarSeed = displayName || 'Property Contact'
-              const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(fallbackAvatarSeed) + '&background=e5e7eb&color=111827&bold=true'
+              const hasLandlordDisplayName = !!String(property?.landlordName || '').trim()
+              if (!hasLandlordDisplayName) {
+                return (
+                  <div className='w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center'>
+                    <UserIcon className='w-7 h-7 text-gray-500 dark:text-gray-300' />
+                  </div>
+                )
+              }
+
+              const displayName = property.landlordName || property.owner?.username || 'Property Contact'
+              const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName) + '&background=e5e7eb&color=111827&bold=true'
               const avatarSrc = isPartnerListing ? fallbackAvatar : (property.owner?.image || fallbackAvatar)
               return (
-            <img 
-              src={avatarSrc} 
-              alt="" 
-              onError={(e) => { e.target.src = fallbackAvatar }}
-              className='w-16 h-16 rounded-full object-cover'
-            />
+                <img
+                  src={avatarSrc}
+                  alt=""
+                  onError={(e) => { e.target.src = fallbackAvatar }}
+                  className='w-16 h-16 rounded-full object-cover'
+                />
               )
             })()}
             <div className='flex-1'>
               <div className='flex items-center gap-2'>
                 <p className='text-lg font-medium'>
-                  {String(property?.owner?.role || '').toLowerCase() === 'admin' && !String(property?.landlordName || '').trim()
+                  {!String(property?.landlordName || '').trim()
                     ? ''
                     : (property.landlordName || property.owner?.username || 'Property Owner')}
                 </p>
