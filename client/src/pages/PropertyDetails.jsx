@@ -372,26 +372,6 @@ const PropertyDetails = () => {
       }
     }
 
-    const sendInquiryViaWhatsApp = () => {
-      const preferredPhone = property?.whatsappNumber || property?.claimPhone || property?.contact || ''
-      const digitsOnly = String(preferredPhone).replace(/\D/g, '')
-
-      if (!digitsOnly) {
-        toast('No verified contact number yet. You can subscribe for alerts or check back after claim review.')
-        return
-      }
-
-      let normalized = digitsOnly
-      if (normalized.startsWith('0')) normalized = `254${normalized.slice(1)}`
-      if (normalized.length < 9) {
-        toast('Contact number looks incomplete. Please try again later.')
-        return
-      }
-
-      const message = `Hi, I am interested in ${property?.name || 'this listing'} at ${property?.estate || ''}. Is there current availability?`
-      window.open(`https://wa.me/${normalized}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
-    }
-
   if (loading) {
     return <PropertyDetailSkeleton />
   }
@@ -401,8 +381,10 @@ const PropertyDetails = () => {
   }
 
   const hasRoomGrid = Array.isArray(property.buildings) && property.buildings.length > 0
-  const isInquiryOnly = property.actionability === 'inquiry_only'
-  const isPartnerListing = String(property?.sourceType || '').toLowerCase() === 'field_list' || String(property?.listingTier || '').toLowerCase() === 'directory'
+  const isPartnerListing =
+    String(property?.sourceType || '').toLowerCase() === 'field_list' ||
+    String(property?.listingTier || '').toLowerCase() === 'directory' ||
+    (String(property?.owner?.role || '').toLowerCase() === 'admin' && !!String(property?.landlordName || '').trim())
   const listingTierLabel =
     property?.listingTier === 'live'
       ? 'Live'
@@ -492,14 +474,6 @@ const PropertyDetails = () => {
                   </button>
                 </SignInButton>
               )
-            )}
-            {isInquiryOnly && (
-              <button
-                onClick={sendInquiryViaWhatsApp}
-                className='px-4 py-2 rounded-lg border border-indigo-600 text-indigo-700 dark:text-indigo-300 dark:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-sm font-medium'
-              >
-                Inquiry
-              </button>
             )}
           </div>
 

@@ -5,6 +5,11 @@ import PropertyClaim from "../models/propertyClaim.js";
 import {v2 as cloudinary} from "cloudinary";
 import Subscriber from "../models/subscriber.js";
 import { sendNewListingAlert } from "../utils/mailer.js";
+import {
+  applyAutoListingLifecycle,
+  evaluateListingReadiness,
+  normalizeListingActionability,
+} from "../utils/listingLifecycle.js";
 
 const inferTierAndStatus = (property) => {
   const hasRoomLevelData = property.hasRoomLevelData ?? (
@@ -27,17 +32,15 @@ const inferTierAndStatus = (property) => {
     else vacancyStatus = 'full';
   }
 
-  const actionability = property.actionability || (
-    listingTier === 'directory' ? 'info_only' :
-    listingTier === 'claimed' ? 'inquiry_only' :
-    'full_transaction'
-  );
+  const actionability = normalizeListingActionability(listingTier);
+  const liveReadiness = evaluateListingReadiness(property);
 
   return {
     ...property,
     listingTier,
     vacancyStatus,
     actionability,
+    liveReadiness,
     hasImages,
     hasRoomLevelData,
   };
@@ -49,13 +52,20 @@ const inferTierAndStatus = (property) => {
 const hasContactAccess = async (propertyId, req) => {
   const userId = req.user?._id;
   const userEmail = req.user?.email;
+  const role = req.user?.role;
+
+  const prop = await Property.findById(propertyId).select('owner caretakers listingTier').lean();
+  if (!prop) return false;
+
+  if (role === 'admin') return true;
 
   if (userId) {
     // Owner or caretaker always see their own property
-    const prop = await Property.findById(propertyId).select('owner caretakers').lean();
-    if (!prop) return false;
     if (prop.owner?.toString() === userId.toString()) return true;
     if (prop.caretakers?.some(e => e.toLowerCase() === userEmail?.toLowerCase())) return true;
+
+    // For tenants/guests, contact unlocks are only available when listing is live.
+    if (String(prop.listingTier || '').toLowerCase() !== 'live') return false;
 
     // Active pass (global or per-property)
     const pass = await UserPass.findOne({
@@ -74,6 +84,7 @@ const hasContactAccess = async (propertyId, req) => {
   // Guest token
   const guestToken = req.headers['x-guest-token'] || req.query.guestToken;
   if (guestToken) {
+    if (String(prop.listingTier || '').toLowerCase() !== 'live') return false;
     try {
       const guestPass = await UserPass.findById(guestToken).lean();
       if (
@@ -169,6 +180,9 @@ export const createProperty = async (req, res) => {
       compoundGate: compoundGate || { side: 'bottom' }
     });
 
+    applyAutoListingLifecycle(property);
+    await property.save();
+
     // Populate owner details
     await property.populate('owner', 'username email image');
 
@@ -195,7 +209,7 @@ export const getAllProperties = async (req, res) => {
   try {
     const rawProperties = await Property.find({ isExpired: { $ne: true } })
       .select('-contact -whatsappNumber')
-      .populate('owner', 'username image isVerified')
+      .populate('owner', 'username image isVerified role')
       .sort({ createdAt: -1 });
 
     const properties = rawProperties
@@ -222,7 +236,7 @@ export const getPropertyById = async (req, res) => {
   try {
     const { id } = req.params;
     const property = await Property.findById(id)
-      .populate('owner', 'username image isVerified');
+      .populate('owner', 'username image isVerified role');
     
     if (!property) {
       return res.json({ success: false, message: "Property not found" });
@@ -285,9 +299,15 @@ export const updateProperty = async (req, res) => {
     } = req.body;
     const owner = req.user._id;
 
-    // Verify ownership
-    const existing = await Property.findOne({ _id: id, owner });
+    // Verify ownership or approved claimant stewardship
+    const existing = await Property.findById(id);
     if (!existing) {
+      return res.json({ success: false, message: "Property not found or unauthorized" });
+    }
+
+    const isOwner = String(existing.owner || '') === String(owner || '');
+    const isApprovedClaimant = String(existing.claimedBy || '') === String(owner || '');
+    if (!isOwner && !isApprovedClaimant) {
       return res.json({ success: false, message: "Property not found or unauthorized" });
     }
 
@@ -352,11 +372,14 @@ export const updateProperty = async (req, res) => {
     if (parsedBuildings) updatePayload.buildings = parsedBuildings;
     if (compoundGate) updatePayload.compoundGate = compoundGate;
 
-    const property = await Property.findByIdAndUpdate(
+    let property = await Property.findByIdAndUpdate(
       id,
       { $set: updatePayload },
       { new: true }
     );
+
+    applyAutoListingLifecycle(property);
+    await property.save();
 
     res.json({ success: true, message: "Property updated successfully", property });
   } catch (error) {
@@ -710,7 +733,7 @@ export const getPropertyClaimStatus = async (req, res) => {
 export const getMyPropertyClaims = async (req, res) => {
   try {
     const claims = await PropertyClaim.find({ claimant: req.user._id })
-      .populate('property', 'name estate place listingTier claimStatus images owner sourceType landlordName')
+      .populate('property', 'name estate place listingTier claimStatus images owner sourceType landlordName totalRooms declaredUnits listedRentMin listedRentMax contact whatsappNumber claimPhone buildings')
       .sort({ createdAt: -1 })
       .lean();
 

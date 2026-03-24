@@ -58,7 +58,9 @@ const AllRooms = () => {
 
   const getListingTierLabel = (property) => {
     const tier = String(property?.listingTier || '').toLowerCase()
-    const isPartnerListing = String(property?.sourceType || '').toLowerCase() === 'field_list'
+    const isPartnerListing =
+      String(property?.sourceType || '').toLowerCase() === 'field_list' ||
+      (String(property?.owner?.role || '').toLowerCase() === 'admin' && !!String(property?.landlordName || '').trim())
     if (tier === 'live') return 'Live'
     if (tier === 'claimed') return 'Owner Updating'
     if (isPartnerListing) return 'Partner Listing'
@@ -74,7 +76,7 @@ const AllRooms = () => {
 
   const getCtaLabel = (property) => {
     if (property.actionability === 'info_only') return 'Details'
-    if (property.actionability === 'inquiry_only') return 'Inquiry'
+    if (property.actionability === 'inquiry_only') return 'Notify'
     return 'View Units'
   }
   

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { normalizeListingActionability } from "../utils/listingLifecycle.js";
 
 const cellSchema = new mongoose.Schema({
   type: {
@@ -290,9 +291,7 @@ propertySchema.pre('save', function(next) {
   }
 
   // Auto-map actionability from listing tier.
-  if (this.listingTier === 'directory') this.actionability = 'info_only';
-  if (this.listingTier === 'claimed') this.actionability = 'inquiry_only';
-  if (this.listingTier === 'live') this.actionability = 'full_transaction';
+  this.actionability = normalizeListingActionability(this.listingTier);
 
   // Auto-derive vacancy status for live listings from room counts when possible.
   if (this.listingTier === 'live' && hasRoomLevelData) {

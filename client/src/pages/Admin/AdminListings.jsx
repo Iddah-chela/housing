@@ -215,6 +215,29 @@ const AdminListings = () => {
     );
   });
 
+  const getDisplayRoomCount = (property) => {
+    const fromGrid = Number(property?.totalRooms || 0);
+    const fromDeclared = Number(property?.declaredUnits || 0);
+    return fromGrid > 0 ? fromGrid : (fromDeclared > 0 ? fromDeclared : 0);
+  };
+
+  const getLandlordContact = (property) => {
+    return String(property?.whatsappNumber || property?.contact || property?.claimPhone || '').trim();
+  };
+
+  const getPhoneHref = (property) => {
+    const digits = getLandlordContact(property).replace(/[^0-9+]/g, '');
+    return digits ? `tel:${digits}` : '';
+  };
+
+  const getWhatsAppHref = (property) => {
+    let digits = getLandlordContact(property).replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0')) digits = `254${digits.slice(1)}`;
+    if (digits.length < 9) return '';
+    return `https://wa.me/${digits}`;
+  };
+
   return (
     <div className="p-4 md:p-8">
       {showAddModal && (
@@ -367,7 +390,7 @@ const AdminListings = () => {
 
                   <div className="mt-2 flex flex-wrap gap-2 text-xs">
                     <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">{property.buildings?.length ?? 0} buildings</span>
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">{property.totalRooms ?? 0} rooms</span>
+                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">{getDisplayRoomCount(property)} rooms</span>
                     <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">{property.createdAt ? new Date(property.createdAt).toLocaleDateString() : ''}</span>
                   </div>
 
@@ -403,13 +426,31 @@ const AdminListings = () => {
                       <ArrowRightLeft className="w-3 h-3" />
                       Transfer to Owner
                     </button>
+                    {getPhoneHref(property) && (
+                      <a
+                        href={getPhoneHref(property)}
+                        className="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs hover:bg-slate-800"
+                      >
+                        Contact Landlord
+                      </a>
+                    )}
+                    {getWhatsAppHref(property) && (
+                      <a
+                        href={getWhatsAppHref(property)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-xs hover:bg-emerald-800"
+                      >
+                        WhatsApp Landlord
+                      </a>
+                    )}
                     {property.listingTier !== 'live' && (
                       <button
                         onClick={() => handlePromoteToLive(property._id)}
                         disabled={promoteBusy === property._id}
                         className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-700 disabled:opacity-60"
                       >
-                        {promoteBusy === property._id ? 'Promoting...' : 'Promote to Live'}
+                        {promoteBusy === property._id ? 'Promoting...' : 'Promote (Override)'}
                       </button>
                     )}
                   </div>

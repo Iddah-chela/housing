@@ -3,6 +3,28 @@ import { useAppContext } from '../../context/AppContext'
 import { Home, Users, Eye, CalendarCheck, DollarSign, Clock, Building2, CheckCircle, XCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
+const getClaimChecklist = (property = {}) => {
+    const hasRoomGrid = Array.isArray(property.buildings) && property.buildings.some(
+        (b) => Array.isArray(b.grid) && b.grid.some((row) => Array.isArray(row) && row.some((cell) => cell?.type === 'room'))
+    )
+    const hasUnitCount = Number(property.totalRooms || 0) > 0 || Number(property.declaredUnits || 0) > 0
+    const hasPricing = Number(property.listedRentMin || 0) > 0 || Number(property.listedRentMax || 0) > 0 ||
+        (Array.isArray(property.buildings) && property.buildings.some(
+            (b) => Array.isArray(b.grid) && b.grid.some((row) => Array.isArray(row) && row.some((cell) => Number(cell?.pricePerMonth || 0) > 0))
+        ))
+    const hasContact = !!String(property.whatsappNumber || property.contact || property.claimPhone || '').trim()
+
+    const missing = []
+    if (!hasUnitCount) missing.push('Add total units or room grid')
+    if (!hasPricing) missing.push('Set rent pricing')
+    if (!hasContact) missing.push('Set landlord contact')
+
+    return {
+        missing,
+        readyForLive: missing.length === 0
+    }
+}
+
 const Dashboard = () => {
     const { user, getToken, toast, axios } = useAppContext()
     const navigate = useNavigate()
@@ -24,17 +46,19 @@ const Dashboard = () => {
         properties: []
     })
     const [loading, setLoading] = useState(true)
+    const [claimTasks, setClaimTasks] = useState([])
 
     const fetchDashboard = async () => {
         try {
             const token = await getToken()
             const headers = { Authorization: `Bearer ${token}` }
 
-            const [bookingsRes, propertiesRes, viewingsRes, rentRes] = await Promise.all([
+            const [bookingsRes, propertiesRes, viewingsRes, rentRes, claimsRes] = await Promise.all([
                 axios.get('/api/bookings/property', { headers }),
                 axios.get('/api/properties/owner/my-properties', { headers }),
                 axios.get('/api/viewing/owner', { headers }).catch(() => ({ data: { success: false } })),
-                axios.get('/api/rent-payment/owner/summary', { headers }).catch(() => ({ data: { success: false } }))
+                axios.get('/api/rent-payment/owner/summary', { headers }).catch(() => ({ data: { success: false } })),
+                axios.get('/api/properties/claims/my', { headers }).catch(() => ({ data: { success: false, claims: [] } }))
             ])
 
             let totalRooms = 0, vacantRooms = 0, occupiedRooms = 0, bookedRooms = 0
@@ -74,6 +98,25 @@ const Dashboard = () => {
             const confirmedViewings = viewings.filter(v => v.status === 'confirmed').length
 
             const rentCollected = rentRes.data?.success ? (rentRes.data.totalCollected || 0) : 0
+
+            const claimTasksData = (claimsRes.data?.claims || [])
+                .filter(c => c?.status === 'approved')
+                .map((claim) => {
+                    const property = claim.property || {}
+                    const checklist = getClaimChecklist(property)
+                    return {
+                        claimId: claim._id,
+                        propertyId: property._id,
+                        name: property.name || 'Listing',
+                        location: `${property.estate || ''}${property.place ? `, ${property.place}` : ''}`,
+                        missing: checklist.missing,
+                        readyForLive: checklist.readyForLive || String(property.listingTier || '').toLowerCase() === 'live',
+                        listingTier: property.listingTier || 'claimed',
+                    }
+                })
+                .filter(Boolean)
+
+            setClaimTasks(claimTasksData)
 
             setStats({
                 totalProperties: properties.length,
@@ -283,6 +326,49 @@ const Dashboard = () => {
                                 </div>
                             )
                         })}
+                    </div>
+                </div>
+            )}
+
+            {claimTasks.length > 0 && (
+                <div className='mt-8 bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-700 rounded-xl p-5'>
+                    <div className='flex items-start justify-between gap-3'>
+                        <div>
+                            <h2 className='font-semibold text-indigo-800 dark:text-indigo-300'>Claim-to-Live Checklist</h2>
+                            <p className='text-sm text-gray-600 dark:text-gray-400 mt-1'>Complete these to auto-activate claimed listings.</p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/owner/list-room')}
+                            className='px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700'
+                        >
+                            Open My Listings
+                        </button>
+                    </div>
+
+                    <div className='mt-4 space-y-3'>
+                        {claimTasks.map((task) => (
+                            <div key={task.claimId} className='border border-gray-200 dark:border-gray-700 rounded-lg p-3'>
+                                <div className='flex items-center justify-between gap-3'>
+                                    <div>
+                                        <p className='font-medium text-gray-800 dark:text-gray-100'>{task.name}</p>
+                                        <p className='text-xs text-gray-500 dark:text-gray-400'>{task.location}</p>
+                                    </div>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${task.readyForLive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`}>
+                                        {task.readyForLive ? 'Ready / Live' : 'Needs updates'}
+                                    </span>
+                                </div>
+
+                                {!task.readyForLive && task.missing.length > 0 && (
+                                    <div className='mt-2 flex flex-wrap gap-2'>
+                                        {task.missing.map((item) => (
+                                            <span key={item} className='text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200'>
+                                                {item}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}

@@ -4,6 +4,7 @@ import House from "../models/house.js";
 import Report from "../models/report.js";
 import Property from "../models/property.js";
 import PropertyClaim from "../models/propertyClaim.js";
+import { applyAutoListingLifecycle, evaluateListingReadiness } from "../utils/listingLifecycle.js";
 
 // Middleware to check if user is admin
 export const isAdmin = (req, res, next) => {
@@ -296,34 +297,9 @@ export const promotePropertyToLive = async (req, res) => {
         const property = await Property.findById(propertyId);
         if (!property) return res.json({ success: false, message: 'Property not found' });
 
-        const hasRoomGrid = Array.isArray(property.buildings) && property.buildings.some(
-            (b) => Array.isArray(b.grid) && b.grid.some((row) => Array.isArray(row) && row.some((cell) => cell?.type === 'room'))
-        );
-        const hasUnitCount = Number(property.totalRooms || 0) > 0 || Number(property.declaredUnits || 0) > 0;
-        const hasPricing =
-            Number(property.listedRentMin || 0) > 0 ||
-            Number(property.listedRentMax || 0) > 0 ||
-            (Array.isArray(property.buildings) && property.buildings.some(
-                (b) => Array.isArray(b.grid) && b.grid.some((row) => Array.isArray(row) && row.some((cell) => Number(cell?.pricePerMonth || 0) > 0))
-            ));
-        const hasContact = !!String(property.whatsappNumber || property.contact || '').trim();
-        const hasOwnerLabel = !!String(property.landlordName || '').trim();
+        const { checklist, missing, readyForLive } = evaluateListingReadiness(property);
 
-        const checklist = {
-            hasRoomGrid,
-            hasUnitCount,
-            hasPricing,
-            hasContact,
-            hasOwnerLabel,
-        };
-
-        const missing = [];
-        if (!hasRoomGrid) missing.push('Add room/unit grid');
-        if (!hasUnitCount) missing.push('Set units count');
-        if (!hasPricing) missing.push('Set rent pricing');
-        if (!hasContact) missing.push('Set landlord contact/WhatsApp');
-
-        if (missing.length > 0) {
+        if (!readyForLive) {
             return res.json({
                 success: false,
                 message: 'Listing is not ready for live promotion',
@@ -333,9 +309,7 @@ export const promotePropertyToLive = async (req, res) => {
         }
 
         property.listingTier = 'live';
-        property.actionability = 'full_transaction';
-        property.listingState = 'active';
-        property.lastConfirmedAt = new Date();
+        applyAutoListingLifecycle(property);
         if (property.claimStatus === 'none') property.claimStatus = 'verified';
         await property.save();
 
@@ -442,6 +416,7 @@ export const approvePropertyClaim = async (req, res) => {
         property.claimReviewNote = claim.reviewNote || '';
         property.lastConfirmedAt = new Date();
         if (property.listingTier === 'directory') property.listingTier = 'claimed';
+        const lifecycle = applyAutoListingLifecycle(property);
         await property.save();
 
         if (!['houseOwner', 'admin'].includes(claimantUser.role)) {
@@ -449,7 +424,15 @@ export const approvePropertyClaim = async (req, res) => {
             await claimantUser.save();
         }
 
-        res.json({ success: true, message: 'Claim approved, ownership assigned, and claimant can now access owner tools' });
+        const message = lifecycle.readyForLive
+            ? 'Claim approved. Listing met minimum viability and was auto-promoted to LIVE.'
+            : 'Claim approved. Steward can now update listing in Owner Dashboard to reach live minimums.';
+
+        res.json({
+            success: true,
+            message,
+            lifecycle,
+        });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
