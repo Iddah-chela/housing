@@ -18,7 +18,7 @@ const getClaimJourney = (status) => {
   if (key === 'approved') {
     return {
       stage: 'Approved',
-      next: 'Open Owner Dashboard and complete listing details to move it live.',
+      next: 'Open My Listings and complete room grid, rent pricing, contact, and landlord display name to go live.',
     }
   }
   if (key === 'rejected') {
@@ -145,6 +145,8 @@ const MyClaims = () => {
             const isApproved = claim.status === 'approved'
             const isPending = claim.status === 'pending'
             const journey = getClaimJourney(claim.status)
+            const readiness = property.liveReadiness || {}
+            const missing = Array.isArray(readiness.missing) ? readiness.missing : []
 
             return (
               <div key={claim._id} className='rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 md:p-5'>
@@ -181,6 +183,13 @@ const MyClaims = () => {
                       <p className='text-xs text-indigo-700/90 dark:text-indigo-300 mt-0.5'>Next: {journey.next}</p>
                     </div>
 
+                    {isApproved && missing.length > 0 && (
+                      <div className='mt-2 rounded-lg p-2 border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20'>
+                        <p className='text-xs font-semibold text-amber-800 dark:text-amber-300'>Still missing for live:</p>
+                        <p className='text-xs text-amber-800/90 dark:text-amber-300 mt-0.5'>{missing.join(', ')}</p>
+                      </div>
+                    )}
+
                     {claim.reviewNote && (
                       <p className='mt-2 text-sm rounded-lg p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700'>
                         Review note: {claim.reviewNote}
@@ -203,10 +212,10 @@ const MyClaims = () => {
 
                       {isApproved && (
                         <button
-                          onClick={() => navigate('/owner')}
+                          onClick={() => navigate('/owner/list-room')}
                           className='px-3 py-1.5 rounded-md bg-emerald-700 text-white text-sm hover:bg-emerald-800'
                         >
-                          Open Owner Dashboard
+                          Open My Listings
                         </button>
                       )}
                     </div>

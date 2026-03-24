@@ -31,9 +31,11 @@ export const evaluateListingReadiness = (property) => {
   };
 
   const missing = [];
+  if (!hasRoomGrid) missing.push('Add room/unit grid');
   if (!hasUnitCount) missing.push('Add total units or room grid');
   if (!hasPricing) missing.push('Set rent pricing');
   if (!hasContact) missing.push('Set landlord contact/WhatsApp');
+  if (!hasOwnerLabel) missing.push('Set landlord display name');
 
   return {
     checklist,
@@ -50,7 +52,11 @@ export const normalizeListingActionability = (listingTier) => {
 export const applyAutoListingLifecycle = (property) => {
   const { checklist, missing, readyForLive } = evaluateListingReadiness(property);
 
-  if (readyForLive) {
+  const isClaimVerified = String(property?.claimStatus || '').toLowerCase() === 'verified';
+  const isClaimed = !!property?.isClaimed;
+  const canAutoPromoteClaimedListing = isClaimed && isClaimVerified && readyForLive;
+
+  if (canAutoPromoteClaimedListing) {
     property.listingTier = 'live';
     property.listingState = 'active';
     property.lastConfirmedAt = new Date();

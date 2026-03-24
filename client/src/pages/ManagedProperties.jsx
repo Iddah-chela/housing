@@ -6,6 +6,7 @@ import { ManagedPropertySkeleton } from '../components/Skeletons'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import UtilityManager from './HouseOwner/UtilityManager'
+import PropertyListingModal from '../components/PropertyListingModal'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -30,6 +31,7 @@ const ManagedProperties = () => {
   const [rentInviteForm, setRentInviteForm] = useState({ name: '', phone: '', email: '' })
   const [savingRentContact, setSavingRentContact] = useState(false)
   const [confirmingMoveOut, setConfirmingMoveOut] = useState(null)
+  const [editingProperty, setEditingProperty] = useState(null)
 
   const { user, getToken, axios } = useAppContext()
   const navigate = useNavigate()
@@ -466,6 +468,14 @@ const ManagedProperties = () => {
                     <span className='text-xs font-medium text-indigo-700 dark:text-indigo-300'>Caretaker Access</span>
                   </div>
                 </div>
+                <div className='mb-4'>
+                  <button
+                    onClick={() => setEditingProperty(property)}
+                    className='px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors'
+                  >
+                    Edit Listing Details
+                  </button>
+                </div>
                 <div className='flex gap-4 mb-4 text-sm flex-wrap'>
                   <div className='px-4 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg font-medium'>{property.vacantRooms} Vacant</div>
                   <div className='px-4 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg font-medium'>{property.totalRooms - property.vacantRooms} Occupied</div>
@@ -831,6 +841,16 @@ const ManagedProperties = () => {
         </div>
         )
       })()}
+
+      {editingProperty && (
+        <PropertyListingModal
+          existingProperty={editingProperty}
+          onClose={() => {
+            setEditingProperty(null)
+            fetchManagedProperties()
+          }}
+        />
+      )}
     </>
   )
 }

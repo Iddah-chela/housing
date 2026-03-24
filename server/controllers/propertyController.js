@@ -2,6 +2,7 @@ import Property from "../models/property.js";
 import User from "../models/user.js";
 import UserPass from "../models/userPass.js";
 import PropertyClaim from "../models/propertyClaim.js";
+import LandlordApplication from "../models/landlordApplication.js";
 import {v2 as cloudinary} from "cloudinary";
 import Subscriber from "../models/subscriber.js";
 import { sendNewListingAlert } from "../utils/mailer.js";
@@ -54,8 +55,15 @@ const hasContactAccess = async (propertyId, req) => {
   const userEmail = req.user?.email;
   const role = req.user?.role;
 
-  const prop = await Property.findById(propertyId).select('owner caretakers listingTier').lean();
+  const prop = await Property.findById(propertyId).select('owner caretakers listingTier sourceType landlordName').lean();
   if (!prop) return false;
+
+  let isAdminSeededListing = String(prop.sourceType || '').toLowerCase() === 'field_list';
+  if (!isAdminSeededListing && prop.owner && String(prop.landlordName || '').trim()) {
+    const ownerUser = await User.findById(prop.owner).select('role').lean();
+    isAdminSeededListing = String(ownerUser?.role || '').toLowerCase() === 'admin';
+  }
+  if (isAdminSeededListing) return true;
 
   if (role === 'admin') return true;
 
@@ -307,7 +315,8 @@ export const updateProperty = async (req, res) => {
 
     const isOwner = String(existing.owner || '') === String(owner || '');
     const isApprovedClaimant = String(existing.claimedBy || '') === String(owner || '');
-    if (!isOwner && !isApprovedClaimant) {
+    const isCaretaker = existing.caretakers?.some((email) => email?.toLowerCase() === req.user?.email?.toLowerCase());
+    if (!isOwner && !isApprovedClaimant && !isCaretaker) {
       return res.json({ success: false, message: "Property not found or unauthorized" });
     }
 
@@ -577,7 +586,7 @@ export const caretakerToggleRoom = async (req, res) => {
     }
 
     // Allow if user is owner OR caretaker
-    const isOwner = property.owner === req.user._id;
+    const isOwner = String(property.owner || '') === String(req.user._id || '');
     const isCaretaker = property.caretakers.some(e => e.toLowerCase() === userEmail?.toLowerCase());
 
     if (!isOwner && !isCaretaker) {
@@ -623,18 +632,48 @@ export const submitPropertyClaim = async (req, res) => {
       claimNotes,
       evidenceUrls,
     } = req.body;
+    const normalizedClaimRole = String(claimRole || '').trim().toLowerCase();
 
     if (!claimantName?.trim()) {
       return res.json({ success: false, message: 'Claimant name is required' });
     }
 
-    if (!['owner', 'caretaker'].includes(claimRole)) {
+    const normalizedPhone = String(claimPhone || '').trim();
+    if (!normalizedPhone) {
+      return res.json({ success: false, message: 'Claimant phone number is required' });
+    }
+    const phoneDigits = normalizedPhone.replace(/\D/g, '');
+    if (phoneDigits.length < 9) {
+      return res.json({ success: false, message: 'Claimant phone number looks invalid' });
+    }
+
+    if (!['owner', 'caretaker'].includes(normalizedClaimRole)) {
       return res.json({ success: false, message: 'Claim role must be owner or caretaker' });
+    }
+
+    if (normalizedClaimRole === 'owner') {
+      const isAlreadyQualified = ['houseowner', 'admin'].includes(String(req.user?.role || '').toLowerCase());
+      if (!isAlreadyQualified) {
+        const approvedLandlordApplication = await LandlordApplication.findOne({
+          userId: req.user._id,
+          status: 'approved',
+        }).lean();
+        if (!approvedLandlordApplication) {
+          return res.json({
+            success: false,
+            message: 'Owner claims require an approved landlord application first. Apply, get approved, then claim as owner.'
+          });
+        }
+      }
     }
 
     const property = await Property.findById(id);
     if (!property) {
       return res.json({ success: false, message: 'Property not found' });
+    }
+
+    if (String(property.owner || '') === String(req.user._id || '')) {
+      return res.json({ success: false, message: 'You already manage this listing' });
     }
 
     if (property.listingTier === 'live') {
@@ -651,25 +690,47 @@ export const submitPropertyClaim = async (req, res) => {
     }
 
     const pendingForUser = await PropertyClaim.findOne({
-      property: id,
       claimant: req.user._id,
       status: { $in: ['pending', 'more_info_required'] },
     }).lean();
 
     if (pendingForUser) {
-      return res.json({ success: false, message: 'You already have an active claim request for this listing' });
+      return res.json({ success: false, message: 'You already have an active claim request under review' });
     }
 
-    const normalizedEvidence = Array.isArray(evidenceUrls)
+    const normalizedLinkEvidence = Array.isArray(evidenceUrls)
       ? evidenceUrls.map((x) => String(x || '').trim()).filter(Boolean)
+      : String(evidenceUrls || '')
+        .split(/[\n,]/)
+        .map((x) => String(x || '').trim())
+        .filter(Boolean);
+
+    const uploadedEvidence = Array.isArray(req.files) ? req.files : [];
+    const uploadedEvidenceUrls = uploadedEvidence.length > 0
+      ? (await Promise.all(uploadedEvidence.map(async (file) => {
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: 'property_claim_evidence',
+            resource_type: 'auto',
+          });
+          return result.secure_url;
+        }))).filter(Boolean)
       : [];
+
+    const normalizedEvidence = [...normalizedLinkEvidence, ...uploadedEvidenceUrls];
+
+    if (normalizedClaimRole === 'caretaker' && uploadedEvidenceUrls.length < 1) {
+      return res.json({
+        success: false,
+        message: 'Caretaker claims require at least one uploaded proof file (image or PDF).'
+      });
+    }
 
     const claim = await PropertyClaim.create({
       property: id,
       claimant: req.user._id,
       claimantEmail: req.user.email,
       claimantName: claimantName.trim(),
-      claimRole,
+      claimRole: normalizedClaimRole,
       claimPhone: String(claimPhone || '').trim(),
       claimNotes: String(claimNotes || '').trim(),
       evidenceUrls: normalizedEvidence,
@@ -722,6 +783,7 @@ export const getPropertyClaimStatus = async (req, res) => {
         isClaimed: property.isClaimed,
         claimedBy: property.claimedBy,
         claimRole: property.claimRole,
+        liveReadiness: evaluateListingReadiness(property),
       },
     });
   } catch (error) {
@@ -732,10 +794,22 @@ export const getPropertyClaimStatus = async (req, res) => {
 // Get all claim requests submitted by the current user.
 export const getMyPropertyClaims = async (req, res) => {
   try {
-    const claims = await PropertyClaim.find({ claimant: req.user._id })
+    const claimsRaw = await PropertyClaim.find({ claimant: req.user._id })
       .populate('property', 'name estate place listingTier claimStatus images owner sourceType landlordName totalRooms declaredUnits listedRentMin listedRentMax contact whatsappNumber claimPhone buildings')
       .sort({ createdAt: -1 })
       .lean();
+
+    const claims = claimsRaw.map((claim) => {
+      const property = claim?.property || null;
+      if (!property) return claim;
+      return {
+        ...claim,
+        property: {
+          ...property,
+          liveReadiness: evaluateListingReadiness(property),
+        },
+      };
+    });
 
     return res.json({ success: true, claims });
   } catch (error) {

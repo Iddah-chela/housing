@@ -42,8 +42,8 @@ const PropertyDetails = () => {
       claimPhone: '',
       claimRole: 'owner',
       claimNotes: '',
-      evidenceText: '',
     })
+    const [claimEvidenceFiles, setClaimEvidenceFiles] = useState([])
 
     useEffect(()=>{
       const fetchProperty = async () => {
@@ -300,27 +300,40 @@ const PropertyDetails = () => {
         return
       }
 
+      if (!claimForm.claimPhone.trim()) {
+        toast.error('Please provide your phone number')
+        return
+      }
+
+      const phoneDigits = claimForm.claimPhone.replace(/\D/g, '')
+      if (phoneDigits.length < 9) {
+        toast.error('Phone number looks invalid')
+        return
+      }
+
+      if (claimForm.claimRole === 'caretaker' && claimEvidenceFiles.length < 1) {
+        toast.error('Caretaker claims require at least one uploaded proof file')
+        return
+      }
+
       setClaimSubmitting(true)
       try {
         const token = await getToken()
-        const evidenceUrls = claimForm.evidenceText
-          .split(',')
-          .map((x) => x.trim())
-          .filter(Boolean)
+        const payload = new FormData()
+        payload.append('claimantName', claimForm.claimantName)
+        payload.append('claimPhone', claimForm.claimPhone)
+        payload.append('claimRole', claimForm.claimRole)
+        payload.append('claimNotes', claimForm.claimNotes)
+        claimEvidenceFiles.forEach((file) => payload.append('evidenceFiles', file))
 
-        const { data } = await axios.post(`/api/properties/${id}/claim`, {
-          claimantName: claimForm.claimantName,
-          claimPhone: claimForm.claimPhone,
-          claimRole: claimForm.claimRole,
-          claimNotes: claimForm.claimNotes,
-          evidenceUrls,
-        }, {
+        const { data } = await axios.post(`/api/properties/${id}/claim`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
 
         if (data?.success) {
           toast.success('Claim submitted. Admin review is pending.')
           setShowClaimForm(false)
+          setClaimEvidenceFiles([])
           setProperty((prev) => prev ? { ...prev, claimStatus: 'pending' } : prev)
           setClaimData((prev) => ({
             ...(prev || {}),
@@ -385,6 +398,14 @@ const PropertyDetails = () => {
     String(property?.sourceType || '').toLowerCase() === 'field_list' ||
     String(property?.listingTier || '').toLowerCase() === 'directory' ||
     (String(property?.owner?.role || '').toLowerCase() === 'admin' && !!String(property?.landlordName || '').trim())
+  const hasVerifiedSteward =
+    String(property?.claimStatus || '').toLowerCase() === 'verified' &&
+    (
+      !!String(property?.claimedBy || '').trim() ||
+      String(property?.owner?.role || '').toLowerCase() !== 'admin'
+    )
+  const shouldHideGridUntilSteward = isPartnerListing && !hasVerifiedSteward
+  const canShowRoomGrid = hasRoomGrid && !shouldHideGridUntilSteward
   const listingTierLabel =
     property?.listingTier === 'live'
       ? 'Live'
@@ -400,7 +421,7 @@ const PropertyDetails = () => {
   const hasPendingClaim = userClaimStatus === 'pending' || propertyClaimStatus === 'pending'
 
   // Informational mode fallback for directory records with no room map.
-  if (!hasRoomGrid) {
+  if (!canShowRoomGrid) {
     const image = mainImage || property.images?.[0] || assets.house1
     return (
       <div className='py-28 md:py-35 px-4 md:px-16 lg:px-24 xl:px-32'>
@@ -427,21 +448,24 @@ const PropertyDetails = () => {
 
         <div className='mt-6 p-5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200'>
           <p className='font-semibold'>Informational Listing</p>
-          <p className='text-sm mt-1'>This is a partner listing. Vacancy and room-level availability are not confirmed yet.</p>
+          <p className='text-sm mt-1'>This is a partner listing. Please call or WhatsApp to confirm current availability before planning a viewing.</p>
+          {hasRoomGrid && shouldHideGridUntilSteward && (
+            <p className='text-xs mt-2'>Room grid is hidden until a verified landlord or caretaker logs in and confirms listing updates.</p>
+          )}
           {(userClaimStatus || (property.claimStatus && property.claimStatus !== 'none')) && (
             <div className='mt-3 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-white/70 dark:bg-gray-900/30'>
               <p className='text-sm font-semibold'>Claim status: {(userClaimStatus || property.claimStatus).replaceAll('_', ' ')}</p>
               {hasPendingClaim && (
-                <p className='text-xs mt-1'>Next: admin verifies ownership/caretaker evidence, then this listing moves to Owner Updating Details.</p>
+                <p className='text-xs mt-1'>Next: admin verifies your claim evidence. After approval, open My Listings to complete unit grid, pricing, and contact display name before this can go live.</p>
               )}
               {isApprovedForCurrentUser && (
                 <div className='mt-2'>
-                  <p className='text-xs'>Your claim is approved. You can now manage this listing from the owner dashboard.</p>
+                  <p className='text-xs'>Your claim is approved. Go to My Listings and edit this property to add the required details: room grid, pricing, contact, and landlord display name.</p>
                   <button
-                    onClick={() => window.location.assign('/owner')}
+                    onClick={() => window.location.assign('/owner/list-room')}
                     className='mt-2 px-3 py-1.5 rounded-md bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-medium'
                   >
-                    Open Owner Dashboard
+                    Open My Listings
                   </button>
                 </div>
               )}
@@ -451,6 +475,24 @@ const PropertyDetails = () => {
             </div>
           )}
           <div className='mt-4 flex flex-wrap gap-3'>
+            {property.whatsappNumber && (
+              <a
+                href={`https://wa.me/${property.whatsappNumber.replace(/[^0-9]/g, '')}?text=Hi, I saw ${property.name} on PataKeja. Kindly confirm which rooms are currently available.`}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm font-medium'
+              >
+                WhatsApp Owner (Confirm Availability)
+              </a>
+            )}
+            {property.contact && (
+              <a
+                href={`tel:${String(property.contact).replace(/[^0-9+]/g, '')}`}
+                className='px-4 py-2 rounded-lg border border-gray-500 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm font-medium'
+              >
+                Call Owner (Confirm Availability)
+              </a>
+            )}
             <button
               onClick={subscribeToVacancyAlerts}
               disabled={alertSubmitting}
@@ -502,12 +544,14 @@ const PropertyDetails = () => {
                   <option value='caretaker'>Caretaker</option>
                 </select>
                 <input
-                  value={claimForm.evidenceText}
-                  onChange={(e) => setClaimForm((prev) => ({ ...prev, evidenceText: e.target.value }))}
-                  placeholder='Evidence URLs (comma separated, optional)'
+                  type='file'
+                  multiple
+                  accept='image/*,.pdf'
+                  onChange={(e) => setClaimEvidenceFiles(Array.from(e.target.files || []).slice(0, 4))}
                   className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
                 />
               </div>
+              <p className='text-xs mt-2 text-amber-800/80 dark:text-amber-200/80'>Upload up to 4 files (images or PDF). Caretaker claims must include at least one file. Owner claims require approved landlord application.</p>
               <textarea
                 value={claimForm.claimNotes}
                 onChange={(e) => setClaimForm((prev) => ({ ...prev, claimNotes: e.target.value }))}
@@ -962,20 +1006,22 @@ const PropertyDetails = () => {
               </div>
 
               <div className='flex flex-col gap-3'>
-                {isUnlocked ? (
+                {(isUnlocked || isPartnerListing) ? (
                   <>
                     {/* Unlocked - Show contact buttons */}
-                    <div className='mb-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg'>
-                      <div className='flex items-center gap-2 text-sm text-green-700'>
-                        <Unlock className='w-4 h-4' />
-                        <span className='font-medium'>Active Pass</span>
-                        {unlockData && (
-                          <span className='text-xs text-green-600'>
-                            {unlockData.passType === '7day' ? '7-day' : '1-day'} pass - {unlockData.daysRemaining > 0 ? `${unlockData.daysRemaining} day${unlockData.daysRemaining > 1 ? 's' : ''} left` : 'expires today'}
-                          </span>
-                        )}
+                    {!isPartnerListing && (
+                      <div className='mb-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg'>
+                        <div className='flex items-center gap-2 text-sm text-green-700'>
+                          <Unlock className='w-4 h-4' />
+                          <span className='font-medium'>Active Pass</span>
+                          {unlockData && (
+                            <span className='text-xs text-green-600'>
+                              {unlockData.passType === '7day' ? '7-day' : '1-day'} pass - {unlockData.daysRemaining > 0 ? `${unlockData.daysRemaining} day${unlockData.daysRemaining > 1 ? 's' : ''} left` : 'expires today'}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                     
                     {!isPartnerListing && (
                       <button 
@@ -988,22 +1034,26 @@ const PropertyDetails = () => {
                     
                     {property.whatsappNumber && (
                       <a
-                        href={`https://wa.me/${property.whatsappNumber.replace(/[^0-9]/g, '')}?text=Hi, I'm interested in your ${selectedRoom.roomType} room at ${property.name}`}
+                        href={`https://wa.me/${property.whatsappNumber.replace(/[^0-9]/g, '')}?text=Hi, I'm interested in your ${selectedRoom.roomType} room at ${property.name}. Please confirm if it is currently available.`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className='px-6 py-3 rounded-lg border-2 border-green-600 bg-green-50 text-green-700 hover:bg-green-100 transition-all inline-flex items-center justify-center gap-2 font-medium'
                       >
-                        <Smartphone className='w-5 h-5' /> WhatsApp
+                        <Smartphone className='w-5 h-5' /> WhatsApp Owner (Confirm Availability)
                       </a>
                     )}
 
-                    {isPartnerListing && !property.whatsappNumber && property.contact && (
+                    {isPartnerListing && property.contact && (
                       <a
                         href={`tel:${String(property.contact).replace(/[^0-9+]/g, '')}`}
                         className='px-6 py-3 rounded-lg border-2 border-gray-400 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all inline-flex items-center justify-center gap-2 font-medium'
                       >
-                        <Smartphone className='w-5 h-5' /> Call
+                        <Smartphone className='w-5 h-5' /> Call Owner (Confirm Availability)
                       </a>
+                    )}
+
+                    {isPartnerListing && (
+                      <p className='text-xs text-amber-700 dark:text-amber-300'>Use WhatsApp or Call to confirm current availability before requesting viewing.</p>
                     )}
 
                     {/* Share & Earn (also visible when unlocked) */}

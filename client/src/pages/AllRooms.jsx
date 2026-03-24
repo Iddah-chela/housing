@@ -75,8 +75,8 @@ const AllRooms = () => {
   }
 
   const getCtaLabel = (property) => {
-    if (property.actionability === 'info_only') return 'Details'
-    if (property.actionability === 'inquiry_only') return 'Notify'
+    if (property.actionability === 'info_only') return 'Confirm Availability'
+    if (property.actionability === 'inquiry_only') return 'Confirm Availability'
     return 'View Units'
   }
   

@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, optionalProtect } from "../middleware/authMiddleware.js";
+import upload from "../middleware/uploadMiddleware.js";
 import { 
   createProperty, 
   getAllProperties, 
@@ -34,7 +35,7 @@ propertyRouter.post('/caretaker-toggle-room', protect, caretakerToggleRoom);
 propertyRouter.get('/claims/my', protect, getMyPropertyClaims);
 propertyRouter.post('/:id/caretakers', protect, addCaretaker);
 propertyRouter.delete('/:id/caretakers', protect, removeCaretaker);
-propertyRouter.post('/:id/claim', protect, submitPropertyClaim);
+propertyRouter.post('/:id/claim', protect, upload.array('evidenceFiles', 4), submitPropertyClaim);
 propertyRouter.get('/:id/claim-status', protect, getPropertyClaimStatus);
 
 // Wildcard routes last

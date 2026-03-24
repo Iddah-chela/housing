@@ -405,7 +405,13 @@ export const approvePropertyClaim = async (req, res) => {
         property.claimedByEmail = claim.claimantEmail;
         property.claimRole = claim.claimRole;
         property.claimPhone = claim.claimPhone || '';
-        property.owner = claim.claimant;
+
+        // Ownership transfer is only for verified owner claims.
+        // Caretaker claims grant stewardship access without replacing the owner account.
+        if (claim.claimRole === 'owner') {
+            property.owner = claim.claimant;
+        }
+
         if (claim.claimRole === 'caretaker') {
             const normalizedEmail = String(claim.claimantEmail || '').trim().toLowerCase();
             if (normalizedEmail && !property.caretakers.includes(normalizedEmail)) {
@@ -419,7 +425,7 @@ export const approvePropertyClaim = async (req, res) => {
         const lifecycle = applyAutoListingLifecycle(property);
         await property.save();
 
-        if (!['houseOwner', 'admin'].includes(claimantUser.role)) {
+        if (claim.claimRole === 'owner' && !['houseOwner', 'admin'].includes(claimantUser.role)) {
             claimantUser.role = 'houseOwner';
             await claimantUser.save();
         }
@@ -428,9 +434,13 @@ export const approvePropertyClaim = async (req, res) => {
             ? 'Claim approved. Listing met minimum viability and was auto-promoted to LIVE.'
             : 'Claim approved. Steward can now update listing in Owner Dashboard to reach live minimums.';
 
+        const roleNote = claim.claimRole === 'caretaker'
+            ? 'Caretaker approved: ownership remains unchanged.'
+            : 'Owner approved: ownership transferred to claimant.';
+
         res.json({
             success: true,
-            message,
+            message: `${message} ${roleNote}`,
             lifecycle,
         });
     } catch (error) {
