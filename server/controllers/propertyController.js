@@ -710,7 +710,7 @@ export const getPropertyClaimStatus = async (req, res) => {
 export const getMyPropertyClaims = async (req, res) => {
   try {
     const claims = await PropertyClaim.find({ claimant: req.user._id })
-      .populate('property', 'name estate place listingTier claimStatus images owner')
+      .populate('property', 'name estate place listingTier claimStatus images owner sourceType landlordName')
       .sort({ createdAt: -1 })
       .lean();
 

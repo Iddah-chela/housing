@@ -15,6 +15,7 @@ import {
     relistProperty,
     verifyProperty,
     unverifyProperty,
+    promotePropertyToLive,
     deleteUser,
     revokeHouseOwner,
     transferProperty,
@@ -45,6 +46,7 @@ adminRouter.post("/delist-property", delistProperty);
 adminRouter.post("/relist-property", relistProperty);
 adminRouter.post("/verify-property", verifyProperty);
 adminRouter.post("/unverify-property", unverifyProperty);
+adminRouter.post("/promote-live", promotePropertyToLive);
 adminRouter.post("/revoke-landlord", revokeHouseOwner);
 adminRouter.post("/transfer-property", transferProperty);
 adminRouter.get("/claims", getPropertyClaims);

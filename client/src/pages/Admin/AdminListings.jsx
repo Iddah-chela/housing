@@ -18,6 +18,7 @@ const AdminListings = () => {
   const [transferEmail, setTransferEmail] = useState('');
   const [transferring, setTransferring] = useState(false);
   const [claimActionBusy, setClaimActionBusy] = useState(null);
+  const [promoteBusy, setPromoteBusy] = useState(null);
 
   useEffect(() => { fetchProperties(); }, []);
   useEffect(() => {
@@ -123,6 +124,32 @@ const AdminListings = () => {
       toast.error(error.message);
     } finally {
       setTransferring(false);
+    }
+  };
+
+  const handlePromoteToLive = async (propertyId) => {
+    setPromoteBusy(propertyId);
+    try {
+      const token = await getToken();
+      const { data } = await axios.post('/api/admin/promote-live', { propertyId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (data.success) {
+        toast.success(data.message || 'Listing promoted to live');
+        fetchProperties();
+        return;
+      }
+
+      if (Array.isArray(data?.missing) && data.missing.length) {
+        toast.error(`Not ready: ${data.missing.join(', ')}`);
+      } else {
+        toast.error(data.message || 'Could not promote listing');
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setPromoteBusy(null);
     }
   };
 
@@ -313,6 +340,15 @@ const AdminListings = () => {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${property.isExpired ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'}`}>
                         {property.isExpired ? 'Delisted' : 'Live'}
                       </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        property.listingTier === 'live'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                          : property.listingTier === 'claimed'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                            : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
+                      }`}>
+                        {property.listingTier === 'live' ? 'Live Tier' : property.listingTier === 'claimed' ? 'Owner Updating' : 'Partner Listing'}
+                      </span>
                       <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-medium">
                         {property.vacantRooms ?? 0} vacant
                       </span>
@@ -367,6 +403,15 @@ const AdminListings = () => {
                       <ArrowRightLeft className="w-3 h-3" />
                       Transfer to Owner
                     </button>
+                    {property.listingTier !== 'live' && (
+                      <button
+                        onClick={() => handlePromoteToLive(property._id)}
+                        disabled={promoteBusy === property._id}
+                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {promoteBusy === property._id ? 'Promoting...' : 'Promote to Live'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

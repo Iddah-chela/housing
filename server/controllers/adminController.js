@@ -287,6 +287,69 @@ export const unverifyProperty = async (req, res) => {
     }
 };
 
+// Promote a listing to LIVE after required details are present.
+export const promotePropertyToLive = async (req, res) => {
+    try {
+        const { propertyId } = req.body;
+        if (!propertyId) return res.json({ success: false, message: 'Property ID is required' });
+
+        const property = await Property.findById(propertyId);
+        if (!property) return res.json({ success: false, message: 'Property not found' });
+
+        const hasRoomGrid = Array.isArray(property.buildings) && property.buildings.some(
+            (b) => Array.isArray(b.grid) && b.grid.some((row) => Array.isArray(row) && row.some((cell) => cell?.type === 'room'))
+        );
+        const hasUnitCount = Number(property.totalRooms || 0) > 0 || Number(property.declaredUnits || 0) > 0;
+        const hasPricing =
+            Number(property.listedRentMin || 0) > 0 ||
+            Number(property.listedRentMax || 0) > 0 ||
+            (Array.isArray(property.buildings) && property.buildings.some(
+                (b) => Array.isArray(b.grid) && b.grid.some((row) => Array.isArray(row) && row.some((cell) => Number(cell?.pricePerMonth || 0) > 0))
+            ));
+        const hasContact = !!String(property.whatsappNumber || property.contact || '').trim();
+        const hasOwnerLabel = !!String(property.landlordName || '').trim();
+
+        const checklist = {
+            hasRoomGrid,
+            hasUnitCount,
+            hasPricing,
+            hasContact,
+            hasOwnerLabel,
+        };
+
+        const missing = [];
+        if (!hasRoomGrid) missing.push('Add room/unit grid');
+        if (!hasUnitCount) missing.push('Set units count');
+        if (!hasPricing) missing.push('Set rent pricing');
+        if (!hasContact) missing.push('Set landlord contact/WhatsApp');
+
+        if (missing.length > 0) {
+            return res.json({
+                success: false,
+                message: 'Listing is not ready for live promotion',
+                checklist,
+                missing,
+            });
+        }
+
+        property.listingTier = 'live';
+        property.actionability = 'full_transaction';
+        property.listingState = 'active';
+        property.lastConfirmedAt = new Date();
+        if (property.claimStatus === 'none') property.claimStatus = 'verified';
+        await property.save();
+
+        return res.json({
+            success: true,
+            message: 'Listing promoted to LIVE successfully',
+            checklist,
+            property,
+        });
+    } catch (error) {
+        return res.json({ success: false, message: error.message });
+    }
+};
+
 // Get dashboard stats
 export const getDashboardStats = async (req, res) => {
     try {

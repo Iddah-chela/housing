@@ -13,6 +13,41 @@ const statusBadgeClass = (status) => {
 
 const formatStatus = (status) => String(status || 'pending').replaceAll('_', ' ')
 
+const getClaimJourney = (status) => {
+  const key = String(status || 'pending').toLowerCase()
+  if (key === 'approved') {
+    return {
+      stage: 'Approved',
+      next: 'Open Owner Dashboard and complete listing details to move it live.',
+    }
+  }
+  if (key === 'rejected') {
+    return {
+      stage: 'Needs Resubmission',
+      next: 'Review admin note, then submit a new claim with stronger proof.',
+    }
+  }
+  if (key === 'more_info_required') {
+    return {
+      stage: 'More Info Required',
+      next: 'Provide requested verification details to continue review.',
+    }
+  }
+  return {
+    stage: 'Under Review',
+    next: 'Admin is verifying ownership/caretaker proof.',
+  }
+}
+
+const getListingTypeLabel = (property) => {
+  const tier = String(property?.listingTier || '').toLowerCase()
+  const source = String(property?.sourceType || '').toLowerCase()
+  if (tier === 'live') return 'Live'
+  if (tier === 'claimed') return 'Owner Updating Details'
+  if (source === 'field_list') return 'Partner Listing'
+  return 'Partner Listing'
+}
+
 const MyClaims = () => {
   const { user, getToken, axios } = useAppContext()
   const navigate = useNavigate()
@@ -23,32 +58,38 @@ const MyClaims = () => {
   const approvedCount = useMemo(() => claims.filter((c) => c.status === 'approved').length, [claims])
   const pendingCount = useMemo(() => claims.filter((c) => c.status === 'pending').length, [claims])
 
+  const fetchClaims = async ({ silent = false } = {}) => {
+    try {
+      if (!silent) setLoading(true)
+      const token = await getToken()
+      const { data } = await axios.get('/api/properties/claims/my', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (data?.success) {
+        setClaims(Array.isArray(data.claims) ? data.claims : [])
+      } else if (!silent) {
+        toast.error(data?.message || 'Failed to load claims')
+      }
+    } catch (error) {
+      if (!silent) toast.error('Failed to load claims')
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!user) {
       setLoading(false)
       return
     }
-
-    const fetchClaims = async () => {
-      try {
-        const token = await getToken()
-        const { data } = await axios.get('/api/properties/claims/my', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-
-        if (data?.success) {
-          setClaims(Array.isArray(data.claims) ? data.claims : [])
-        } else {
-          toast.error(data?.message || 'Failed to load claims')
-        }
-      } catch (error) {
-        toast.error('Failed to load claims')
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchClaims()
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return undefined
+    const timer = setInterval(() => fetchClaims({ silent: true }), 45000)
+    return () => clearInterval(timer)
   }, [user])
 
   if (!user) {
@@ -65,11 +106,17 @@ const MyClaims = () => {
       <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
         <div>
           <h1 className='text-3xl font-medium'>My Claims</h1>
-          <p className='mt-1 text-gray-600 dark:text-gray-400'>Track your listing claim requests and what to do next.</p>
+          <p className='mt-1 text-gray-600 dark:text-gray-400'>Track review progress, admin notes, and your next action.</p>
         </div>
-        <div className='flex items-center gap-2 text-sm'>
+        <div className='flex items-center gap-2 text-sm flex-wrap'>
           <span className='px-3 py-1.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300'>Pending: {pendingCount}</span>
           <span className='px-3 py-1.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'>Approved: {approvedCount}</span>
+          <button
+            onClick={() => fetchClaims()}
+            className='px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
+          >
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -82,7 +129,7 @@ const MyClaims = () => {
       ) : claims.length === 0 ? (
         <div className='mt-8 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-6 text-center'>
           <p className='font-medium'>No claims submitted yet.</p>
-          <p className='text-sm text-gray-600 dark:text-gray-400 mt-1'>Open any directory listing and use Claim This Hostel to get started.</p>
+          <p className='text-sm text-gray-600 dark:text-gray-400 mt-1'>Open any partner listing and use Claim to get started.</p>
           <button
             onClick={() => navigate('/rooms')}
             className='mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-medium'
@@ -97,6 +144,7 @@ const MyClaims = () => {
             const image = property.images?.[0]
             const isApproved = claim.status === 'approved'
             const isPending = claim.status === 'pending'
+            const journey = getClaimJourney(claim.status)
 
             return (
               <div key={claim._id} className='rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 md:p-5'>
@@ -115,6 +163,9 @@ const MyClaims = () => {
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusBadgeClass(claim.status)}`}>
                         {formatStatus(claim.status)}
                       </span>
+                      <span className='px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'>
+                        {getListingTypeLabel(property)}
+                      </span>
                     </div>
 
                     <p className='text-sm text-gray-600 dark:text-gray-400 mt-1'>
@@ -124,6 +175,11 @@ const MyClaims = () => {
                     <p className='text-xs text-gray-500 dark:text-gray-400 mt-2'>
                       Submitted: {new Date(claim.createdAt).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
+
+                    <div className='mt-2 rounded-lg p-2 border border-indigo-100 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-900/20'>
+                      <p className='text-xs font-semibold text-indigo-700 dark:text-indigo-300'>Stage: {journey.stage}</p>
+                      <p className='text-xs text-indigo-700/90 dark:text-indigo-300 mt-0.5'>Next: {journey.next}</p>
+                    </div>
 
                     {claim.reviewNote && (
                       <p className='mt-2 text-sm rounded-lg p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700'>

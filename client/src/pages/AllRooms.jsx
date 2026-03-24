@@ -3,7 +3,7 @@ import { assets } from '../assets/assets'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import toast from 'react-hot-toast'
-import { X, Coins } from 'lucide-react'
+import { X, Coins, ImageIcon } from 'lucide-react'
 import { PropertyCardSkeleton } from '../components/Skeletons'
 
 const CheckBox = ({label, selected = false, onChange =() =>{}}) => {
@@ -55,6 +55,28 @@ const AllRooms = () => {
     if (address.toLowerCase() === estate.toLowerCase()) return address
     return `${address}, ${estate}`
   }
+
+  const getListingTierLabel = (property) => {
+    const tier = String(property?.listingTier || '').toLowerCase()
+    const isPartnerListing = String(property?.sourceType || '').toLowerCase() === 'field_list'
+    if (tier === 'live') return 'Live'
+    if (tier === 'claimed') return 'Owner Updating'
+    if (isPartnerListing) return 'Partner Listing'
+    return 'Partner Listing'
+  }
+
+  const getListingTierBadgeClass = (property) => {
+    const tier = String(property?.listingTier || '').toLowerCase()
+    if (tier === 'live') return 'bg-green-600 text-white'
+    if (tier === 'claimed') return 'bg-blue-600 text-white'
+    return 'bg-slate-700 text-white'
+  }
+
+  const getCtaLabel = (property) => {
+    if (property.actionability === 'info_only') return 'Details'
+    if (property.actionability === 'inquiry_only') return 'Inquiry'
+    return 'View Units'
+  }
   
   useEffect(() => {
     const fetchProperties = async () => {
@@ -87,7 +109,7 @@ const AllRooms = () => {
               minPriceDisplay: prices.length > 0 ? Math.min(...prices) : fallbackMin,
               maxPriceDisplay: prices.length > 0 ? Math.max(...prices) : fallbackMax,
               hasRealImages: !!(property.images && property.images.length > 0),
-              images: property.images && property.images.length > 0 ? property.images : [assets.house1]
+              images: property.images && property.images.length > 0 ? property.images : []
             }
           })
           
@@ -292,7 +314,7 @@ const AllRooms = () => {
       <div className='flex-1 w-full lg:w-auto'>
         <div className='flex flex-col items-start text-left'> 
           <h1 className='font-playfair text-4xl md:text-[40px]'>Available Houses</h1>
-        <p className='text-sm md:text-base text-gray-500/90 dark:text-gray-400 mt-2 max-w-2xl'>Browse live listings and informational directory records. When vacancy is unknown, follow listings and get notified when availability is confirmed.</p>
+        <p className='text-sm md:text-base text-gray-500/90 dark:text-gray-400 mt-2 max-w-2xl'>Browse live listings and partner listings. When availability is not confirmed yet, follow the listing and get notified when updates are posted.</p>
         </div>
 
         {/* Search Bar */}
@@ -336,27 +358,28 @@ const AllRooms = () => {
 
         {filteredProperties.map((property) => (
           <div key={property._id} className='flex flex-col md:flex-row items-start py-10 gap-6 border-b border-gray-300 dark:border-gray-700 last:pb-30 last:border-0'>
-            <div className='relative md:w-1/2'>
-              <img 
-                onClick={() => {navigate(`/rooms/${property._id}`), scrollTo(0,0)}}
-                src={property.images[0]} 
-                alt="" 
-                title='View Property Details' 
-                className='max-h-65 w-full rounded-xl shadow-lg object-cover cursor-pointer hover:shadow-2xl transition-shadow relative'
-              />
-              {!property.hasRealImages && (
-                <span className='absolute top-3 left-3 bg-gray-900/75 text-white text-xs px-2.5 py-1 rounded-full font-medium'>Photos pending</span>
+            <div className='relative w-full md:w-1/2'>
+              {property.hasRealImages ? (
+                <img 
+                  onClick={() => {navigate(`/rooms/${property._id}`), scrollTo(0,0)}}
+                  src={property.images[0]} 
+                  alt="" 
+                  title='View Property Details' 
+                  className='w-full aspect-[16/10] rounded-xl shadow-lg object-cover object-center cursor-pointer hover:shadow-2xl transition-shadow relative'
+                />
+              ) : (
+                <div className='w-full aspect-[16/10] rounded-xl shadow-inner border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 flex flex-col items-center justify-center text-gray-500 dark:text-gray-300'>
+                  <ImageIcon className='w-8 h-8 mb-2 opacity-80' />
+                  
+                </div>
               )}
             </div>
 
-            <div className='md:w-1/2 flex flex-col gap-2'>
+            <div className='w-full md:w-1/2 flex flex-col gap-2'>
               <div className='flex items-center gap-2'>
                 <p className='text-gray-500 dark:text-gray-400'>{property.place}</p>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide ${
-                  property.listingTier === 'live' ? 'bg-green-600 text-white' :
-                  property.listingTier === 'claimed' ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white'
-                }`}>
-                  {(property.listingTier || 'directory').toUpperCase()}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide ${getListingTierBadgeClass(property)}`}>
+                  {getListingTierLabel(property).toUpperCase()}
                 </span>
                 {property.isVerified && (
                   <span className='bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>VERIFIED</span>
@@ -406,7 +429,7 @@ const AllRooms = () => {
 
                 {property.vacancyStatus === 'unknown' && (
                   <div className='px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-full text-sm font-medium'>
-                    Vacancy Unknown
+                    Availability Not Confirmed
                   </div>
                 )}
                 
@@ -430,10 +453,18 @@ const AllRooms = () => {
               </div>
               
               <div className='mt-3 mb-4'>
+                {(() => {
+                  const unitCount = Number(property.totalRooms || property.declaredUnits || 0)
+                  const unitsText = unitCount > 0
+                    ? `${unitCount} ${unitCount === 1 ? 'Unit' : 'Units'}`
+                    : 'Units not listed'
+                  return (
                 <p className='text-sm text-gray-600 mb-2'>
-                  {property.propertyType} • {property.totalRooms} {property.totalRooms === 1 ? 'Unit' : 'Units'} 
+                  {property.propertyType} • {unitsText} 
                   {property.buildings && property.buildings.length > 0 && ` • ${property.buildings.length} ${property.buildings.length === 1 ? 'Building' : 'Buildings'}`}
                 </p>
+                  )
+                })()}
               </div>
               
               {/* Price Range */}
@@ -458,9 +489,7 @@ const AllRooms = () => {
                 onClick={() => {navigate(`/rooms/${property._id}`), scrollTo(0,0)}}
                 className='mt-4 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-all w-fit'
               >
-                {property.actionability === 'info_only' ? 'View Details & Notify Me' :
-                  property.actionability === 'inquiry_only' ? 'View Details & Send Inquiry' :
-                  'View Units & Select Room'}
+                {getCtaLabel(property)}
               </button>
             </div>
           </div>
@@ -536,7 +565,7 @@ const AllRooms = () => {
                         : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-slate-500'
                     }`}
                   >
-                    {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                    {tier === 'directory' ? 'Partner Listing' : tier === 'claimed' ? 'Owner Updating' : 'Live'}
                   </button>
                 ))}
               </div>
@@ -554,7 +583,7 @@ const AllRooms = () => {
                         : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-500'
                     }`}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {status === 'unknown' ? 'Not Confirmed' : status.charAt(0).toUpperCase() + status.slice(1)}
                   </button>
                 ))}
               </div>

@@ -402,6 +402,13 @@ const PropertyDetails = () => {
 
   const hasRoomGrid = Array.isArray(property.buildings) && property.buildings.length > 0
   const isInquiryOnly = property.actionability === 'inquiry_only'
+  const isPartnerListing = String(property?.sourceType || '').toLowerCase() === 'field_list' || String(property?.listingTier || '').toLowerCase() === 'directory'
+  const listingTierLabel =
+    property?.listingTier === 'live'
+      ? 'Live'
+      : property?.listingTier === 'claimed'
+        ? 'Owner Updating Details'
+        : 'Partner Listing'
   const userClaimStatus = claimData?.claim?.status || null
   const propertyClaimStatus = claimData?.property?.claimStatus || property?.claimStatus || 'none'
   const claimReviewNote = claimData?.claim?.reviewNote || claimData?.property?.claimReviewNote || property?.claimReviewNote || ''
@@ -426,10 +433,10 @@ const PropertyDetails = () => {
           </div>
           <div className='flex flex-wrap gap-2'>
             <span className='px-4 py-2 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'>
-              {(property.listingTier || 'directory').toUpperCase()}
+              {listingTierLabel.toUpperCase()}
             </span>
             <span className='px-4 py-2 rounded-full text-sm font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300'>
-              {(property.vacancyStatus || 'unknown').toUpperCase()}
+              {property.vacancyStatus === 'unknown' ? 'AVAILABILITY NOT CONFIRMED' : (property.vacancyStatus || 'available').toUpperCase()}
             </span>
           </div>
         </div>
@@ -438,12 +445,12 @@ const PropertyDetails = () => {
 
         <div className='mt-6 p-5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200'>
           <p className='font-semibold'>Informational Listing</p>
-          <p className='text-sm mt-1'>This listing is currently directory-only. Vacancy and room-level availability are not confirmed yet.</p>
+          <p className='text-sm mt-1'>This is a partner listing. Vacancy and room-level availability are not confirmed yet.</p>
           {(userClaimStatus || (property.claimStatus && property.claimStatus !== 'none')) && (
             <div className='mt-3 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-white/70 dark:bg-gray-900/30'>
               <p className='text-sm font-semibold'>Claim status: {(userClaimStatus || property.claimStatus).replaceAll('_', ' ')}</p>
               {hasPendingClaim && (
-                <p className='text-xs mt-1'>Next: admin verifies ownership/caretaker evidence, then this listing is moved to claimed/live flow.</p>
+                <p className='text-xs mt-1'>Next: admin verifies ownership/caretaker evidence, then this listing moves to Owner Updating Details.</p>
               )}
               {isApprovedForCurrentUser && (
                 <div className='mt-2'>
@@ -467,7 +474,7 @@ const PropertyDetails = () => {
               disabled={alertSubmitting}
               className='px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-60'
             >
-              {alertSubmitting ? 'Saving Alert...' : 'Notify Me When Live'}
+              {alertSubmitting ? 'Saving...' : 'Notify Me'}
             </button>
             {property.listingTier === 'directory' && (
               user ? (
@@ -476,7 +483,7 @@ const PropertyDetails = () => {
                   disabled={hasPendingClaim}
                   className='px-4 py-2 rounded-lg border border-amber-700 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-sm font-medium'
                 >
-                  {hasPendingClaim ? 'Claim Under Review' : (showClaimForm ? 'Close Claim Form' : 'Claim This Hostel')}
+                  {hasPendingClaim ? 'Under Review' : (showClaimForm ? 'Close' : 'Claim')}
                 </button>
               ) : (
                 <SignInButton mode='modal'>
@@ -491,7 +498,7 @@ const PropertyDetails = () => {
                 onClick={sendInquiryViaWhatsApp}
                 className='px-4 py-2 rounded-lg border border-indigo-600 text-indigo-700 dark:text-indigo-300 dark:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-sm font-medium'
               >
-                Send Inquiry (WhatsApp)
+                Inquiry
               </button>
             )}
           </div>
@@ -606,7 +613,7 @@ const PropertyDetails = () => {
                   )}
                 {property.vacancyStatus === 'unknown' ? (
                   <div className='px-4 py-2 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'>
-                    Vacancy Unknown
+                    Availability Not Confirmed
                   </div>
                 ) : (
                   <div className='px-4 py-2 rounded-full text-sm font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300'>
@@ -940,11 +947,11 @@ const PropertyDetails = () => {
           )}
 
           <div className='mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium'>
-            <div className='flex items-center gap-2'><div className='w-4 h-4 bg-emerald-200 border border-emerald-400 rounded-sm'></div><span>Vacant</span></div>
-            <div className='flex items-center gap-2'><div className='w-4 h-4 bg-red-200 border border-red-400 rounded-sm'></div><span>Occupied</span></div>
-            <div className='flex items-center gap-2'><div className='w-4 h-4 bg-amber-200 border border-amber-400 rounded-sm'></div><span>Booked</span></div>
-            <div className='flex items-center gap-2'><div className='w-4 h-4 bg-orange-200 border border-orange-400 rounded-sm'></div><span>Available Soon</span></div>
-            <div className='flex items-center gap-2'><div className='w-4 h-4 bg-gray-200 border border-gray-400 rounded-sm'></div><span>Common</span></div>
+            <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className='w-4 h-4 bg-emerald-200 dark:bg-emerald-700 border border-emerald-400 dark:border-emerald-500 rounded-sm'></div><span>Vacant</span></div>
+            <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className='w-4 h-4 bg-red-200 dark:bg-red-700 border border-red-400 dark:border-red-500 rounded-sm'></div><span>Occupied</span></div>
+            <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className='w-4 h-4 bg-amber-200 dark:bg-amber-700 border border-amber-400 dark:border-amber-500 rounded-sm'></div><span>Booked</span></div>
+            <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className='w-4 h-4 bg-orange-200 dark:bg-orange-700 border border-orange-400 dark:border-orange-500 rounded-sm'></div><span>Available Soon</span></div>
+            <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className='w-4 h-4 bg-gray-200 dark:bg-gray-600 border border-gray-400 dark:border-gray-500 rounded-sm'></div><span>Common</span></div>
           </div>
         </div>
 
@@ -996,12 +1003,14 @@ const PropertyDetails = () => {
                       </div>
                     </div>
                     
-                    <button 
-                      onClick={() => setShowChat(true)}
-                      className='px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium flex items-center justify-center gap-2'
-                    >
-                      <MessageCircle className='w-5 h-5' /> Message Owner
-                    </button>
+                    {!isPartnerListing && (
+                      <button 
+                        onClick={() => setShowChat(true)}
+                        className='px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium flex items-center justify-center gap-2'
+                      >
+                        <MessageCircle className='w-5 h-5' /> Message Owner
+                      </button>
+                    )}
                     
                     {property.whatsappNumber && (
                       <a
@@ -1010,7 +1019,16 @@ const PropertyDetails = () => {
                         rel="noopener noreferrer"
                         className='px-6 py-3 rounded-lg border-2 border-green-600 bg-green-50 text-green-700 hover:bg-green-100 transition-all inline-flex items-center justify-center gap-2 font-medium'
                       >
-                        <Smartphone className='w-5 h-5' /> WhatsApp Owner
+                        <Smartphone className='w-5 h-5' /> WhatsApp
+                      </a>
+                    )}
+
+                    {isPartnerListing && !property.whatsappNumber && property.contact && (
+                      <a
+                        href={`tel:${String(property.contact).replace(/[^0-9+]/g, '')}`}
+                        className='px-6 py-3 rounded-lg border-2 border-gray-400 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all inline-flex items-center justify-center gap-2 font-medium'
+                      >
+                        <Smartphone className='w-5 h-5' /> Call
                       </a>
                     )}
 
@@ -1139,6 +1157,7 @@ const PropertyDetails = () => {
                     </div>
                     
                     {/* Blurred contact buttons */}
+                    {!isPartnerListing && (
                     <div className='relative'>
                       <div className='blur-sm pointer-events-none opacity-50'>
                         <button className='w-full px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 font-medium flex items-center justify-center gap-2'>
@@ -1149,6 +1168,7 @@ const PropertyDetails = () => {
                         <span className='text-xs font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow flex items-center gap-1'><Lock className='w-3 h-3' /> Unlock to contact</span>
                       </div>
                     </div>
+                    )}
 
                     {/* Share & Earn Referral Section */}
                     {user && (referralInfo ? (
@@ -1236,17 +1256,24 @@ const PropertyDetails = () => {
         {/* Owner Info */}
         <div className='mt-10 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800'>
           <div className='flex items-start gap-4'>
+            {(() => {
+              const displayName = property.landlordName || property.owner?.username || 'Property Contact'
+              const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName) + '&background=e5e7eb&color=111827&bold=true'
+              const avatarSrc = isPartnerListing ? fallbackAvatar : (property.owner?.image || fallbackAvatar)
+              return (
             <img 
-              src={property.owner?.image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(property.owner?.username || 'Owner') + '&background=6366f1&color=fff'} 
+              src={avatarSrc} 
               alt="" 
-              onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(property.owner?.username || 'Owner') + '&background=6366f1&color=fff' }}
+              onError={(e) => { e.target.src = fallbackAvatar }}
               className='w-16 h-16 rounded-full object-cover'
             />
+              )
+            })()}
             <div className='flex-1'>
               <div className='flex items-center gap-2'>
                 <p className='text-lg font-medium'>{property.landlordName || property.owner?.username || 'Property Owner'}</p>
               </div>
-              <p className='text-gray-600 dark:text-gray-400 text-sm mt-1'>Property Owner</p>
+              <p className='text-gray-600 dark:text-gray-400 text-sm mt-1'>{isPartnerListing ? 'Partner Contact' : 'Property Owner'}</p>
               {/* <p className='text-gray-500 text-sm mt-2'>
                 Contact: {property.contact}
               </p> */}
@@ -1282,7 +1309,7 @@ const PropertyDetails = () => {
           />
         )}
 
-        {showChat && selectedRoom && (
+        {showChat && selectedRoom && !isPartnerListing && (
           <ChatInterface 
             room={selectedRoom}
             propertyId={property._id}
