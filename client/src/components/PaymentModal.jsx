@@ -8,13 +8,13 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
     const [phoneNumber, setPhoneNumber] = useState('')
     const [passType, setPassType] = useState('1day')
     const [loading, setLoading] = useState(false)
-    const [isFreeUnlock] = useState(guestMode ? false : !!isFreeUnlockProp)
+    const isFreeUnlock = guestMode ? false : isFreeUnlockProp === true
     const [paymentInitiated, setPaymentInitiated] = useState(false)
     const [unlockId, setUnlockId] = useState(null)
 
     const PASS_OPTIONS = [
-        { value: '1day',  label: '1 Day',   price: 100, color: 'indigo' },
-        { value: '7day',  label: '7 Days',  price: 300, color: 'purple' },
+        { value: '1day',  label: '1 Day',   price: 50, color: 'indigo' },
+        { value: '7day',  label: '7 Days',  price: 250, color: 'purple' },
     ]
 
     // Claim free access (no phone needed)
@@ -182,7 +182,7 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
                                 <p className="text-xs text-green-700 dark:text-green-300">
                                   {freeReason === 'referral' 
                                     ? `You have ${referralInfo?.referralUnlocksAvailable || 1} free day pass${(referralInfo?.referralUnlocksAvailable || 1) > 1 ? 'es' : ''} available — earned by referring friends.`
-                                    : "Get the owner's phone, WhatsApp, and address free for this property. Your first 2 properties are free; from the 3rd, Ksh 100/day or Ksh 300/week. Refer a friend to earn a free day."}
+                                    : "Get the owner's phone, WhatsApp, and address free for this property. Your first 2 properties are free; from the 3rd, Ksh 50/day or Ksh 250/week. Refer a friend to earn a free day."}
                                 </p>
                             </div>
 
@@ -262,7 +262,7 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
                                     disabled={loading}
                                     className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 text-sm"
                                 >
-                                    {loading ? 'Processing...' : `Pay Ksh ${passType === '7day' ? 300 : 100} via M-Pesa`}
+                                    {loading ? 'Processing...' : `Pay Ksh ${passType === '7day' ? 250 : 50} via M-Pesa`}
                                 </button>
                             </form>
                         </>
@@ -278,7 +278,7 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
                                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Steps:</p>
                                 <ol className="text-xs text-gray-600 dark:text-gray-400 list-decimal list-inside space-y-0.5">
                                     <li>Enter your M-Pesa PIN</li>
-                                    <li>Confirm the Ksh {passType === '7day' ? 300 : 100} payment</li>
+                                    <li>Confirm the Ksh {passType === '7day' ? 250 : 50} payment</li>
                                     <li>Click "Verify Payment" below</li>
                                 </ol>
                             </div>

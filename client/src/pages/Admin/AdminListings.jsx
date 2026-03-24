@@ -382,7 +382,7 @@ const AdminListings = () => {
                       <p className="text-gray-400 text-xs mt-0.5">{property.propertyType}</p>
                     </div>
                     <div className="flex flex-wrap gap-1.5 shrink-0">
-                      {property.isVerified && (
+                      {property.isVerified && !(property.listingTier === 'live' && property.owner?.role === 'admin' && !String(property?.landlordName || '').trim() && (!property.caretakers || property.caretakers.length === 0)) && (
                         <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium flex items-center gap-0.5"><Check className='w-3 h-3' /> Verified</span>
                       )}
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${property.isExpired ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'}`}>
@@ -400,7 +400,7 @@ const AdminListings = () => {
                       <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-medium">
                         {property.vacantRooms ?? 0} vacant
                       </span>
-                      {property.listingTier === 'live' && property.isVerified && property.owner?.role === 'admin' && !property.isClaimed && (!property.caretakers || property.caretakers.length === 0) && (
+                      {property.listingTier === 'live' && property.isVerified && property.owner?.role === 'admin' && !String(property?.landlordName || '').trim() && (!property.caretakers || property.caretakers.length === 0) && (
                         <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium">
                           Verified by Admin
                         </span>

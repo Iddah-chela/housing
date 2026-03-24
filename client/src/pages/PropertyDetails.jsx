@@ -245,7 +245,7 @@ const PropertyDetails = () => {
     }
 
     const handleRequestViewing = () => {
-      if (isAdminVerifiedNoStewardLive) {
+      if (isAdminManagedWithoutSteward) {
         toast('This listing has no active steward account yet. Please confirm availability by call/WhatsApp first.')
         return
       }
@@ -273,7 +273,7 @@ const PropertyDetails = () => {
     }
 
     const handleDirectApply = () => {
-      if (isAdminVerifiedNoStewardLive) {
+      if (isAdminManagedWithoutSteward) {
         toast('Direct apply is disabled until a steward starts managing this listing in-app.')
         return
       }
@@ -419,10 +419,11 @@ const PropertyDetails = () => {
     return <div className='py-28 text-center'>Property not found</div>
   }
 
+  const listingTier = String(property?.listingTier || '').toLowerCase()
   const hasRoomGrid = Array.isArray(property.buildings) && property.buildings.length > 0
   const isPartnerListing =
     String(property?.sourceType || '').toLowerCase() === 'field_list' ||
-    String(property?.listingTier || '').toLowerCase() === 'directory' ||
+    listingTier === 'directory' ||
     (String(property?.owner?.role || '').toLowerCase() === 'admin' && !!String(property?.landlordName || '').trim())
   const hasVerifiedSteward =
     String(property?.claimStatus || '').toLowerCase() === 'verified' &&
@@ -430,14 +431,17 @@ const PropertyDetails = () => {
       !!String(property?.claimedBy || '').trim() ||
       String(property?.owner?.role || '').toLowerCase() !== 'admin'
     )
-  const shouldHideGridUntilSteward = isPartnerListing && !hasVerifiedSteward
+  const isAdminManagedWithoutSteward =
+    listingTier === 'live' &&
+    String(property?.owner?.role || '').toLowerCase() === 'admin' &&
+    !String(property?.landlordName || '').trim() &&
+    (!Array.isArray(property?.caretakers) || property.caretakers.length === 0)
+  const shouldHideGridUntilSteward = isPartnerListing && listingTier !== 'live' && !hasVerifiedSteward
   const canShowRoomGrid = hasRoomGrid && !shouldHideGridUntilSteward
   const isAdminVerifiedNoStewardLive =
-    String(property?.listingTier || '').toLowerCase() === 'live' &&
+    isAdminManagedWithoutSteward &&
     !!property?.isVerified &&
-    String(property?.owner?.role || '').toLowerCase() === 'admin' &&
-    !property?.isClaimed &&
-    (!Array.isArray(property?.caretakers) || property.caretakers.length === 0)
+    String(property?.owner?.role || '').toLowerCase() === 'admin'
   const listingTierLabel =
     property?.listingTier === 'live'
       ? 'Live'
@@ -480,8 +484,12 @@ const PropertyDetails = () => {
         <img src={image} alt='' className='w-full max-h-[420px] rounded-xl object-cover border border-gray-200 dark:border-gray-700' />
 
         <div className='mt-6 p-5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200'>
-          <p className='font-semibold'>Informational Listing</p>
-          <p className='text-sm mt-1'>This listing is not live yet. Follow it to get notified when room details and availability are published.</p>
+          <p className='font-semibold'>{listingTier === 'live' ? 'Listing Details Pending Final Update' : 'Informational Listing'}</p>
+          <p className='text-sm mt-1'>
+            {listingTier === 'live'
+              ? 'This listing is live but full unit grid details are still being finalized. Check back soon or follow for updates.'
+              : 'This listing is not live yet. Follow it to get notified when room details and availability are published.'}
+          </p>
           {hasRoomGrid && shouldHideGridUntilSteward && (
             <p className='text-xs mt-2'>Room grid is hidden until a verified landlord or caretaker logs in and confirms listing updates.</p>
           )}
@@ -659,7 +667,7 @@ const PropertyDetails = () => {
             </div>
             <div className='flex flex-col items-end gap-2'>
               <div className='flex items-center gap-2'>
-                {property.isVerified && (
+                {property.isVerified && !isAdminVerifiedNoStewardLive && (
                     <div className='px-4 py-2 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 flex items-center gap-1'>
                       <Check className='w-4 h-4' /> Verified
                     </div>
@@ -1049,7 +1057,7 @@ const PropertyDetails = () => {
                 {isUnlocked ? (
                   <>
                     {/* Unlocked - Show contact buttons */}
-                    {!isPartnerListing && !isAdminVerifiedNoStewardLive && (
+                    {!isPartnerListing && !isAdminManagedWithoutSteward && (
                       <div className='mb-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg'>
                         <div className='flex items-center gap-2 text-sm text-green-700'>
                           <Unlock className='w-4 h-4' />
@@ -1063,7 +1071,7 @@ const PropertyDetails = () => {
                       </div>
                     )}
                     
-                    {!isPartnerListing && !isAdminVerifiedNoStewardLive && (
+                    {!isPartnerListing && !isAdminManagedWithoutSteward && (
                       <button 
                         onClick={() => setShowChat(true)}
                         className='px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium flex items-center justify-center gap-2'
@@ -1083,7 +1091,7 @@ const PropertyDetails = () => {
                       </a>
                     )}
 
-                    {(isPartnerListing || isAdminVerifiedNoStewardLive) && property.contact && (
+                    {(isPartnerListing || isAdminManagedWithoutSteward) && property.contact && (
                       <a
                         href={`tel:${String(property.contact).replace(/[^0-9+]/g, '')}`}
                         className='px-6 py-3 rounded-lg border-2 border-gray-400 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all inline-flex items-center justify-center gap-2 font-medium'
@@ -1092,7 +1100,7 @@ const PropertyDetails = () => {
                       </a>
                     )}
 
-                    {(isPartnerListing || isAdminVerifiedNoStewardLive) && (
+                    {(isPartnerListing || isAdminManagedWithoutSteward) && (
                       <p className='text-xs text-amber-700 dark:text-amber-300'>Use WhatsApp or Call to confirm current availability before requesting viewing.</p>
                     )}
 
@@ -1161,7 +1169,7 @@ const PropertyDetails = () => {
 
                             {/* Option B: pay without login via M-Pesa */}
                             <div className='p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg'>
-                              <p className='text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-0.5 flex items-center gap-1'><Lock className='w-3.5 h-3.5' /> Ksh 100/day or Ksh 300/week - via M-Pesa</p>
+                              <p className='text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-0.5 flex items-center gap-1'><Lock className='w-3.5 h-3.5' /> Ksh 50/day or Ksh 250/week - via M-Pesa</p>
                               <p className='text-xs text-indigo-600 dark:text-indigo-400 mb-2'>Pay directly, no account needed</p>
                               <button
                                 onClick={() => setShowGuestPayment(true)}
@@ -1195,8 +1203,8 @@ const PropertyDetails = () => {
                                   <div className='h-8 w-32 mx-auto bg-gray-200 rounded animate-pulse' />
                                 ) : (
                                   <>
-                                    <div className='text-2xl font-bold text-indigo-600'>from Ksh 100</div>
-                                    <p className='text-xs text-indigo-500'>Ksh 100/day or Ksh 300/week</p>
+                                    <div className='text-2xl font-bold text-indigo-600'>from Ksh 50</div>
+                                    <p className='text-xs text-indigo-500'>Ksh 50/day or Ksh 250/week</p>
                                   </>
                                 )}
                               </div>
@@ -1216,7 +1224,7 @@ const PropertyDetails = () => {
                                 ? <span className='flex items-center justify-center gap-2 animate-pulse'>Loading...</span>
                                 : showFree 
                                   ? <span className='flex items-center justify-center gap-2'><Gift className='w-4 h-4' /> Claim Free Access</span> 
-                                  : <span className='flex items-center justify-center gap-2'><Unlock className='w-4 h-4' /> Unlock - from Ksh 100</span>}
+                                      : <span className='flex items-center justify-center gap-2'><Unlock className='w-4 h-4' /> Unlock - from Ksh 50</span>}
                             </button>
                           </>
                         )})()}
@@ -1298,12 +1306,12 @@ const PropertyDetails = () => {
                 
                 <button 
                   onClick={handleRequestViewing}
-                  disabled={isAdminVerifiedNoStewardLive || ((!selectedRoom.isVacant && !selectedRoom.isMoveOutSoon) || selectedRoom.isBooked)}
+                  disabled={isAdminManagedWithoutSteward || ((!selectedRoom.isVacant && !selectedRoom.isMoveOutSoon) || selectedRoom.isBooked)}
                   className='px-6 py-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold disabled:bg-gray-400'
                 >
-                  {isAdminVerifiedNoStewardLive ? 'Viewing Disabled (No Steward Yet)' : selectedRoom.isBooked ? 'Room Booked' : (selectedRoom.isVacant || selectedRoom.isMoveOutSoon) ? 'Request Viewing' : 'Room Occupied'}
+                  {isAdminManagedWithoutSteward ? 'Viewing Disabled (No Steward Yet)' : selectedRoom.isBooked ? 'Room Booked' : (selectedRoom.isVacant || selectedRoom.isMoveOutSoon) ? 'Request Viewing' : 'Room Occupied'}
                 </button>
-                {(selectedRoom.isVacant || selectedRoom.isMoveOutSoon) && !selectedRoom.isBooked && !isAdminVerifiedNoStewardLive && (
+                {(selectedRoom.isVacant || selectedRoom.isMoveOutSoon) && !selectedRoom.isBooked && !isAdminManagedWithoutSteward && (
                   <button
                     onClick={handleDirectApply}
                     className='px-6 py-3 rounded-lg border-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all font-semibold'
@@ -1324,8 +1332,10 @@ const PropertyDetails = () => {
         <div className='mt-10 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800'>
           <div className='flex items-start gap-4'>
             {(() => {
-              const displayName = property.landlordName || property.owner?.username || 'Property Contact'
-              const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName) + '&background=e5e7eb&color=111827&bold=true'
+              const isAdminWithoutLandlordName = String(property?.owner?.role || '').toLowerCase() === 'admin' && !String(property?.landlordName || '').trim()
+              const displayName = isAdminWithoutLandlordName ? '' : (property.landlordName || property.owner?.username || 'Property Contact')
+              const fallbackAvatarSeed = displayName || 'Property Contact'
+              const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(fallbackAvatarSeed) + '&background=e5e7eb&color=111827&bold=true'
               const avatarSrc = isPartnerListing ? fallbackAvatar : (property.owner?.image || fallbackAvatar)
               return (
             <img 
@@ -1339,8 +1349,8 @@ const PropertyDetails = () => {
             <div className='flex-1'>
               <div className='flex items-center gap-2'>
                 <p className='text-lg font-medium'>
-                  {String(property?.listingTier || '').toLowerCase() === 'directory'
-                    ? (property.owner?.username || 'Property Owner')
+                  {String(property?.owner?.role || '').toLowerCase() === 'admin' && !String(property?.landlordName || '').trim()
+                    ? ''
                     : (property.landlordName || property.owner?.username || 'Property Owner')}
                 </p>
               </div>
@@ -1380,7 +1390,7 @@ const PropertyDetails = () => {
           />
         )}
 
-        {showChat && selectedRoom && !isPartnerListing && !isAdminVerifiedNoStewardLive && (
+        {showChat && selectedRoom && !isPartnerListing && !isAdminManagedWithoutSteward && (
           <ChatInterface 
             room={selectedRoom}
             propertyId={property._id}

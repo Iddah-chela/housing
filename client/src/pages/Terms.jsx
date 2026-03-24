@@ -54,7 +54,7 @@ const Terms = () => {
         <section>
           <h2 className='text-xl font-semibold mb-3'>5. Payments & Unlocking</h2>
           <ul className='list-disc pl-6 text-gray-700 space-y-2'>
-            <li>Unlocking owner contact details requires purchasing a browsing pass via M-Pesa (Ksh 100 for 1 day, Ksh 300 for 7 days). First 2 property views are free.</li>
+            <li>Unlocking owner contact details requires purchasing a browsing pass via M-Pesa (Ksh 50 for 1 day, Ksh 250 for 7 days). First 2 property views are free.</li>
             <li>Payments are processed through IntaSend, a licensed Kenyan payment service provider.</li>
             <li>Passes are non-refundable once activated, as they provide immediate access to contact information.</li>
             <li>Free trial unlocks may be available to new users, subject to change without notice.</li>

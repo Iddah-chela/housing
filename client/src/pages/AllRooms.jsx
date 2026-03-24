@@ -386,10 +386,10 @@ const AllRooms = () => {
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide ${getListingTierBadgeClass(property)}`}>
                   {getListingTierLabel(property).toUpperCase()}
                 </span>
-                {property.isVerified && (
+                {property.isVerified && !(property.listingTier === 'live' && property.owner?.role === 'admin' && !String(property?.landlordName || '').trim() && (!property.caretakers || property.caretakers.length === 0)) && (
                   <span className='bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>VERIFIED</span>
                 )}
-                {property.listingTier === 'live' && property.isVerified && property.owner?.role === 'admin' && !property.isClaimed && (!property.caretakers || property.caretakers.length === 0) && (
+                {property.listingTier === 'live' && property.isVerified && property.owner?.role === 'admin' && !String(property?.landlordName || '').trim() && (!property.caretakers || property.caretakers.length === 0) && (
                   <span className='bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>VERIFIED BY ADMIN</span>
                 )}
                 {(() => {
