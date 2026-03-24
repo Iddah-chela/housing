@@ -129,6 +129,62 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
     toast('Google Maps opened. Drop a pin, then copy and paste the map URL here.')
   }
 
+  const getLocationEnableSteps = () => {
+    const ua = navigator.userAgent || ''
+    const isIOS = /iPhone|iPad|iPod/i.test(ua)
+    const isAndroid = /Android/i.test(ua)
+
+    if (isIOS) {
+      return [
+        'Open iPhone Settings > Privacy & Security > Location Services and ensure it is ON.',
+        'In Settings > Safari > Location, choose Allow.',
+        'Return here and tap Ask permission again.'
+      ]
+    }
+
+    if (isAndroid) {
+      return [
+        'Open browser settings > Site settings > Location.',
+        'Allow location for this site.',
+        'Return here and tap Ask permission again.'
+      ]
+    }
+
+    return [
+      'Open browser site permissions for this page.',
+      'Allow location access for this site.',
+      'Return here and tap Ask permission again.'
+    ]
+  }
+
+  const requestLocationPermission = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser')
+      return
+    }
+
+    if (!window.isSecureContext) {
+      toast.error('Location only works on HTTPS (or localhost).')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        setLocationPermission('granted')
+        toast.success('Location permission granted. You can now use my location.')
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setLocationPermission('denied')
+          toast.error('Location permission is blocked. Use the steps below to enable it, then tap Ask permission again.')
+        } else {
+          toast.error('Could not request location permission right now. Please try again.')
+        }
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    )
+  }
+
   // Get device GPS location -> build a Google Maps URL
   const handleGetLocation = async () => {
     if (!navigator.geolocation) {
@@ -146,7 +202,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
         const status = await navigator.permissions.query({ name: 'geolocation' })
         setLocationPermission(status.state || 'unknown')
         if (status.state === 'denied') {
-          toast.error('Location is blocked for this site. Click the lock icon near the URL and allow Location, then retry.')
+          toast.error('Location is blocked for this site. Tap Ask permission after enabling location in browser/app settings.')
           return
         }
       } catch (_) {
@@ -168,7 +224,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
           setLocationPermission('denied')
         }
         if (err.code === err.PERMISSION_DENIED) {
-          toast.error('Location permission denied. Tap the lock icon in your browser address bar, allow Location for this site, then retry.')
+          toast.error('Location permission denied. Use Ask permission and follow the steps shown below.')
         } else {
           toast.error('Could not get location. Use address fallback or paste a Google Maps link manually.')
         }
@@ -645,6 +701,13 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                 />
                 <button
                   type='button'
+                  onClick={requestLocationPermission}
+                  className='flex items-center justify-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded text-sm font-medium transition-all'
+                >
+                  <Navigation className='w-4 h-4' /> Ask permission
+                </button>
+                <button
+                  type='button'
                   onClick={handleGetLocation}
                   disabled={locating}
                   className='flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded text-sm font-medium transition-all'
@@ -671,9 +734,14 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                 </button>
               </div>
               {locationPermission === 'denied' && (
-                <p className='text-xs text-amber-600 dark:text-amber-400'>
-                  Location access is currently blocked by browser settings for this site. Enable it from the address-bar lock icon, then click "Use my location" again.
-                </p>
+                <div className='text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded p-2'>
+                  <p className='font-semibold mb-1'>Location is blocked. Enable it with these steps:</p>
+                  <ol className='list-decimal pl-4 space-y-0.5'>
+                    {getLocationEnableSteps().map((step, index) => (
+                      <li key={index}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
               )}
               {propertyInfo.googleMapsUrl && (
                 <a
