@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { assets, Places } from '../assets/assets'
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
@@ -91,29 +91,84 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
   })
   const [loading, setLoading] = useState(false)
   const [locating, setLocating] = useState(false)
+  const [locationPermission, setLocationPermission] = useState('unknown') // unknown | prompt | granted | denied
   const [selectMode, setSelectMode] = useState(false) // Multi-select mode
   const [compoundGate, setCompoundGate] = useState(existingProperty?.compoundGate || { side: 'bottom', layout: 'row' })
   const [quickSetup, setQuickSetup] = useState({ rooms: '', roomType: 'BedSitter', price: '', floors: 1 })
   const [dragPrice, setDragPrice] = useState(3500)
   const dragDataRef = useRef(null)
 
-  // Get device GPS location → build a Google Maps URL
-  const handleGetLocation = () => {
+  useEffect(() => {
+    let mounted = true
+
+    const detectPermission = async () => {
+      if (!navigator?.permissions?.query) return
+      try {
+        const status = await navigator.permissions.query({ name: 'geolocation' })
+        if (!mounted) return
+        setLocationPermission(status.state || 'unknown')
+        status.onchange = () => {
+          if (mounted) setLocationPermission(status.state || 'unknown')
+        }
+      } catch (_) {
+        // Some browsers do not support querying geolocation permission state.
+      }
+    }
+
+    detectPermission()
+    return () => { mounted = false }
+  }, [])
+
+  const openGoogleMapsPicker = () => {
+    const query = [propertyInfo.address, propertyInfo.estate, propertyInfo.place]
+      .map(v => String(v || '').trim())
+      .filter(Boolean)
+      .join(', ')
+    const q = encodeURIComponent(query || 'Kenya')
+    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank', 'noopener,noreferrer')
+    toast('Google Maps opened. Drop a pin, then copy and paste the map URL here.')
+  }
+
+  // Get device GPS location -> build a Google Maps URL
+  const handleGetLocation = async () => {
     if (!navigator.geolocation) {
       toast.error('Geolocation is not supported by your browser')
       return
     }
+
+    if (!window.isSecureContext) {
+      toast.error('Location only works on HTTPS (or localhost).')
+      return
+    }
+
+    if (navigator?.permissions?.query) {
+      try {
+        const status = await navigator.permissions.query({ name: 'geolocation' })
+        setLocationPermission(status.state || 'unknown')
+        if (status.state === 'denied') {
+          toast.error('Location is blocked for this site. Click the lock icon near the URL and allow Location, then retry.')
+          return
+        }
+      } catch (_) {
+        // Ignore permission-query errors and still attempt geolocation.
+      }
+    }
+
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const url = `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`
         setPropertyInfo(prev => ({ ...prev, googleMapsUrl: url }))
+        setLocationPermission('granted')
         toast.success('Location pinned!')
         setLocating(false)
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
-          toast.error('Location permission denied. Use address fallback or paste a Google Maps link manually.')
+          setLocationPermission('denied')
+        }
+        if (err.code === err.PERMISSION_DENIED) {
+          toast.error('Location permission denied. Tap the lock icon in your browser address bar, allow Location for this site, then retry.')
         } else {
           toast.error('Could not get location. Use address fallback or paste a Google Maps link manually.')
         }
@@ -597,8 +652,15 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   {locating ? (
                     <><span className='w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block' /> Locating...</>
                   ) : (
-                    <><Navigation className='w-4 h-4' /> Use my location</>
+                    <><Navigation className='w-4 h-4' /> {locationPermission === 'denied' ? 'Location blocked' : 'Use my location'}</>
                   )}
+                </button>
+                <button
+                  type='button'
+                  onClick={openGoogleMapsPicker}
+                  className='flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-all'
+                >
+                  <ExternalLink className='w-4 h-4' /> Open map picker
                 </button>
                 <button
                   type='button'
@@ -608,6 +670,11 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   <MapPin className='w-4 h-4' /> Use address fallback
                 </button>
               </div>
+              {locationPermission === 'denied' && (
+                <p className='text-xs text-amber-600 dark:text-amber-400'>
+                  Location access is currently blocked by browser settings for this site. Enable it from the address-bar lock icon, then click "Use my location" again.
+                </p>
+              )}
               {propertyInfo.googleMapsUrl && (
                 <a
                   href={propertyInfo.googleMapsUrl}
