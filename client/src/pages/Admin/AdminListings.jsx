@@ -19,6 +19,7 @@ const AdminListings = () => {
   const [transferring, setTransferring] = useState(false);
   const [claimActionBusy, setClaimActionBusy] = useState(null);
   const [promoteBusy, setPromoteBusy] = useState(null);
+  const [resetBusy, setResetBusy] = useState(null);
 
   useEffect(() => { fetchProperties(); }, []);
   useEffect(() => {
@@ -150,6 +151,30 @@ const AdminListings = () => {
       toast.error(error.message);
     } finally {
       setPromoteBusy(null);
+    }
+  };
+
+  const handleResetClaimState = async (propertyId) => {
+    if (!confirm('Reset this listing back to unclaimed and remove assigned caretakers?')) return;
+    setResetBusy(propertyId);
+    try {
+      const token = await getToken();
+      const { data } = await axios.post('/api/admin/reset-claim-state', {
+        propertyId,
+        removeCaretakers: true,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (data.success) {
+        toast.success(data.message || 'Listing reset to unclaimed');
+        fetchProperties();
+      } else {
+        toast.error(data.message || 'Could not reset claim state');
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setResetBusy(null);
     }
   };
 
@@ -375,6 +400,11 @@ const AdminListings = () => {
                       <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-medium">
                         {property.vacantRooms ?? 0} vacant
                       </span>
+                      {property.listingTier === 'live' && property.isVerified && property.owner?.role === 'admin' && !property.isClaimed && (!property.caretakers || property.caretakers.length === 0) && (
+                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium">
+                          Verified by Admin
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -451,6 +481,15 @@ const AdminListings = () => {
                         className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-700 disabled:opacity-60"
                       >
                         {promoteBusy === property._id ? 'Promoting...' : 'Promote (Override)'}
+                      </button>
+                    )}
+                    {(property.isClaimed || property.claimStatus !== 'none') && (
+                      <button
+                        onClick={() => handleResetClaimState(property._id)}
+                        disabled={resetBusy === property._id}
+                        className="px-3 py-1.5 bg-rose-700 text-white rounded-lg text-xs hover:bg-rose-800 disabled:opacity-60"
+                      >
+                        {resetBusy === property._id ? 'Resetting...' : 'Reset to Unclaimed'}
                       </button>
                     )}
                   </div>

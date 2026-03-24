@@ -39,9 +39,10 @@ const AllRooms = () => {
   const [selectedFilters, setSelectedFilters] = useState({
     roomType: [],
     priceRange: [],
-    listingTier: [],
     vacancyStatus: [],
   });
+  const [includePreLive, setIncludePreLive] = useState(false)
+  const [includeFullyOccupied, setIncludeFullyOccupied] = useState(false)
 
   const [selectedSort, setSelectedSort] = useState('')
   const [loading, setLoading] = useState(true)
@@ -75,8 +76,8 @@ const AllRooms = () => {
   }
 
   const getCtaLabel = (property) => {
-    if (property.actionability === 'info_only') return 'Confirm Availability'
-    if (property.actionability === 'inquiry_only') return 'Confirm Availability'
+    if (property.actionability === 'info_only') return 'Details'
+    if (property.actionability === 'inquiry_only') return 'Notify'
     return 'View Units'
   }
   
@@ -84,7 +85,12 @@ const AllRooms = () => {
     const fetchProperties = async () => {
       try {
         setLoading(true)
-        const response = await axios.get('/api/properties')
+        const response = await axios.get('/api/properties', {
+          params: {
+            includePreLive,
+            includeFull: includeFullyOccupied,
+          }
+        })
         
         if (response.data.success) {
           // Process properties to calculate min/max prices from grid
@@ -127,7 +133,7 @@ const AllRooms = () => {
     }
     
     fetchProperties()
-  }, [])
+  }, [includePreLive, includeFullyOccupied])
 
   const roomTypes = [
     "BedSitter",
@@ -142,7 +148,6 @@ const AllRooms = () => {
     '4000 to 4500',
   ];
 
-  const listingTiers = ['directory', 'claimed', 'live']
   const vacancyStates = ['available', 'limited', 'full', 'unknown']
 
   const sortOptions = [
@@ -174,9 +179,10 @@ const AllRooms = () => {
     setSelectedFilters({
       roomType: [],
       priceRange: [],
-      listingTier: [],
       vacancyStatus: [],
     });
+    setIncludePreLive(false)
+    setIncludeFullyOccupied(false)
     setSelectedSort('');
     setSearchQuery('');
     setSearchParams({});
@@ -211,10 +217,7 @@ const AllRooms = () => {
     })
   }
 
-  const matchesListingTier = (property) => {
-    if (selectedFilters.listingTier.length === 0) return true
-    return selectedFilters.listingTier.includes(String(property.listingTier || '').toLowerCase())
-  }
+  const matchesListingTier = () => true
 
   const matchesVacancyStatus = (property) => {
     if (selectedFilters.vacancyStatus.length === 0) return true
@@ -316,7 +319,7 @@ const AllRooms = () => {
       <div className='flex-1 w-full lg:w-auto'>
         <div className='flex flex-col items-start text-left'> 
           <h1 className='font-playfair text-4xl md:text-[40px]'>Available Houses</h1>
-        <p className='text-sm md:text-base text-gray-500/90 dark:text-gray-400 mt-2 max-w-2xl'>Browse live listings and partner listings. When availability is not confirmed yet, follow the listing and get notified when updates are posted.</p>
+        <p className='text-sm md:text-base text-gray-500/90 dark:text-gray-400 mt-2 max-w-2xl'>Browse live listings first. Turn on extra filters if you want to see claim opportunities or fully occupied properties.</p>
         </div>
 
         {/* Search Bar */}
@@ -385,6 +388,9 @@ const AllRooms = () => {
                 </span>
                 {property.isVerified && (
                   <span className='bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>VERIFIED</span>
+                )}
+                {property.listingTier === 'live' && property.isVerified && property.owner?.role === 'admin' && !property.isClaimed && (!property.caretakers || property.caretakers.length === 0) && (
+                  <span className='bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide'>VERIFIED BY ADMIN</span>
                 )}
                 {(() => {
                   const baseline = property.lastVerifiedAt || property.createdAt
@@ -555,21 +561,28 @@ const AllRooms = () => {
               </div>
           </div>
           <div className='px-3 pt-2 pb-2 border-t border-gray-100 dark:border-gray-700'>
-              <p className='font-medium text-gray-800 dark:text-gray-200 text-xs pb-2'>Listing Type</p>
+              <p className='font-medium text-gray-800 dark:text-gray-200 text-xs pb-2'>Listing Scope</p>
               <div className='flex flex-wrap gap-1.5'>
-                {listingTiers.map((tier, index)=>(
-                  <button
-                    key={index}
-                    onClick={() => handleFiltersChange(!selectedFilters.listingTier.includes(tier), tier, 'listingTier')}
-                    className={`px-2 py-1 rounded-full text-xs font-medium border transition-all ${
-                      selectedFilters.listingTier.includes(tier)
-                        ? 'bg-slate-700 text-white border-slate-700'
-                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-slate-500'
-                    }`}
-                  >
-                    {tier === 'directory' ? 'Partner Listing' : tier === 'claimed' ? 'Owner Updating' : 'Live'}
-                  </button>
-                ))}
+                <button
+                  onClick={() => setIncludePreLive((prev) => !prev)}
+                  className={`px-2 py-1 rounded-full text-xs font-medium border transition-all ${
+                    includePreLive
+                      ? 'bg-slate-700 text-white border-slate-700'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-slate-500'
+                  }`}
+                >
+                  Show Claim Opportunities
+                </button>
+                <button
+                  onClick={() => setIncludeFullyOccupied((prev) => !prev)}
+                  className={`px-2 py-1 rounded-full text-xs font-medium border transition-all ${
+                    includeFullyOccupied
+                      ? 'bg-slate-700 text-white border-slate-700'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-slate-500'
+                  }`}
+                >
+                  Show Fully Occupied
+                </button>
               </div>
           </div>
           <div className='px-3 pt-2 pb-2 border-t border-gray-100 dark:border-gray-700'>

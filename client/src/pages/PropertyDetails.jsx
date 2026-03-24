@@ -14,7 +14,7 @@ import { PropertyDetailSkeleton } from '../components/Skeletons'
 
 const PropertyDetails = () => {
     const {id} = useParams() // This is now property ID, not room ID
-    const { user, getToken, axios, darkMode } = useAppContext()
+  const { user, getToken, axios, darkMode, isOwner, isAdmin, navigate } = useAppContext()
     const [property, setProperty] = useState(null)
     const [selectedBuilding, setSelectedBuilding] = useState(0)
     const [zoomedBuilding, setZoomedBuilding] = useState(null)
@@ -41,6 +41,8 @@ const PropertyDetails = () => {
       claimantName: '',
       claimPhone: '',
       claimRole: 'owner',
+      landlordPhone: '',
+      landlordEmail: '',
       claimNotes: '',
     })
     const [claimEvidenceFiles, setClaimEvidenceFiles] = useState([])
@@ -243,6 +245,10 @@ const PropertyDetails = () => {
     }
 
     const handleRequestViewing = () => {
+      if (isAdminVerifiedNoStewardLive) {
+        toast('This listing has no active steward account yet. Please confirm availability by call/WhatsApp first.')
+        return
+      }
       if (property?.actionability !== 'full_transaction') {
         toast('This is an informational listing. Save it and wait for a live vacancy update.')
         return
@@ -267,6 +273,10 @@ const PropertyDetails = () => {
     }
 
     const handleDirectApply = () => {
+      if (isAdminVerifiedNoStewardLive) {
+        toast('Direct apply is disabled until a steward starts managing this listing in-app.')
+        return
+      }
       if (property?.actionability !== 'full_transaction') {
         toast('This listing is not accepting direct applications yet.')
         return
@@ -316,6 +326,20 @@ const PropertyDetails = () => {
         return
       }
 
+      if (claimForm.claimRole === 'owner' && !isOwner && !isAdmin) {
+        toast('Owner claim requires landlord account approval first. Opening landlord application...')
+        navigate('/?applyLandlord=1')
+        return
+      }
+
+      if (claimForm.claimRole === 'caretaker') {
+        const landlordPhoneDigits = String(claimForm.landlordPhone || '').replace(/\D/g, '')
+        if (landlordPhoneDigits.length < 9) {
+          toast.error('Please provide a valid landlord phone number')
+          return
+        }
+      }
+
       setClaimSubmitting(true)
       try {
         const token = await getToken()
@@ -323,6 +347,8 @@ const PropertyDetails = () => {
         payload.append('claimantName', claimForm.claimantName)
         payload.append('claimPhone', claimForm.claimPhone)
         payload.append('claimRole', claimForm.claimRole)
+        payload.append('landlordPhone', claimForm.landlordPhone || '')
+        payload.append('landlordEmail', claimForm.landlordEmail || '')
         payload.append('claimNotes', claimForm.claimNotes)
         claimEvidenceFiles.forEach((file) => payload.append('evidenceFiles', file))
 
@@ -406,6 +432,12 @@ const PropertyDetails = () => {
     )
   const shouldHideGridUntilSteward = isPartnerListing && !hasVerifiedSteward
   const canShowRoomGrid = hasRoomGrid && !shouldHideGridUntilSteward
+  const isAdminVerifiedNoStewardLive =
+    String(property?.listingTier || '').toLowerCase() === 'live' &&
+    !!property?.isVerified &&
+    String(property?.owner?.role || '').toLowerCase() === 'admin' &&
+    !property?.isClaimed &&
+    (!Array.isArray(property?.caretakers) || property.caretakers.length === 0)
   const listingTierLabel =
     property?.listingTier === 'live'
       ? 'Live'
@@ -419,6 +451,7 @@ const PropertyDetails = () => {
     propertyClaimStatus === 'verified' && claimData?.property?.claimedBy && user?.id && claimData.property.claimedBy === user.id
   )
   const hasPendingClaim = userClaimStatus === 'pending' || propertyClaimStatus === 'pending'
+  const showClaimStatusPanel = !!userClaimStatus
 
   // Informational mode fallback for directory records with no room map.
   if (!canShowRoomGrid) {
@@ -448,13 +481,13 @@ const PropertyDetails = () => {
 
         <div className='mt-6 p-5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200'>
           <p className='font-semibold'>Informational Listing</p>
-          <p className='text-sm mt-1'>This is a partner listing. Please call or WhatsApp to confirm current availability before planning a viewing.</p>
+          <p className='text-sm mt-1'>This listing is not live yet. Follow it to get notified when room details and availability are published.</p>
           {hasRoomGrid && shouldHideGridUntilSteward && (
             <p className='text-xs mt-2'>Room grid is hidden until a verified landlord or caretaker logs in and confirms listing updates.</p>
           )}
-          {(userClaimStatus || (property.claimStatus && property.claimStatus !== 'none')) && (
+          {showClaimStatusPanel && (
             <div className='mt-3 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-white/70 dark:bg-gray-900/30'>
-              <p className='text-sm font-semibold'>Claim status: {(userClaimStatus || property.claimStatus).replaceAll('_', ' ')}</p>
+              <p className='text-sm font-semibold'>Your claim status: {userClaimStatus.replaceAll('_', ' ')}</p>
               {hasPendingClaim && (
                 <p className='text-xs mt-1'>Next: admin verifies your claim evidence. After approval, open My Listings to complete unit grid, pricing, and contact display name before this can go live.</p>
               )}
@@ -475,24 +508,6 @@ const PropertyDetails = () => {
             </div>
           )}
           <div className='mt-4 flex flex-wrap gap-3'>
-            {property.whatsappNumber && (
-              <a
-                href={`https://wa.me/${property.whatsappNumber.replace(/[^0-9]/g, '')}?text=Hi, I saw ${property.name} on PataKeja. Kindly confirm which rooms are currently available.`}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm font-medium'
-              >
-                WhatsApp Owner (Confirm Availability)
-              </a>
-            )}
-            {property.contact && (
-              <a
-                href={`tel:${String(property.contact).replace(/[^0-9+]/g, '')}`}
-                className='px-4 py-2 rounded-lg border border-gray-500 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm font-medium'
-              >
-                Call Owner (Confirm Availability)
-              </a>
-            )}
             <button
               onClick={subscribeToVacancyAlerts}
               disabled={alertSubmitting}
@@ -507,7 +522,7 @@ const PropertyDetails = () => {
                   disabled={hasPendingClaim}
                   className='px-4 py-2 rounded-lg border border-amber-700 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-sm font-medium'
                 >
-                  {hasPendingClaim ? 'Under Review' : (showClaimForm ? 'Close' : 'Claim')}
+                  {hasPendingClaim ? 'Under Review' : (showClaimForm ? 'Close' : 'This is my property')}
                 </button>
               ) : (
                 <SignInButton mode='modal'>
@@ -543,15 +558,35 @@ const PropertyDetails = () => {
                   <option value='owner'>Owner</option>
                   <option value='caretaker'>Caretaker</option>
                 </select>
-                <input
-                  type='file'
-                  multiple
-                  accept='image/*,.pdf'
-                  onChange={(e) => setClaimEvidenceFiles(Array.from(e.target.files || []).slice(0, 4))}
-                  className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
-                />
+                {claimForm.claimRole === 'caretaker' && (
+                  <>
+                    <input
+                      value={claimForm.landlordPhone}
+                      onChange={(e) => setClaimForm((prev) => ({ ...prev, landlordPhone: e.target.value }))}
+                      placeholder='Landlord phone number (required)'
+                      className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
+                    />
+                    <input
+                      value={claimForm.landlordEmail}
+                      onChange={(e) => setClaimForm((prev) => ({ ...prev, landlordEmail: e.target.value }))}
+                      placeholder='Landlord email (optional)'
+                      className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm'
+                    />
+                    <input
+                      type='file'
+                      multiple
+                      accept='image/*,.pdf'
+                      onChange={(e) => setClaimEvidenceFiles(Array.from(e.target.files || []).slice(0, 4))}
+                      className='px-3 py-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-sm md:col-span-2'
+                    />
+                  </>
+                )}
               </div>
-              <p className='text-xs mt-2 text-amber-800/80 dark:text-amber-200/80'>Upload up to 4 files (images or PDF). Caretaker claims must include at least one file. Owner claims require approved landlord application.</p>
+              <p className='text-xs mt-2 text-amber-800/80 dark:text-amber-200/80'>
+                {claimForm.claimRole === 'owner'
+                  ? 'Owner claims require an approved landlord account. If not approved yet, use Apply to be Landlord first. Once approved, claim with your name and phone.'
+                  : 'Caretaker claims require landlord phone and at least one proof file (caretaker letter, utility bill, signed note, or management letter).'}
+              </p>
               <textarea
                 value={claimForm.claimNotes}
                 onChange={(e) => setClaimForm((prev) => ({ ...prev, claimNotes: e.target.value }))}
@@ -629,6 +664,11 @@ const PropertyDetails = () => {
                       <Check className='w-4 h-4' /> Verified
                     </div>
                   )}
+                {isAdminVerifiedNoStewardLive && (
+                  <div className='px-4 py-2 rounded-full text-sm font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'>
+                    Verified by Admin
+                  </div>
+                )}
                 {property.vacancyStatus === 'unknown' ? (
                   <div className='px-4 py-2 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'>
                     Availability Not Confirmed
@@ -1006,10 +1046,10 @@ const PropertyDetails = () => {
               </div>
 
               <div className='flex flex-col gap-3'>
-                {(isUnlocked || isPartnerListing) ? (
+                {isUnlocked ? (
                   <>
                     {/* Unlocked - Show contact buttons */}
-                    {!isPartnerListing && (
+                    {!isPartnerListing && !isAdminVerifiedNoStewardLive && (
                       <div className='mb-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg'>
                         <div className='flex items-center gap-2 text-sm text-green-700'>
                           <Unlock className='w-4 h-4' />
@@ -1023,7 +1063,7 @@ const PropertyDetails = () => {
                       </div>
                     )}
                     
-                    {!isPartnerListing && (
+                    {!isPartnerListing && !isAdminVerifiedNoStewardLive && (
                       <button 
                         onClick={() => setShowChat(true)}
                         className='px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium flex items-center justify-center gap-2'
@@ -1039,20 +1079,20 @@ const PropertyDetails = () => {
                         rel="noopener noreferrer"
                         className='px-6 py-3 rounded-lg border-2 border-green-600 bg-green-50 text-green-700 hover:bg-green-100 transition-all inline-flex items-center justify-center gap-2 font-medium'
                       >
-                        <Smartphone className='w-5 h-5' /> WhatsApp Owner (Confirm Availability)
+                        <Smartphone className='w-5 h-5' /> {isAdminVerifiedNoStewardLive ? 'WhatsApp Owner (Confirm Availability)' : 'WhatsApp Owner'}
                       </a>
                     )}
 
-                    {isPartnerListing && property.contact && (
+                    {(isPartnerListing || isAdminVerifiedNoStewardLive) && property.contact && (
                       <a
                         href={`tel:${String(property.contact).replace(/[^0-9+]/g, '')}`}
                         className='px-6 py-3 rounded-lg border-2 border-gray-400 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all inline-flex items-center justify-center gap-2 font-medium'
                       >
-                        <Smartphone className='w-5 h-5' /> Call Owner (Confirm Availability)
+                        <Smartphone className='w-5 h-5' /> {isAdminVerifiedNoStewardLive ? 'Call Owner (Confirm Availability)' : 'Call Owner'}
                       </a>
                     )}
 
-                    {isPartnerListing && (
+                    {(isPartnerListing || isAdminVerifiedNoStewardLive) && (
                       <p className='text-xs text-amber-700 dark:text-amber-300'>Use WhatsApp or Call to confirm current availability before requesting viewing.</p>
                     )}
 
@@ -1091,6 +1131,9 @@ const PropertyDetails = () => {
                     {/* Locked - Show unlock button */}
                     <div className='p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 border-2 border-indigo-200 dark:border-indigo-700 rounded-lg mb-2'>
                       <div className='text-center'>
+                        {(isAdminVerifiedNoStewardLive || property.needsRefresh) && (
+                          <p className='text-xs text-amber-700 dark:text-amber-300 mb-2'>Confirm current availability first before paying to unlock contacts.</p>
+                        )}
                         {!user ? (
                           /* Not logged in - two options: free sign-in OR pay without login */
                           <>
@@ -1255,12 +1298,12 @@ const PropertyDetails = () => {
                 
                 <button 
                   onClick={handleRequestViewing}
-                  disabled={(!selectedRoom.isVacant && !selectedRoom.isMoveOutSoon) || selectedRoom.isBooked}
+                  disabled={isAdminVerifiedNoStewardLive || ((!selectedRoom.isVacant && !selectedRoom.isMoveOutSoon) || selectedRoom.isBooked)}
                   className='px-6 py-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold disabled:bg-gray-400'
                 >
-                  {selectedRoom.isBooked ? 'Room Booked' : (selectedRoom.isVacant || selectedRoom.isMoveOutSoon) ? 'Request Viewing' : 'Room Occupied'}
+                  {isAdminVerifiedNoStewardLive ? 'Viewing Disabled (No Steward Yet)' : selectedRoom.isBooked ? 'Room Booked' : (selectedRoom.isVacant || selectedRoom.isMoveOutSoon) ? 'Request Viewing' : 'Room Occupied'}
                 </button>
-                {(selectedRoom.isVacant || selectedRoom.isMoveOutSoon) && !selectedRoom.isBooked && (
+                {(selectedRoom.isVacant || selectedRoom.isMoveOutSoon) && !selectedRoom.isBooked && !isAdminVerifiedNoStewardLive && (
                   <button
                     onClick={handleDirectApply}
                     className='px-6 py-3 rounded-lg border-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all font-semibold'
@@ -1295,7 +1338,11 @@ const PropertyDetails = () => {
             })()}
             <div className='flex-1'>
               <div className='flex items-center gap-2'>
-                <p className='text-lg font-medium'>{property.landlordName || property.owner?.username || 'Property Owner'}</p>
+                <p className='text-lg font-medium'>
+                  {String(property?.listingTier || '').toLowerCase() === 'directory'
+                    ? (property.owner?.username || 'Property Owner')
+                    : (property.landlordName || property.owner?.username || 'Property Owner')}
+                </p>
               </div>
               <p className='text-gray-600 dark:text-gray-400 text-sm mt-1'>{isPartnerListing ? 'Partner Contact' : 'Property Owner'}</p>
               {/* <p className='text-gray-500 text-sm mt-2'>
@@ -1333,7 +1380,7 @@ const PropertyDetails = () => {
           />
         )}
 
-        {showChat && selectedRoom && !isPartnerListing && (
+        {showChat && selectedRoom && !isPartnerListing && !isAdminVerifiedNoStewardLive && (
           <ChatInterface 
             room={selectedRoom}
             propertyId={property._id}

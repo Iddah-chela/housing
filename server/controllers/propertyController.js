@@ -5,7 +5,7 @@ import PropertyClaim from "../models/propertyClaim.js";
 import LandlordApplication from "../models/landlordApplication.js";
 import {v2 as cloudinary} from "cloudinary";
 import Subscriber from "../models/subscriber.js";
-import { sendNewListingAlert } from "../utils/mailer.js";
+import { sendEmail, sendNewListingAlert } from "../utils/mailer.js";
 import {
   applyAutoListingLifecycle,
   evaluateListingReadiness,
@@ -57,13 +57,6 @@ const hasContactAccess = async (propertyId, req) => {
 
   const prop = await Property.findById(propertyId).select('owner caretakers listingTier sourceType landlordName').lean();
   if (!prop) return false;
-
-  let isAdminSeededListing = String(prop.sourceType || '').toLowerCase() === 'field_list';
-  if (!isAdminSeededListing && prop.owner && String(prop.landlordName || '').trim()) {
-    const ownerUser = await User.findById(prop.owner).select('role').lean();
-    isAdminSeededListing = String(ownerUser?.role || '').toLowerCase() === 'admin';
-  }
-  if (isAdminSeededListing) return true;
 
   if (role === 'admin') return true;
 
@@ -215,7 +208,21 @@ export const createProperty = async (req, res) => {
 // Get all properties (for browsing) — exclude expired ones
 export const getAllProperties = async (req, res) => {
   try {
-    const rawProperties = await Property.find({ isExpired: { $ne: true } })
+    const includePreLive = String(req.query.includePreLive || '').toLowerCase() === 'true';
+    const includeFull = String(req.query.includeFull || '').toLowerCase() === 'true';
+
+    const query = { isExpired: { $ne: true } };
+    if (!includePreLive) {
+      query.listingTier = 'live';
+    }
+    if (!includeFull) {
+      query.$or = [
+        { listingTier: { $ne: 'live' } },
+        { vacantRooms: { $gt: 0 } },
+      ];
+    }
+
+    const rawProperties = await Property.find(query)
       .select('-contact -whatsappNumber')
       .populate('owner', 'username image isVerified role')
       .sort({ createdAt: -1 });
@@ -251,6 +258,15 @@ export const getPropertyById = async (req, res) => {
     }
 
     const propertyObj = inferTierAndStatus(property.toObject());
+
+    const isOwner = req.user?._id && String(property.owner?._id || property.owner || '') === String(req.user._id || '');
+    const isCaretaker = !!req.user?.email && (property.caretakers || []).some((e) => String(e || '').toLowerCase() === String(req.user.email || '').toLowerCase());
+    const isAdmin = req.user?.role === 'admin';
+    const canSeeStewardData = isOwner || isCaretaker || isAdmin;
+
+    if (String(propertyObj.listingTier || '').toLowerCase() !== 'live' && !canSeeStewardData) {
+      delete propertyObj.landlordName;
+    }
 
     // Only reveal contact details to paying/authorised users
     if (!await hasContactAccess(id, req)) {
@@ -631,6 +647,8 @@ export const submitPropertyClaim = async (req, res) => {
       claimRole,
       claimNotes,
       evidenceUrls,
+      landlordPhone,
+      landlordEmail,
     } = req.body;
     const normalizedClaimRole = String(claimRole || '').trim().toLowerCase();
 
@@ -661,9 +679,28 @@ export const submitPropertyClaim = async (req, res) => {
         if (!approvedLandlordApplication) {
           return res.json({
             success: false,
+            requiresLandlordApplication: true,
             message: 'Owner claims require an approved landlord application first. Apply, get approved, then claim as owner.'
           });
         }
+      }
+    }
+
+    const normalizedLandlordPhone = String(landlordPhone || '').trim();
+    const normalizedLandlordEmail = String(landlordEmail || '').trim().toLowerCase();
+    if (normalizedClaimRole === 'caretaker') {
+      if (!normalizedLandlordPhone) {
+        return res.json({
+          success: false,
+          message: 'Landlord phone number is required for caretaker claims.'
+        });
+      }
+      const landlordDigits = normalizedLandlordPhone.replace(/\D/g, '');
+      if (landlordDigits.length < 9) {
+        return res.json({
+          success: false,
+          message: 'Landlord phone number looks invalid.'
+        });
       }
     }
 
@@ -732,10 +769,22 @@ export const submitPropertyClaim = async (req, res) => {
       claimantName: claimantName.trim(),
       claimRole: normalizedClaimRole,
       claimPhone: String(claimPhone || '').trim(),
+      landlordPhone: normalizedLandlordPhone,
+      landlordEmail: normalizedLandlordEmail,
       claimNotes: String(claimNotes || '').trim(),
       evidenceUrls: normalizedEvidence,
       status: 'pending',
     });
+
+    if (normalizedClaimRole === 'caretaker' && normalizedLandlordEmail) {
+      await sendEmail(
+        normalizedLandlordEmail,
+        'Your property appears on PataKeja',
+        `<p>A caretaker submitted a management claim for <strong>${property.name}</strong> on PataKeja.</p>
+         <p>If this is your property, sign in to review and manage it: <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/">Open PataKeja</a>.</p>
+         <p>Landlord phone provided: ${normalizedLandlordPhone || 'N/A'}</p>`
+      );
+    }
 
     property.claimStatus = 'pending';
     property.claimSubmittedAt = new Date();

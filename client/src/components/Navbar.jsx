@@ -1,5 +1,5 @@
 import React, {useEffect, useState } from "react";
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { assets } from '../assets/assets';
 import { useAppContext } from '../context/AppContext';
 import ProfileModal from './ProfileModal';
@@ -24,6 +24,7 @@ const Navbar = () => {
     const [showLandlordApplicationModal, setShowLandlordApplicationModal] = useState(false);
     
     const location = useLocation()
+    const routerNavigate = useNavigate()
 
     const{user, navigate, isOwner, dbImage, enablePushNotifications, darkMode, toggleDarkMode, isCaretaker} = useAppContext()
 
@@ -54,6 +55,16 @@ const Navbar = () => {
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
     }, [location.pathname]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search)
+        if (params.get('applyLandlord') === '1' && user && !isOwner) {
+            setShowLandlordApplicationModal(true)
+            params.delete('applyLandlord')
+            const next = `${location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
+            routerNavigate(next, { replace: true })
+        }
+    }, [location.pathname, location.search, user, isOwner, routerNavigate])
 
     // hero state helpers - evaluated once per render, no dark: cascade needed
     const heroLight = !isScrolled && !darkMode;  // on hero, light mode

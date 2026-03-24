@@ -21,7 +21,8 @@ import {
     transferProperty,
     getPropertyClaims,
     approvePropertyClaim,
-    rejectPropertyClaim
+    rejectPropertyClaim,
+    resetPropertyClaimState
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -52,5 +53,6 @@ adminRouter.post("/transfer-property", transferProperty);
 adminRouter.get("/claims", getPropertyClaims);
 adminRouter.post("/claims/:claimId/approve", approvePropertyClaim);
 adminRouter.post("/claims/:claimId/reject", rejectPropertyClaim);
+adminRouter.post('/reset-claim-state', resetPropertyClaimState);
 
 export default adminRouter;

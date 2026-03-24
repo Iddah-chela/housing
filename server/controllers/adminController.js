@@ -4,7 +4,9 @@ import House from "../models/house.js";
 import Report from "../models/report.js";
 import Property from "../models/property.js";
 import PropertyClaim from "../models/propertyClaim.js";
+import Notification from "../models/notification.js";
 import { applyAutoListingLifecycle, evaluateListingReadiness } from "../utils/listingLifecycle.js";
+import { sendEmail } from "../utils/mailer.js";
 
 // Middleware to check if user is admin
 export const isAdmin = (req, res, next) => {
@@ -438,6 +440,28 @@ export const approvePropertyClaim = async (req, res) => {
             ? 'Caretaker approved: ownership remains unchanged.'
             : 'Owner approved: ownership transferred to claimant.';
 
+        const nextSteps = (lifecycle.missing || []).length
+            ? `To go live, complete: ${(lifecycle.missing || []).join(', ')}.`
+            : 'Your listing now meets live requirements.';
+
+        await Notification.create({
+            user: claim.claimant,
+            title: 'Property claim approved',
+            body: `${nextSteps} Open My Listings to continue managing this property.`,
+            url: '/owner/list-room',
+            type: 'system',
+        });
+
+        if (claim.claimantEmail) {
+            await sendEmail(
+                claim.claimantEmail,
+                'Your PataKeja property claim was approved',
+                `<p>Your claim for <strong>${property.name}</strong> has been approved.</p>
+                 <p>${nextSteps}</p>
+                 <p>Open <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/owner/list-room">My Listings</a> to update and manage it.</p>`
+            );
+        }
+
         res.json({
             success: true,
             message: `${message} ${roleNote}`,
@@ -474,5 +498,42 @@ export const rejectPropertyClaim = async (req, res) => {
         res.json({ success: true, message: 'Claim rejected' });
     } catch (error) {
         res.json({ success: false, message: error.message });
+    }
+};
+
+// Reset listing claim state back to unclaimed (admin)
+export const resetPropertyClaimState = async (req, res) => {
+    try {
+        const { propertyId, removeCaretakers = true } = req.body;
+        if (!propertyId) return res.json({ success: false, message: 'Property ID is required' });
+
+        const property = await Property.findById(propertyId);
+        if (!property) return res.json({ success: false, message: 'Property not found' });
+
+        property.isClaimed = false;
+        property.claimedBy = null;
+        property.claimedByEmail = '';
+        property.claimRole = '';
+        property.claimPhone = '';
+        property.claimStatus = 'none';
+        property.claimReviewNote = '';
+        property.claimReviewedAt = null;
+        property.claimSubmittedAt = null;
+        if (removeCaretakers) {
+            property.caretakers = [];
+        }
+
+        property.listingTier = 'directory';
+        property.actionability = 'info_only';
+        await property.save();
+
+        await PropertyClaim.updateMany(
+            { property: propertyId, status: { $in: ['pending', 'approved', 'more_info_required'] } },
+            { $set: { status: 'rejected', reviewNote: 'Claim reset by admin', reviewedBy: req.user._id, reviewedAt: new Date() } }
+        );
+
+        return res.json({ success: true, message: 'Listing claim state reset to unclaimed', property });
+    } catch (error) {
+        return res.json({ success: false, message: error.message });
     }
 };

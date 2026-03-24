@@ -34,6 +34,17 @@ const propertyClaimSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  landlordPhone: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  landlordEmail: {
+    type: String,
+    default: '',
+    trim: true,
+    lowercase: true,
+  },
   evidenceUrls: {
     type: [String],
     default: [],
