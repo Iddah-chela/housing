@@ -104,6 +104,12 @@ const Navbar = () => {
                         </button>
                     </>
                 )}
+
+                {user && isCaretaker && (
+                    <button className={`border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-gray-700 dark:border-gray-500 hover:bg-gray-100/60 dark:hover:bg-gray-700' : heroLight ? 'text-gray-900 border-gray-700 hover:bg-gray-100/60' : 'text-white border-white/70 hover:bg-white/10'}`} onClick={() => navigate('/managed-properties')}>
+                        Manage Houses
+                    </button>
+                )}
                 
                 {user && !isOwner && (
                     <button 
@@ -212,6 +218,12 @@ const Navbar = () => {
                         + List Property
                     </button>
                     </>}
+
+                    {user && isCaretaker && (
+                        <button className="border dark:border-gray-600 px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all" onClick={()=> { setIsMenuOpen(false); navigate('/managed-properties'); }}>
+                            Manage Houses
+                        </button>
+                    )}
 
                     {user && !isOwner && (
                         <button 

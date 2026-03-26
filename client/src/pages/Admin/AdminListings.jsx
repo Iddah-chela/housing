@@ -14,11 +14,13 @@ const AdminListings = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editListingTarget, setEditListingTarget] = useState(null);
   const [transferTarget, setTransferTarget] = useState(null); // property being transferred
   const [transferEmail, setTransferEmail] = useState('');
   const [transferring, setTransferring] = useState(false);
   const [claimActionBusy, setClaimActionBusy] = useState(null);
   const [promoteBusy, setPromoteBusy] = useState(null);
+  const [promoteAfterEditId, setPromoteAfterEditId] = useState(null);
   const [resetBusy, setResetBusy] = useState(null);
 
   useEffect(() => { fetchProperties(); }, []);
@@ -128,7 +130,7 @@ const AdminListings = () => {
     }
   };
 
-  const handlePromoteToLive = async (propertyId) => {
+  const promotePropertyNow = async (propertyId) => {
     setPromoteBusy(propertyId);
     try {
       const token = await getToken();
@@ -144,6 +146,11 @@ const AdminListings = () => {
 
       if (Array.isArray(data?.missing) && data.missing.length) {
         toast.error(`Not ready: ${data.missing.join(', ')}`);
+        const target = properties.find((p) => p._id === propertyId);
+        if (target) {
+          setEditListingTarget(target);
+          setPromoteAfterEditId(propertyId);
+        }
       } else {
         toast.error(data.message || 'Could not promote listing');
       }
@@ -151,6 +158,21 @@ const AdminListings = () => {
       toast.error(error.message);
     } finally {
       setPromoteBusy(null);
+    }
+  };
+
+  const handlePromoteToLive = (property) => {
+    setEditListingTarget(property);
+    setPromoteAfterEditId(property._id);
+  };
+
+  const handlePromoteEditorClose = async () => {
+    const propertyId = promoteAfterEditId;
+    setEditListingTarget(null);
+    setPromoteAfterEditId(null);
+    await fetchProperties();
+    if (propertyId) {
+      await promotePropertyNow(propertyId);
     }
   };
 
@@ -268,6 +290,13 @@ const AdminListings = () => {
       {showAddModal && (
         <PropertyListingModal
           onClose={() => { setShowAddModal(false); fetchProperties(); }}
+        />
+      )}
+
+      {editListingTarget && (
+        <PropertyListingModal
+          existingProperty={editListingTarget}
+          onClose={handlePromoteEditorClose}
         />
       )}
 
@@ -476,11 +505,11 @@ const AdminListings = () => {
                     )}
                     {property.listingTier !== 'live' && (
                       <button
-                        onClick={() => handlePromoteToLive(property._id)}
+                        onClick={() => handlePromoteToLive(property)}
                         disabled={promoteBusy === property._id}
                         className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-700 disabled:opacity-60"
                       >
-                        {promoteBusy === property._id ? 'Promoting...' : 'Promote (Override)'}
+                        {promoteBusy === property._id ? 'Promoting...' : 'Edit then Promote'}
                       </button>
                     )}
                     {(property.isClaimed || property.claimStatus !== 'none') && (

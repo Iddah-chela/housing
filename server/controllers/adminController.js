@@ -4,9 +4,9 @@ import House from "../models/house.js";
 import Report from "../models/report.js";
 import Property from "../models/property.js";
 import PropertyClaim from "../models/propertyClaim.js";
-import Notification from "../models/notification.js";
 import { applyAutoListingLifecycle, evaluateListingReadiness } from "../utils/listingLifecycle.js";
 import { sendEmail } from "../utils/mailer.js";
+import { sendPushNotification } from "../utils/pushNotifier.js";
 
 // Middleware to check if user is admin
 export const isAdmin = (req, res, next) => {
@@ -444,22 +444,29 @@ export const approvePropertyClaim = async (req, res) => {
             ? `To go live, complete: ${(lifecycle.missing || []).join(', ')}.`
             : 'Your listing now meets live requirements.';
 
-        await Notification.create({
-            user: claim.claimant,
+        const isCaretakerClaim = claim.claimRole === 'caretaker';
+        const manageUrl = isCaretakerClaim ? '/managed-properties' : '/owner/list-room';
+        const manageLabel = isCaretakerClaim ? 'Manage Houses' : 'My Listings';
+
+        await sendPushNotification(claim.claimant, {
             title: 'Property claim approved',
-            body: `${nextSteps} Open My Listings to continue managing this property.`,
-            url: '/owner/list-room',
+            body: `${nextSteps} Open ${manageLabel} to continue managing this property.`,
+            url: manageUrl,
             type: 'system',
+            tag: `claim-approved-${property._id}`,
         });
 
-        if (claim.claimantEmail) {
-            await sendEmail(
-                claim.claimantEmail,
+        const claimantEmail = claim.claimantEmail || claimantUser.email;
+        if (claimantEmail) {
+            sendEmail(
+                claimantEmail,
                 'Your PataKeja property claim was approved',
                 `<p>Your claim for <strong>${property.name}</strong> has been approved.</p>
                  <p>${nextSteps}</p>
-                 <p>Open <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/owner/list-room">My Listings</a> to update and manage it.</p>`
-            );
+                 <p>Open <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}${manageUrl}">${manageLabel}</a> to update and manage it.</p>`
+            ).catch((err) => {
+                console.warn('Claim approval email failed:', err?.message || err);
+            });
         }
 
         res.json({

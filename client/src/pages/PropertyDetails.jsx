@@ -197,9 +197,9 @@ const PropertyDetails = () => {
       return 0
     }
 
-    const getCellDisplay = (building, rowIndex, colIndex) => {
+    const getCellDisplay = (building, rowIndex, colIndex, cellPx = bCellPx) => {
       const cell = building.grid[rowIndex][colIndex]
-      const numSize = Math.max(8, Math.floor(bCellPx * 0.22))
+      const numSize = Math.max(8, Math.floor(cellPx * 0.22))
       
       if (cell.type === 'room') {
         const roomNum = getRoomNumber(building.grid, rowIndex, colIndex)
@@ -257,7 +257,7 @@ const PropertyDetails = () => {
         toast.error('Please sign in to request a viewing')
         return
       }
-      if (!isUnlocked) {
+      if (!hasUnlockAccess) {
         toast.error('Please unlock this property first to request a viewing')
         return
       }
@@ -285,7 +285,7 @@ const PropertyDetails = () => {
         toast.error('Please sign in to apply directly')
         return
       }
-      if (!isUnlocked) {
+      if (!hasUnlockAccess) {
         toast.error('Please unlock this property first to apply')
         return
       }
@@ -449,6 +449,7 @@ const PropertyDetails = () => {
         ? 'Owner Updating Details'
         : 'Partner Listing'
   const userClaimStatus = claimData?.claim?.status || null
+  const userClaimRole = String(claimData?.claim?.claimRole || '').toLowerCase()
   const propertyClaimStatus = claimData?.property?.claimStatus || property?.claimStatus || 'none'
   const claimReviewNote = claimData?.claim?.reviewNote || claimData?.property?.claimReviewNote || property?.claimReviewNote || ''
   const isApprovedForCurrentUser = userClaimStatus === 'approved' || (
@@ -456,6 +457,9 @@ const PropertyDetails = () => {
   )
   const hasPendingClaim = userClaimStatus === 'pending' || propertyClaimStatus === 'pending'
   const showClaimStatusPanel = !!userClaimStatus
+  const manageRoute = userClaimRole === 'caretaker' ? '/managed-properties' : '/owner/list-room'
+  const manageLabel = userClaimRole === 'caretaker' ? 'Manage Houses' : 'My Listings'
+  const hasUnlockAccess = isUnlocked || isAdmin
   const roomPrices = []
   ;(property?.buildings || []).forEach((building) => {
     ;(building?.grid || []).forEach((row) => {
@@ -521,16 +525,16 @@ const PropertyDetails = () => {
             <div className='mt-3 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-white/70 dark:bg-gray-900/30'>
               <p className='text-sm font-semibold'>Your claim status: {userClaimStatus.replaceAll('_', ' ')}</p>
               {hasPendingClaim && (
-                <p className='text-xs mt-1'>Next: admin verifies your claim evidence. After approval, open My Listings to complete unit grid, pricing, and contact display name before this can go live.</p>
+                <p className='text-xs mt-1'>Next: admin verifies your claim evidence. After approval, open {manageLabel} to complete unit grid, pricing, and contact display name before this can go live.</p>
               )}
               {isApprovedForCurrentUser && (
                 <div className='mt-2'>
-                  <p className='text-xs'>Your claim is approved. Go to My Listings and edit this property to add the required details: room grid, pricing, contact, and landlord display name.</p>
+                  <p className='text-xs'>Your claim is approved. Go to {manageLabel} and edit this property to add the required details: room grid, pricing, contact, and landlord display name.</p>
                   <button
-                    onClick={() => window.location.assign('/owner/list-room')}
+                    onClick={() => window.location.assign(manageRoute)}
                     className='mt-2 px-3 py-1.5 rounded-md bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-medium'
                   >
-                    Open My Listings
+                    Open {manageLabel}
                   </button>
                 </div>
               )}
@@ -888,72 +892,144 @@ const PropertyDetails = () => {
                       if (gs === 'left')  trunkList.push({ dir: 'v', pos: 'left' })
                       if (gs === 'right') trunkList.push({ dir: 'v', pos: 'right' })
                     } else {
+                      // For stacked buildings, keep one side trunk and use per-building center feeders.
                       trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
-                      if (['top','top-left','top-right'].includes(gs))          trunkList.push({ dir: 'h', pos: 'top' })
-                      if (['bottom','bottom-left','bottom-right'].includes(gs)) trunkList.push({ dir: 'h', pos: 'bottom' })
                     }
+                    const primaryTrunk = trunkList[0] || { dir: isColLayout ? 'v' : 'h', pos: isColLayout ? 'left' : 'bottom' }
+                    const stackedGapPx = 32 // matches mb-8 spacing between stacked building rows
+                    const stackedFeedBottomPx = -22
+                    const stackedTrunkSidePx = 22
+                    const stackedTrunkCenterPx = stackedTrunkSidePx + 6
+                    const stackedHeights = isColLayout
+                      ? property.buildings.map((b) => {
+                          const cols = Math.max(1, Number(b.cols || 1))
+                          const cell = Math.max(bCellPx, Math.min(62, Math.floor(150 / cols)))
+                          const rows = Math.max(1, Array.isArray(b.grid) ? b.grid.length : 1)
+                          const roofHeight = 28
+                          const labelGap = 22
+                          const foundationHeight = 8
+                          return roofHeight + labelGap + (rows * cell) + foundationHeight
+                        })
+                      : []
+                    const stackedTotalHeight = stackedHeights.reduce((sum, h) => sum + h, 0)
+                    const stackedFeedCenters = isColLayout
+                      ? stackedHeights.map((h, idx) => {
+                          const prev = stackedHeights.slice(0, idx).reduce((sum, x) => sum + x, 0)
+                          return prev + (idx * stackedGapPx) + (h - stackedFeedBottomPx - 6)
+                        })
+                      : []
+                    const stackedTrunkTop = isColLayout && stackedFeedCenters.length
+                      ? Math.max(8, Math.round(stackedFeedCenters[0] + 5))
+                      : 10
+                    const stackedTrunkHeight = isColLayout && stackedFeedCenters.length
+                      ? Math.max(24, Math.round(stackedFeedCenters[stackedFeedCenters.length - 1] - stackedFeedCenters[0] + 16))
+                      : Math.max(60, stackedTotalHeight + ((Math.max(0, property.buildings.length - 1)) * stackedGapPx))
+                    const isTopCornerGate = gs === 'top-left' || gs === 'top-right'
+                    const isBottomCornerGate = gs === 'bottom-left' || gs === 'bottom-right'
+                    const stackedTrunkTopAdjusted = isColLayout
+                      ? Math.max(4, stackedTrunkTop - (isTopCornerGate ? 12 : 0))
+                      : stackedTrunkTop
+                    const stackedTrunkHeightAdjusted = isColLayout
+                      ? (stackedTrunkHeight + (isTopCornerGate ? 12 : 0) + (isBottomCornerGate ? 24 : 0))
+                      : stackedTrunkHeight
+                    const stackedFlowHeight = stackedTotalHeight + (Math.max(0, property.buildings.length - 1) * stackedGapPx)
+                    const stackedGateY = Math.round(stackedFlowHeight / 2)
+                    const isDiagonalGate = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(gs)
+                    const isSideGate = gs === 'left' || gs === 'right'
+                    const stackedHouseShiftPx = isColLayout && isSideGate && !isDiagonalGate ? 20 : 0
+                    const stackedFeederExtendPx = isDiagonalGate ? 40 : 30
+                    const stackedFeederTrunkInsetPx = Math.max(-20, (stackedTrunkSidePx + 2) - stackedFeederExtendPx)
+                    const stackedGateEdgeOverflow = 0
+                    const stackedGateConnectorWidth = stackedTrunkCenterPx + 6
+                    const stackedGateConnectorTop = (() => {
+                      if (!isColLayout || !stackedFeedCenters.length) return null
+                      if (gs === 'left' || gs === 'right') return 'calc(50% - 6px)'
+                      if (gs === 'top-left' || gs === 'top-right') return Math.max(4, Math.round(stackedTrunkTopAdjusted) - 2)
+                      if (gs === 'bottom-left' || gs === 'bottom-right') return Math.round(stackedTrunkTopAdjusted + stackedTrunkHeightAdjusted - 8)
+                      return null
+                    })()
                     return (
                       <>
                         {trunkList.map((t, i) => t.dir === 'h' ? (
-                          <div key={i} className='absolute left-0 right-0 overflow-hidden bg-gray-500 dark:bg-gray-600'
+                          <div key={i} className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
                             style={t.pos === 'top'
-                              ? { top: 0, height: 14, zIndex: 1 }
-                              : { bottom: 0, height: 14, zIndex: 1 }}>
-                            <div className='absolute inset-0 flex items-center' style={{ padding: '0 6px' }}>
-                              <div style={{ borderTop: '2px dashed rgba(255,255,255,0.55)', width: '100%' }}></div>
+                              ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
+                              : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 }}>
+                            <div className='absolute inset-0 flex items-center' style={{ padding: '0 8px' }}>
+                              <div style={{ borderTop: '2px dashed rgba(77,52,30,0.45)', width: '100%' }}></div>
                             </div>
                           </div>
                         ) : (
-                          <div key={i} className='absolute top-0 bottom-0 overflow-hidden bg-gray-500 dark:bg-gray-600'
+                          <div key={i} className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
                             style={t.pos === 'left'
-                              ? { left: 0, width: 14, zIndex: 1 }
-                              : { right: 0, width: 14, zIndex: 1 }}>
+                              ? (isColLayout
+                                ? { left: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
+                                : { left: 22, top: ['top-left','top-right'].includes(gs) ? 6 : 10, bottom: ['bottom-left','bottom-right'].includes(gs) ? -2 : 10, width: 12, zIndex: 1 })
+                              : (isColLayout
+                                ? { right: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
+                                : { right: 22, top: ['top-left','top-right'].includes(gs) ? 6 : 10, bottom: ['bottom-left','bottom-right'].includes(gs) ? -2 : 10, width: 12, zIndex: 1 })}>
                             <div className='absolute inset-0 flex justify-center'>
-                              <div style={{ borderLeft: '2px dashed rgba(255,255,255,0.55)', height: '100%' }}></div>
+                              <div style={{ borderLeft: '2px dashed rgba(77,52,30,0.45)', height: '100%' }}></div>
                             </div>
                           </div>
                         ))}
-                        <div className={`relative flex ${isColLayout ? 'flex-col items-start' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
+                        {isColLayout && stackedGateConnectorTop !== null && ['left','right'].includes(gs) && (
+                          <div
+                            className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                            style={['left','top-left','bottom-left'].includes(gs)
+                              ? { left: -stackedGateEdgeOverflow, top: stackedGateConnectorTop, width: stackedGateConnectorWidth, height: 12, zIndex: 1 }
+                              : { right: -stackedGateEdgeOverflow, top: stackedGateConnectorTop, width: stackedGateConnectorWidth, height: 12, zIndex: 1 }}
+                          >
+                            <div className='absolute inset-0 flex items-center px-2'>
+                              <div style={{ borderTop: '2px dashed rgba(77,52,30,0.45)', width: '100%' }}></div>
+                            </div>
+                          </div>
+                        )}
+                        <div className={`relative flex ${isColLayout ? 'flex-col items-start w-full' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
                     {property.buildings.map((building, buildingIdx) => {
                       const isActive = buildingIdx === selectedBuilding
+                      const buildingCols = Math.max(1, Number(building.cols || 1))
+                      const buildingCellPx = Math.max(bCellPx, Math.min(62, Math.floor(150 / buildingCols)))
+                      const buildingCoreWidth = building.cols * buildingCellPx
+                      const centerX = Math.round(buildingCoreWidth / 2) + 12
 
                       return (
                         <React.Fragment key={building.id}>
-                          {/* Corridor pathway between buildings */}
-                          {buildingIdx > 0 && (isColLayout ? (
-                            /* Horizontal corridor for stacked buildings - bleeds to left+right fence */
-                            <div style={{ height: 14, alignSelf: 'stretch', flexShrink: 0, marginLeft: '-12px', marginRight: '-12px' }} className='my-1.5 relative'>
-                              <div className='h-full w-full bg-gray-500 dark:bg-gray-600'>
-                                <div className='absolute inset-0 flex items-center px-2'>
-                                  <div style={{ borderTop: '2px dashed rgba(255,255,255,0.6)', width: '100%' }}></div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            /* Vertical corridor for side-by-side buildings - bleeds to top+bottom fence */
-                            <div style={{ width: 18, alignSelf: 'stretch', flexShrink: 0, marginTop: '-12px', marginBottom: '-12px' }} className='flex items-stretch mx-1.5 relative'>
-                              <div className='w-full h-full bg-gray-500 dark:bg-gray-600'>
-                                <div className='absolute inset-0 flex justify-center'>
-                                  <div style={{ borderLeft: '2px dashed rgba(255,255,255,0.6)', height: '100%' }}></div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                          <div
+                            className={`relative ${isColLayout ? 'w-full pl-2 mb-8' : ''}`}
+                            style={isColLayout && stackedHouseShiftPx
+                              ? (gs === 'left' ? { transform: `translateX(${stackedHouseShiftPx}px)` } : { transform: `translateX(-${stackedHouseShiftPx}px)` })
+                              : undefined}
+                          >
                         <div
                           onClick={() => { setZoomedBuilding(buildingIdx); setSelectedBuilding(buildingIdx) }}
-                          className='relative transition-all duration-200 mx-2 my-2 cursor-pointer hover:opacity-80'
+                          className={`relative transition-all duration-200 cursor-pointer hover:opacity-80 ${isColLayout ? 'inline-block' : 'mx-2 my-2'}`}
                           title={`Click to zoom into ${building.name}`}
                         >
+                          {/* Branch connector from trunk lane to building center for side-by-side layout */}
+                          {!isColLayout && (
+                            <div
+                              className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                              style={primaryTrunk.pos === 'top'
+                                ? { top: -16, left: '50%', width: 12, height: 16, transform: 'translateX(-50%)', zIndex: 1 }
+                                : { bottom: -16, left: '50%', width: 12, height: 16, transform: 'translateX(-50%)', zIndex: 1 }}
+                            >
+                              <div className='absolute inset-0 flex justify-center'>
+                                <div style={{ borderLeft: '2px dashed rgba(77,52,30,0.45)', height: '100%' }}></div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Building label */}
                           <div className={`text-center text-xs font-semibold mb-1 ${isActive ? 'text-indigo-700 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>
                             {building.name}
                           </div>
 
                           {/* Roof - outlined triangle with overhang, no bottom border */}
-                          <div className='flex justify-center' style={{ marginLeft: -Math.round(bCellPx * 0.15), marginRight: -Math.round(bCellPx * 0.15) }}>
-                            <svg width={building.cols * bCellPx + Math.round(bCellPx * 0.3)} height='28' className='drop-shadow-sm'>
+                          <div className='flex justify-center' style={{ marginLeft: -Math.round(buildingCellPx * 0.15), marginRight: -Math.round(buildingCellPx * 0.15) }}>
+                            <svg width={building.cols * buildingCellPx + Math.round(buildingCellPx * 0.3)} height='28' className='drop-shadow-sm'>
                               <polyline
-                                points={`0,28 ${(building.cols * bCellPx + Math.round(bCellPx * 0.3)) / 2},2 ${building.cols * bCellPx + Math.round(bCellPx * 0.3)},28`}
+                                points={`0,28 ${(building.cols * buildingCellPx + Math.round(buildingCellPx * 0.3)) / 2},2 ${building.cols * buildingCellPx + Math.round(buildingCellPx * 0.3)},28`}
                                 fill={isActive ? (darkMode ? '#4338ca' : '#ede9fe') : 'transparent'}
                                 stroke={isActive ? '#4f46e5' : '#9ca3af'}
                                 strokeWidth={isActive ? '3.5' : '2'}
@@ -975,7 +1051,7 @@ const PropertyDetails = () => {
                                     <div
                                       key={colIndex}
                                       onClick={(e) => { e.stopPropagation(); setZoomedBuilding(buildingIdx); setSelectedBuilding(buildingIdx) }}
-                                      style={{ width: bCellPx + 'px', height: bCellPx + 'px' }}
+                                      style={{ width: buildingCellPx + 'px', height: buildingCellPx + 'px' }}
                                       className={`group relative border border-gray-300 flex items-center justify-center transition-all text-xs ${
                                         isSelected ? 'ring-4 ring-indigo-500 bg-indigo-200 dark:bg-indigo-900 z-10' :
                                         cell.type === 'room' && cell.isBooked ? 'bg-amber-200 dark:bg-amber-900 border-amber-400 cursor-not-allowed' :
@@ -986,7 +1062,7 @@ const PropertyDetails = () => {
                                         'bg-gray-50'
                                       }`}
                                     >
-                                      {getCellDisplay(building, rowIndex, colIndex)}
+                                      {getCellDisplay(building, rowIndex, colIndex, buildingCellPx)}
                                       {cell.type === 'room' && (
                                         <div className='hidden group-hover:flex flex-col absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none items-center'>
                                           <div className='bg-gray-900 text-white rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl text-left'>
@@ -1014,6 +1090,31 @@ const PropertyDetails = () => {
                           {/* Foundation */}
                           <div className='h-2 bg-gradient-to-b from-gray-300 to-gray-500 rounded-b'></div>
                         </div>
+
+                        {/* For stacked buildings: center branch + feeder to side trunk */}
+                        {isColLayout && (
+                          <>
+                            <div
+                              className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                              style={{ left: centerX, bottom: stackedFeedBottomPx, width: 12, height: 25, transform: 'translateX(-50%)', zIndex: 1 }}
+                            >
+                              <div className='absolute inset-0 flex justify-center'>
+                                <div style={{ borderLeft: '2px dashed rgba(77,52,30,0.45)', height: '100%' }}></div>
+                              </div>
+                            </div>
+                            <div
+                              className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                              style={primaryTrunk.pos === 'right'
+                                ? { left: centerX, right: stackedFeederTrunkInsetPx, bottom: stackedFeedBottomPx, height: 12, zIndex: 1 }
+                                : { left: stackedFeederTrunkInsetPx, right: `calc(100% - ${centerX}px)`, bottom: stackedFeedBottomPx, height: 12, zIndex: 1 }}
+                            >
+                              <div className='absolute inset-0 flex items-center px-2'>
+                                <div style={{ borderTop: '2px dashed rgba(77,52,30,0.45)', width: '100%' }}></div>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                          </div>
                         </React.Fragment>
                       )
                     })}
@@ -1085,14 +1186,14 @@ const PropertyDetails = () => {
               </div>
 
               <div className='flex flex-col gap-3'>
-                {isUnlocked ? (
+                {hasUnlockAccess ? (
                   <>
                     {/* Unlocked - Show contact buttons */}
                     {!isPartnerListing && !isAdminManagedWithoutSteward && (
                       <div className='mb-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg'>
                         <div className='flex items-center gap-2 text-sm text-green-700'>
                           <Unlock className='w-4 h-4' />
-                          <span className='font-medium'>Active Pass</span>
+                          <span className='font-medium'>{isAdmin && !isUnlocked ? 'Admin Access' : 'Active Pass'}</span>
                           {unlockData && (
                             <span className='text-xs text-green-600'>
                               {unlockData.passType === '7day' ? '7-day' : '1-day'} pass - {unlockData.daysRemaining > 0 ? `${unlockData.daysRemaining} day${unlockData.daysRemaining > 1 ? 's' : ''} left` : 'expires today'}

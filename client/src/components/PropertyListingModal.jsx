@@ -569,7 +569,9 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
   const onSubmitHandler = async (e) => {
     e.preventDefault()
 
-    if (!propertyInfo.name || !propertyInfo.address || !propertyInfo.contact || !propertyInfo.place || !propertyInfo.propertyType) {
+    const isAdminCreateMode = effectiveAdmin && !existingProperty
+
+    if (!isAdminCreateMode && (!propertyInfo.name || !propertyInfo.address || !propertyInfo.contact || !propertyInfo.place || !propertyInfo.propertyType)) {
       toast.error("Please fill in all property details")
       return
     }
@@ -583,13 +585,13 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
       })
     })
 
-    if (totalRooms === 0) {
+    if (!isAdminCreateMode && totalRooms === 0) {
       toast.error('Please add at least one room to the grid')
       return
     }
 
     // On create: require at least one image. On edit: existing images are already on the server.
-    if (!existingProperty && !Object.values(images).some(image => image)) {
+    if (!isAdminCreateMode && !existingProperty && !Object.values(images).some(image => image)) {
       toast.error("Please upload at least one image")
       return
     }
@@ -665,22 +667,22 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
         <div className='border-l-4 border-indigo-500 pl-4 mb-6'>
           <h2 className='text-xl font-semibold mb-3'>Property Information</h2>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-            <input type="text" placeholder='Property/Apartment Name *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.name} onChange={(e) => setPropertyInfo({ ...propertyInfo, name: e.target.value })} required />
-            <select className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.propertyType} onChange={(e) => setPropertyInfo({ ...propertyInfo, propertyType: e.target.value })} required>
+            <input type="text" placeholder='Property/Apartment Name *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.name} onChange={(e) => setPropertyInfo({ ...propertyInfo, name: e.target.value })} required={!effectiveAdmin || !!existingProperty} />
+            <select className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.propertyType} onChange={(e) => setPropertyInfo({ ...propertyInfo, propertyType: e.target.value })} required={!effectiveAdmin || !!existingProperty}>
               <option value="">Select type *</option>
               <option value="Apartments">Apartment Complex</option>
               <option value="Bedsitters">Bedsitter Units</option>
               <option value="Single Rooms">Single Room Rentals</option>
               <option value="Mixed">Mixed</option>
             </select>
-            <input type="tel" placeholder='Contact Phone *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.contact} onChange={(e) => setPropertyInfo({ ...propertyInfo, contact: e.target.value })} required />
+            <input type="tel" placeholder='Contact Phone *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.contact} onChange={(e) => setPropertyInfo({ ...propertyInfo, contact: e.target.value })} required={!effectiveAdmin || !!existingProperty} />
             <input type="tel" placeholder='WhatsApp Number (Optional)' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.whatsappNumber} onChange={(e) => setPropertyInfo({ ...propertyInfo, whatsappNumber: e.target.value })} />
             {(effectiveAdmin || !!existingProperty) && (
               <input type="text" placeholder="House Owner's Name (shown to tenants after unlock)" className='border border-indigo-300 dark:border-indigo-600 rounded px-3 py-2 outline-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:text-gray-100 md:col-span-2' value={propertyInfo.landlordName} onChange={(e) => setPropertyInfo({ ...propertyInfo, landlordName: e.target.value })} />
             )}
-            <input type="text" placeholder='Street Address *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.address} onChange={(e) => setPropertyInfo({ ...propertyInfo, address: e.target.value })} required />
+            <input type="text" placeholder='Street Address *' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.address} onChange={(e) => setPropertyInfo({ ...propertyInfo, address: e.target.value })} required={!effectiveAdmin || !!existingProperty} />
             <input type="text" placeholder='Estate/Area (optional if same as property name)' className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100' value={propertyInfo.estate} onChange={(e) => setPropertyInfo({ ...propertyInfo, estate: e.target.value })} />
-            <select className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 md:col-span-2' value={propertyInfo.place} onChange={(e) => setPropertyInfo({ ...propertyInfo, place: e.target.value })} required>
+            <select className='border border-gray-300 dark:border-gray-600 rounded px-3 py-2 outline-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 md:col-span-2' value={propertyInfo.place} onChange={(e) => setPropertyInfo({ ...propertyInfo, place: e.target.value })} required={!effectiveAdmin || !!existingProperty}>
               <option value="">Select Location *</option>
               {Places.map((place) => (<option key={place} value={place}>{place}</option>))}
             </select>

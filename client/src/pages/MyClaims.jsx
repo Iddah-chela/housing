@@ -13,12 +13,14 @@ const statusBadgeClass = (status) => {
 
 const formatStatus = (status) => String(status || 'pending').replaceAll('_', ' ')
 
-const getClaimJourney = (status) => {
+const getClaimJourney = (status, claimRole) => {
   const key = String(status || 'pending').toLowerCase()
+  const role = String(claimRole || '').toLowerCase()
+  const manageLabel = role === 'caretaker' ? 'Manage Houses' : 'My Listings'
   if (key === 'approved') {
     return {
       stage: 'Approved',
-      next: 'Open My Listings and complete room grid, rent pricing, contact, and landlord display name to go live.',
+      next: `Open ${manageLabel} and complete room grid, rent pricing, contact, and landlord display name to go live.`,
     }
   }
   if (key === 'rejected') {
@@ -144,7 +146,10 @@ const MyClaims = () => {
             const image = property.images?.[0]
             const isApproved = claim.status === 'approved'
             const isPending = claim.status === 'pending'
-            const journey = getClaimJourney(claim.status)
+            const isCaretakerClaim = String(claim.claimRole || '').toLowerCase() === 'caretaker'
+            const manageRoute = isCaretakerClaim ? '/managed-properties' : '/owner/list-room'
+            const manageLabel = isCaretakerClaim ? 'Manage Houses' : 'My Listings'
+            const journey = getClaimJourney(claim.status, claim.claimRole)
             const readiness = property.liveReadiness || {}
             const missing = Array.isArray(readiness.missing) ? readiness.missing : []
 
@@ -212,10 +217,10 @@ const MyClaims = () => {
 
                       {isApproved && (
                         <button
-                          onClick={() => navigate('/owner/list-room')}
+                          onClick={() => navigate(manageRoute)}
                           className='px-3 py-1.5 rounded-md bg-emerald-700 text-white text-sm hover:bg-emerald-800'
                         >
-                          Open My Listings
+                          Open {manageLabel}
                         </button>
                       )}
                     </div>

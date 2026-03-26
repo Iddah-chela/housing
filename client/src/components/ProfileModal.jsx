@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
@@ -32,27 +32,9 @@ const makeFallbackUrl = (id) =>
     `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURIComponent(id)}`
 
 const ProfileModal = ({ onClose }) => {
-    const { user, navigate, isOwner, isAdmin, logout, getToken, axios, dbImage, setDbImage } = useAppContext()
+    const { user, navigate, isOwner, isAdmin, logout, dbImage, setDbImage } = useAppContext()
     const [showPicker, setShowPicker] = useState(false)
     const [saving, setSaving] = useState(false)
-    const [isCaretaker, setIsCaretaker] = useState(false)
-
-    // Check if user is a caretaker of any property
-    useEffect(() => {
-        const checkCaretaker = async () => {
-            try {
-                const token = await getToken()
-                if (!token) return
-                const { data } = await axios.get('/api/properties/managed', {
-                    headers: { Authorization: `Bearer ${token}` }
-                })
-                if (data.success && data.properties?.length > 0) {
-                    setIsCaretaker(true)
-                }
-            } catch {} // ignore errors
-        }
-        if (user) checkCaretaker()
-    }, [user])
 
     const handleLogout = () => {
         logout()
@@ -235,18 +217,6 @@ const ProfileModal = ({ onClose }) => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                                 </svg>
                                 <span className='text-gray-800 dark:text-gray-200 font-medium'>Owner Dashboard</span>
-                            </button>
-                        )}
-
-                        {isCaretaker && (
-                            <button 
-                                onClick={() => handleNavigation('/managed-properties')}
-                                className='flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-all text-left'
-                            >
-                                <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                                <span className='text-gray-800 dark:text-gray-200 font-medium'>Manage Properties</span>
                             </button>
                         )}
 

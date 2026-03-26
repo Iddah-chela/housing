@@ -127,6 +127,7 @@ export const createProperty = async (req, res) => {
       landlordName
     } = req.body;
     const owner = req.user._id;
+    const isAdmin = req.user?.role === 'admin';
 
 
     // Upload images to Cloudinary
@@ -156,22 +157,31 @@ export const createProperty = async (req, res) => {
       ? (buildings.trim() ? JSON.parse(buildings) : [])
       : (Array.isArray(buildings) ? buildings : []);
 
+    const normalizedName = String(name || '').trim();
+    const normalizedAddress = String(address || '').trim();
+    const normalizedContact = String(contact || '').trim();
+    const normalizedPlace = String(place || '').trim();
+    const normalizedPropertyType = String(propertyType || '').trim();
+    const isSparseAdminCreate = isAdmin && (
+      !normalizedAddress || !normalizedContact || !normalizedPlace || !normalizedPropertyType
+    );
+
     const property = await Property.create({
       owner,
-      name,
-      address,
-      contact,
+      name: normalizedName || 'Partner Listing',
+      address: normalizedAddress || 'Details pending update',
+      contact: normalizedContact || '0000000000',
       whatsappNumber,
-      place,
-      estate: estate?.trim() || name,
-      propertyType,
+      place: normalizedPlace || 'Unknown',
+      estate: estate?.trim() || normalizedName || 'Unknown',
+      propertyType: normalizedPropertyType || 'Mixed',
       amenities: Array.isArray(amenities) ? amenities : [],
       listedRentMin: listedRentMin ?? null,
       listedRentMax: listedRentMax ?? null,
       declaredUnits: declaredUnits ?? null,
-      listingTier: listingTier || (parsedBuildings.length > 0 ? 'live' : 'directory'),
-      vacancyStatus: vacancyStatus || (parsedBuildings.length > 0 ? 'full' : 'unknown'),
-      sourceType: sourceType || 'landlord_submitted',
+      listingTier: isSparseAdminCreate ? 'directory' : (listingTier || (parsedBuildings.length > 0 ? 'live' : 'directory')),
+      vacancyStatus: isSparseAdminCreate ? 'unknown' : (vacancyStatus || (parsedBuildings.length > 0 ? 'full' : 'unknown')),
+      sourceType: isSparseAdminCreate ? 'field_list' : (sourceType || 'landlord_submitted'),
       contactDisplayMode: contactDisplayMode || 'public',
       consentStatus: consentStatus || 'unknown',
       googleMapsUrl: googleMapsUrl || '',
