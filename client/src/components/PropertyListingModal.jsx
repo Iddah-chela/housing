@@ -955,6 +955,15 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const roadBgClass = isMurramSurface ? 'bg-[#b08968] dark:bg-[#8a6a4e]' : 'bg-gray-500 dark:bg-gray-600'
                   const laneDashColor = isMurramSurface ? 'rgba(77,52,30,0.45)' : 'rgba(255,255,255,0.55)'
                   const corridorDashColor = isMurramSurface ? 'rgba(77,52,30,0.45)' : 'rgba(255,255,255,0.6)'
+                  const murramTrunkList = []
+                  if (!isColLayout) {
+                    murramTrunkList.push({ dir: 'h', pos: ['top','top-left','top-right'].includes(gs) ? 'top' : 'bottom' })
+                    if (gs === 'left') murramTrunkList.push({ dir: 'v', pos: 'left' })
+                    if (gs === 'right') murramTrunkList.push({ dir: 'v', pos: 'right' })
+                  } else {
+                    murramTrunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                  }
+                  const murramPrimaryTrunk = murramTrunkList[0] || { dir: isColLayout ? 'v' : 'h', pos: isColLayout ? 'left' : 'bottom' }
                   // Build list of trunk strips to render
                   const trunkList = []
                   if (!isColLayout) {
@@ -982,6 +991,124 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   return (
                 <div className='border-2 border-dashed border-gray-500 dark:border-gray-400 p-3 bg-gradient-to-br from-green-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 relative'
                   style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad }}>
+                  {isMurramSurface ? (
+                    <>
+                      {murramTrunkList.map((t, i) => t.dir === 'h' ? (
+                        <div key={i} className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={t.pos === 'top'
+                            ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
+                            : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex items-center px-2'>
+                            <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={i} className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={t.pos === 'left'
+                            ? { left: 22, top: 10, bottom: 10, width: 12, zIndex: 1 }
+                            : { right: 22, top: 10, bottom: 10, width: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex justify-center'>
+                            <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className={`relative flex ${isColLayout ? 'flex-col items-start w-full' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
+                        {buildings.map((building, buildingIndex) => {
+                          const isActive = buildingIndex === activeBuilding
+                          const centerX = Math.round((building.cols * baseCellPx) / 2) + 12
+
+                          return (
+                            <div key={building.id} className={`relative ${isColLayout ? 'w-full mb-6' : 'mx-2 my-2'}`}>
+                              <div
+                                onClick={() => { if (!isActive) { setActiveBuilding(buildingIndex); setSelectedCell(null); setSelectedCells([]) } }}
+                                className={`relative transition-all duration-200 ${isActive ? 'cursor-default' : 'opacity-60 cursor-pointer hover:opacity-80'}`}
+                                style={{ transform: isActive ? 'scale(1)' : 'scale(0.88)', transformOrigin: 'bottom center' }}
+                              >
+                                {!isColLayout && (
+                                  <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                                    style={murramPrimaryTrunk.pos === 'top'
+                                      ? { top: -16, left: '50%', width: 12, height: 16, transform: 'translateX(-50%)', zIndex: 1 }
+                                      : { bottom: -16, left: '50%', width: 12, height: 16, transform: 'translateX(-50%)', zIndex: 1 }}>
+                                    <div className='absolute inset-0 flex justify-center'>
+                                      <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className={`text-center text-xs font-semibold mb-1 ${isActive ? 'text-indigo-700 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>{building.name}</div>
+                                <div className='flex justify-center' style={{ marginLeft: -Math.round(baseCellPx * 0.15), marginRight: -Math.round(baseCellPx * 0.15) }}>
+                                  <svg width={building.cols * baseCellPx + Math.round(baseCellPx * 0.3)} height='28'>
+                                    <polyline
+                                      points={`0,28 ${(building.cols * baseCellPx + Math.round(baseCellPx * 0.3)) / 2},2 ${building.cols * baseCellPx + Math.round(baseCellPx * 0.3)},28`}
+                                      fill={isActive ? (darkMode ? '#4338ca' : '#ede9fe') : 'transparent'}
+                                      stroke={isActive ? '#4f46e5' : '#9ca3af'}
+                                      strokeWidth={isActive ? '3.5' : '2'}
+                                      strokeLinejoin='round'
+                                    />
+                                  </svg>
+                                </div>
+
+                                <div className={`bg-white dark:bg-gray-700 shadow border-2 ${isActive ? 'border-indigo-400' : 'border-gray-300 dark:border-gray-600'}`}>
+                                  {building.grid.map((row, rowIndex) => (
+                                    <div key={rowIndex} className='flex'>
+                                      {row.map((cell, colIndex) => {
+                                        const isSelected = isActive && selectedCell?.row === rowIndex && selectedCell?.col === colIndex
+                                        const isMultiSelected = isActive && selectedCells.includes(`${rowIndex},${colIndex}`)
+                                        return (
+                                          <div
+                                            key={colIndex}
+                                            onClick={(e) => { if (isActive) { e.stopPropagation(); handleCellClick(rowIndex, colIndex) } }}
+                                            onDragOver={(e) => { if (isActive) e.preventDefault() }}
+                                            onDrop={(e) => { if (isActive) { e.preventDefault(); handleDrop(rowIndex, colIndex) } }}
+                                            style={{ width: baseCellPx + 'px', height: baseCellPx + 'px' }}
+                                            className={`group relative border border-gray-300 dark:border-gray-600 flex items-center justify-center transition-all ${
+                                              isSelected ? 'ring-4 ring-indigo-500 bg-indigo-200 dark:bg-indigo-900 cursor-pointer' :
+                                              isMultiSelected ? 'ring-2 ring-yellow-400 bg-yellow-100 dark:bg-yellow-900 cursor-pointer' :
+                                              isActive && cell.type === 'room' && !cell.isVacant ? 'bg-red-200 dark:bg-red-900 border-red-400 hover:bg-red-300 cursor-pointer' :
+                                              isActive && cell.type === 'room' ? 'bg-emerald-200 dark:bg-emerald-900 border-emerald-400 hover:bg-emerald-300 cursor-pointer' :
+                                              isActive && cell.type === 'common' ? 'bg-gray-200 dark:bg-gray-700 border-gray-400 hover:bg-gray-300 cursor-pointer' :
+                                              isActive ? 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 cursor-pointer' :
+                                              cell.type === 'room' && !cell.isVacant ? 'bg-red-200 dark:bg-red-950 border-red-400' :
+                                              cell.type === 'room' ? 'bg-emerald-200 dark:bg-emerald-950 border-emerald-400' :
+                                              cell.type === 'common' ? 'bg-gray-200 dark:bg-gray-700 border-gray-400' : 'bg-gray-50'
+                                            }`}
+                                          >
+                                            {getCellDisplay(cell, cell.type === 'room' ? getRoomNumber(building.grid, rowIndex, colIndex) : 0)}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className='h-2 bg-gradient-to-b from-gray-300 to-gray-500 rounded-b'></div>
+                              </div>
+
+                              {isColLayout && (
+                                <>
+                                  <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                                    style={{ left: centerX, bottom: -20, width: 12, height: 22, transform: 'translateX(-50%)', zIndex: 1 }}>
+                                    <div className='absolute inset-0 flex justify-center'>
+                                      <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                                    </div>
+                                  </div>
+                                  <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                                    style={murramPrimaryTrunk.pos === 'right'
+                                      ? { left: centerX, right: 22, bottom: -20, height: 12, zIndex: 1 }
+                                      : { left: 22, right: `calc(100% - ${centerX}px)`, bottom: -20, height: 12, zIndex: 1 }}>
+                                    <div className='absolute inset-0 flex items-center px-2'>
+                                      <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                  <>
                   {/* Trunk strips — grey path towards gate, corridors bleed into them creating T-junctions */}
                   {trunkList.map((t, i) => t.dir === 'h' ? (
                     <div key={i} className={`absolute left-0 right-0 overflow-hidden ${roadBgClass}`}
@@ -1101,6 +1228,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                       )
                     })}
                   </div>
+                  </>
+                  )}
                 </div>
                   )
                 })()}
