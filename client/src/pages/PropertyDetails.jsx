@@ -897,9 +897,14 @@ const PropertyDetails = () => {
                       trunkList.push({ dir: 'h', pos: ['top','top-left','top-right'].includes(gs) ? 'top' : 'bottom' })
                       if (gs === 'left')  trunkList.push({ dir: 'v', pos: 'left' })
                       if (gs === 'right') trunkList.push({ dir: 'v', pos: 'right' })
-                    } else {
-                      // For stacked buildings, keep one side trunk and use per-building center feeders.
+                    } else if (isMurramRoad) {
+                      // Murram stacked view: one side trunk + per-building feeders.
                       trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                    } else {
+                      // Tarmac stacked view mirrors ListingModal: side trunk + optional top/bottom fence corridors.
+                      trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                      if (['top','top-left','top-right'].includes(gs)) trunkList.push({ dir: 'h', pos: 'top' })
+                      if (['bottom','bottom-left','bottom-right'].includes(gs)) trunkList.push({ dir: 'h', pos: 'bottom' })
                     }
                     const primaryTrunk = trunkList[0] || { dir: isColLayout ? 'v' : 'h', pos: isColLayout ? 'left' : 'bottom' }
                     const stackedGapPx = 32 // matches mb-8 spacing between stacked building rows
@@ -942,6 +947,7 @@ const PropertyDetails = () => {
                     const stackedGateY = Math.round(stackedFlowHeight / 2)
                     const isDiagonalGate = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(gs)
                     const isSideGate = gs === 'left' || gs === 'right'
+                    const isCenterTopOrBottomGate = gs === 'top' || gs === 'bottom'
                     const stackedHouseShiftPx = isColLayout && isSideGate && !isDiagonalGate ? 20 : 0
                     const stackedFeederExtendPx = isDiagonalGate ? 40 : 30
                     const stackedFeederTrunkInsetPx = Math.max(-20, (stackedTrunkSidePx + 2) - stackedFeederExtendPx)
@@ -958,9 +964,13 @@ const PropertyDetails = () => {
                       <>
                         {trunkList.map((t, i) => t.dir === 'h' ? (
                           <div key={i} className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
-                            style={t.pos === 'top'
-                              ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
-                              : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 }}>
+                            style={isMurramRoad
+                              ? (t.pos === 'top'
+                                ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
+                                : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 })
+                              : (t.pos === 'top'
+                                ? { top: 0, left: 0, right: 0, height: 14, zIndex: 1 }
+                                : { bottom: 0, left: 0, right: 0, height: 14, zIndex: 1 })}>
                             <div className='absolute inset-0 flex items-center' style={{ padding: '0 8px' }}>
                               <div style={{ borderTop: `2px dashed ${compoundRoadDashColor}`, width: '100%' }}></div>
                             </div>
@@ -969,10 +979,26 @@ const PropertyDetails = () => {
                           <div key={i} className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                             style={t.pos === 'left'
                               ? (isColLayout
-                                ? { left: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
+                                ? (isMurramRoad
+                                  ? {
+                                      left: stackedTrunkSidePx - (isCenterTopOrBottomGate ? 20 : 0),
+                                      top: stackedTrunkTopAdjusted - (gs === 'top-right' ? 90 : 0),
+                                      height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0) + (gs === 'top-right' ? 110 : 0),
+                                      width: 12,
+                                      zIndex: 1,
+                                    }
+                                  : { left: 0, top: 0, bottom: 0, width: 14, zIndex: 1 })
                                 : { left: 22, top: ['top-left','top-right'].includes(gs) ? 6 : 10, bottom: ['bottom-left','bottom-right'].includes(gs) ? -2 : 10, width: 12, zIndex: 1 })
                               : (isColLayout
-                                ? { right: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
+                                ? (isMurramRoad
+                                  ? {
+                                      right: stackedTrunkSidePx,
+                                      top: stackedTrunkTopAdjusted - (gs === 'top-right' ? 90 : 0),
+                                      height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0) + (gs === 'top-right' ? 110 : 0),
+                                      width: 12,
+                                      zIndex: 1,
+                                    }
+                                  : { right: 0, top: 0, bottom: 0, width: 14, zIndex: 1 })
                                 : { right: 22, top: ['top-left','top-right'].includes(gs) ? 6 : 10, bottom: ['bottom-left','bottom-right'].includes(gs) ? -2 : 10, width: 12, zIndex: 1 })}>
                             <div className='absolute inset-0 flex justify-center'>
                               <div style={{ borderLeft: `2px dashed ${compoundRoadDashColor}`, height: '100%' }}></div>
@@ -990,6 +1016,44 @@ const PropertyDetails = () => {
                               <div style={{ borderTop: `2px dashed ${compoundRoadDashColor}`, width: '100%' }}></div>
                             </div>
                           </div>
+                        )}
+                        {isColLayout && (gs === 'top' || gs === 'bottom') && (
+                          <>
+                            <div
+                              className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
+                              style={gs === 'top'
+                                ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 22, zIndex: 1 }
+                                : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 24, zIndex: 1 }}
+                            >
+                              <div className='absolute inset-0 flex justify-center'>
+                                <div style={{ borderLeft: `2px dashed ${compoundRoadDashColor}`, height: '100%' }}></div>
+                              </div>
+                            </div>
+                            <div
+                              className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
+                              style={primaryTrunk.pos === 'right'
+                                ? {
+                                    left: (gs === 'top' || gs === 'top-right') ? 'calc(50% + 20px)' : '50%',
+                                    right: (gs === 'top' || gs === 'top-right') ? 'calc(' + stackedTrunkCenterPx + 'px - 20px)' : stackedTrunkCenterPx,
+                                    top: gs === 'top' ? 22 : undefined,
+                                    bottom: gs === 'bottom' ? 22 : undefined,
+                                    height: 12,
+                                    zIndex: 1,
+                                  }
+                                : {
+                                  left: (gs === 'top' || gs === 'top-left') ? (stackedTrunkCenterPx - 20) : stackedTrunkCenterPx,
+                                  right: (gs === 'top' || gs === 'top-left') ? '49%' : '50%',
+                                    top: gs === 'top' ? 22 : undefined,
+                                    bottom: gs === 'bottom' ? 22 : undefined,
+                                    height: 12,
+                                    zIndex: 1,
+                                  }}
+                            >
+                              <div className='absolute inset-0 flex items-center px-2'>
+                                <div style={{ borderTop: `2px dashed ${compoundRoadDashColor}`, width: '100%' }}></div>
+                              </div>
+                            </div>
+                          </>
                         )}
                         <div className={`relative flex ${isColLayout ? 'flex-col items-start w-full' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
                     {property.buildings.map((building, buildingIdx) => {
@@ -1097,8 +1161,8 @@ const PropertyDetails = () => {
                           <div className='h-2 bg-gradient-to-b from-gray-300 to-gray-500 rounded-b'></div>
                         </div>
 
-                        {/* For stacked buildings: center branch + feeder to side trunk */}
-                        {isColLayout && (
+                        {/* For stacked buildings: center branch + feeder to side trunk (murram only) */}
+                        {isColLayout && isMurramRoad && (
                           <>
                             <div
                               className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
