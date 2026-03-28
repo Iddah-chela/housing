@@ -1128,6 +1128,26 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
 
                   {!isColLayout && (
                     <>
+                      {isLeftLike && !isBottomLike && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={isTopLike
+                            ? { left: 0, top: 0, bottom: 22, width: 12, zIndex: 1 }
+                            : { left: 0, top: 'calc(50% - 6px)', bottom: 22, width: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex justify-center'>
+                            <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
+                      {isRightLike && !isBottomLike && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={isTopLike
+                            ? { right: 0, top: 0, bottom: 22, width: 12, zIndex: 1 }
+                            : { right: 0, top: 'calc(50% - 6px)', bottom: 22, width: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex justify-center'>
+                            <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
                       {isLeftLike && (
                         <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                           style={{ left: 0, bottom: 22, width: rowTrunkLeft + 6, height: 12, zIndex: 1 }}>
@@ -1159,6 +1179,26 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
 
                   {isColLayout && (
                     <>
+                      {isLeftLike && (isTopLike || isBottomLike) && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={isTopLike
+                            ? { left: 0, top: 0, height: gateJoinY, width: 12, zIndex: 1 }
+                            : { left: 0, top: gateJoinY, bottom: 0, width: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex justify-center'>
+                            <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
+                      {isRightLike && (isTopLike || isBottomLike) && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={isTopLike
+                            ? { right: 0, top: 0, height: gateJoinY, width: 12, zIndex: 1 }
+                            : { right: 0, top: gateJoinY, bottom: 0, width: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex justify-center'>
+                            <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
                       {(isLeftLike || isRightLike) && (
                         <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                           style={colTrunkSide === 'left'
