@@ -898,8 +898,15 @@ const PropertyDetails = () => {
                       if (gs === 'left')  trunkList.push({ dir: 'v', pos: 'left' })
                       if (gs === 'right') trunkList.push({ dir: 'v', pos: 'right' })
                     } else {
-                      // For stacked buildings, keep one side trunk and use per-building center feeders.
-                      trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                      if (isMurramRoad) {
+                        // Murram: one side trunk with per-building feeders.
+                        trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                      } else {
+                        // Tarmac: original end-to-end corridor network.
+                        trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                        if (['top','top-left','top-right'].includes(gs))          trunkList.push({ dir: 'h', pos: 'top' })
+                        if (['bottom','bottom-left','bottom-right'].includes(gs)) trunkList.push({ dir: 'h', pos: 'bottom' })
+                      }
                     }
                     const primaryTrunk = trunkList[0] || { dir: isColLayout ? 'v' : 'h', pos: isColLayout ? 'left' : 'bottom' }
                     const stackedGapPx = 32 // matches mb-8 spacing between stacked building rows
@@ -942,7 +949,7 @@ const PropertyDetails = () => {
                     const stackedGateY = Math.round(stackedFlowHeight / 2)
                     const isDiagonalGate = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(gs)
                     const isSideGate = gs === 'left' || gs === 'right'
-                    const stackedHouseShiftPx = isColLayout && isSideGate && !isDiagonalGate ? 20 : 0
+                    const stackedHouseShiftPx = 0
                     const stackedFeederExtendPx = isDiagonalGate ? 40 : 30
                     const stackedFeederTrunkInsetPx = Math.max(-20, (stackedTrunkSidePx + 2) - stackedFeederExtendPx)
                     const stackedGateEdgeOverflow = 0
@@ -958,9 +965,13 @@ const PropertyDetails = () => {
                       <>
                         {trunkList.map((t, i) => t.dir === 'h' ? (
                           <div key={i} className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
-                            style={t.pos === 'top'
-                              ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
-                              : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 }}>
+                            style={isMurramRoad
+                              ? (t.pos === 'top'
+                                ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
+                                : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 })
+                              : (t.pos === 'top'
+                                ? { top: 0, left: 0, right: 0, height: 14, zIndex: 1 }
+                                : { bottom: 0, left: 0, right: 0, height: 14, zIndex: 1 })}>
                             <div className='absolute inset-0 flex items-center' style={{ padding: '0 8px' }}>
                               <div style={{ borderTop: `2px dashed ${compoundRoadDashColor}`, width: '100%' }}></div>
                             </div>
@@ -969,17 +980,21 @@ const PropertyDetails = () => {
                           <div key={i} className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                             style={t.pos === 'left'
                               ? (isColLayout
-                                ? { left: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
+                                ? (isMurramRoad
+                                  ? { left: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
+                                  : { left: 0, top: 0, bottom: 0, width: 14, zIndex: 1 })
                                 : { left: 22, top: ['top-left','top-right'].includes(gs) ? 6 : 10, bottom: ['bottom-left','bottom-right'].includes(gs) ? -2 : 10, width: 12, zIndex: 1 })
                               : (isColLayout
-                                ? { right: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
+                                ? (isMurramRoad
+                                  ? { right: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
+                                  : { right: 0, top: 0, bottom: 0, width: 14, zIndex: 1 })
                                 : { right: 22, top: ['top-left','top-right'].includes(gs) ? 6 : 10, bottom: ['bottom-left','bottom-right'].includes(gs) ? -2 : 10, width: 12, zIndex: 1 })}>
                             <div className='absolute inset-0 flex justify-center'>
                               <div style={{ borderLeft: `2px dashed ${compoundRoadDashColor}`, height: '100%' }}></div>
                             </div>
                           </div>
                         ))}
-                        {isColLayout && stackedGateConnectorTop !== null && ['left','right'].includes(gs) && (
+                        {isMurramRoad && isColLayout && stackedGateConnectorTop !== null && ['left','right'].includes(gs) && (
                           <div
                             className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                             style={['left','top-left','bottom-left'].includes(gs)
@@ -1001,6 +1016,23 @@ const PropertyDetails = () => {
 
                       return (
                         <React.Fragment key={building.id}>
+                          {!isMurramRoad && buildingIdx > 0 && (isColLayout ? (
+                            <div style={{ height: 14, alignSelf: 'stretch', flexShrink: 0, marginLeft: '-12px', marginRight: '-12px' }} className='my-1.5 relative'>
+                              <div className={`h-full w-full ${compoundRoadBgClass}`}>
+                                <div className='absolute inset-0 flex items-center px-2'>
+                                  <div style={{ borderTop: `2px dashed ${compoundRoadDashColor}`, width: '100%' }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ width: 18, alignSelf: 'stretch', flexShrink: 0, marginTop: '-12px', marginBottom: '-12px' }} className='flex items-stretch mx-1.5 relative'>
+                              <div className={`w-full h-full ${compoundRoadBgClass}`}>
+                                <div className='absolute inset-0 flex justify-center'>
+                                  <div style={{ borderLeft: `2px dashed ${compoundRoadDashColor}`, height: '100%' }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                           <div
                             className={`relative ${isColLayout ? 'w-full pl-2 mb-8' : ''}`}
                             style={isColLayout && stackedHouseShiftPx
@@ -1013,7 +1045,7 @@ const PropertyDetails = () => {
                           title={`Click to zoom into ${building.name}`}
                         >
                           {/* Branch connector from trunk lane to building center for side-by-side layout */}
-                          {!isColLayout && (
+                          {!isColLayout && isMurramRoad && (
                             <div
                               className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                               style={primaryTrunk.pos === 'top'
@@ -1098,7 +1130,7 @@ const PropertyDetails = () => {
                         </div>
 
                         {/* For stacked buildings: center branch + feeder to side trunk */}
-                        {isColLayout && (
+                        {isMurramRoad && isColLayout && (
                           <>
                             <div
                               className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}

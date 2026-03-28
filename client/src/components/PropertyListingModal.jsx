@@ -1103,6 +1103,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const stackedTrunkSidePx = 22
                   const stackedTrunkCenterPx = stackedTrunkSidePx + 6
                   const stackedFeedBottomPx = 10
+                  const rowTrunkInsetPx = Math.max(44, Math.min(120, 52 + Math.max(0, buildings.length - 1) * 16))
                   const stackedGateConnectorTop = (() => {
                     if (!isColLayout) return null
                     if (gs === 'left' || gs === 'right') return 'calc(50% - 6px)'
@@ -1117,8 +1118,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   {trunkList.map((t, i) => t.dir === 'h' ? (
                     <div key={i} className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                       style={t.pos === 'top'
-                        ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
-                        : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 }}>
+                        ? { top: 22, left: rowTrunkInsetPx, right: rowTrunkInsetPx, height: 12, zIndex: 1 }
+                        : { bottom: 22, left: rowTrunkInsetPx, right: rowTrunkInsetPx, height: 12, zIndex: 1 }}>
                       <div className='absolute inset-0 flex items-center' style={{ padding: '0 8px' }}>
                         <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                       </div>
@@ -1138,6 +1139,31 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                     </div>
                   ))}
 
+                  {!isColLayout && (
+                    <div
+                      className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                      style={['top', 'top-left', 'top-right'].includes(gs)
+                        ? {
+                            top: 0,
+                            left: ['left', 'top-left', 'bottom-left'].includes(gs) ? 24 : ['right', 'top-right', 'bottom-right'].includes(gs) ? 'calc(100% - 36px)' : 'calc(50% - 6px)',
+                            width: 12,
+                            height: 22,
+                            zIndex: 1
+                          }
+                        : {
+                            bottom: 0,
+                            left: ['left', 'top-left', 'bottom-left'].includes(gs) ? 24 : ['right', 'top-right', 'bottom-right'].includes(gs) ? 'calc(100% - 36px)' : 'calc(50% - 6px)',
+                            width: 12,
+                            height: 22,
+                            zIndex: 1
+                          }}
+                    >
+                      <div className='absolute inset-0 flex justify-center'>
+                        <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                      </div>
+                    </div>
+                  )}
+
                   {isColLayout && stackedGateConnectorTop !== null && (
                     <div
                       className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
@@ -1149,6 +1175,31 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                         <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                       </div>
                     </div>
+                  )}
+
+                  {isColLayout && (gs === 'top' || gs === 'bottom') && (
+                    <>
+                      <div
+                        className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                        style={primaryTrunk.pos === 'right'
+                          ? { left: '50%', right: stackedTrunkCenterPx, top: gs === 'top' ? 22 : undefined, bottom: gs === 'bottom' ? 22 : undefined, height: 12, zIndex: 1 }
+                          : { left: stackedTrunkCenterPx, right: '50%', top: gs === 'top' ? 22 : undefined, bottom: gs === 'bottom' ? 22 : undefined, height: 12, zIndex: 1 }}
+                      >
+                        <div className='absolute inset-0 flex items-center px-2'>
+                          <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                        </div>
+                      </div>
+                      <div
+                        className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                        style={gs === 'top'
+                          ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 22, zIndex: 1 }
+                          : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 22, zIndex: 1 }}
+                      >
+                        <div className='absolute inset-0 flex justify-center'>
+                          <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   <div className={`relative flex ${isColLayout ? 'flex-col items-start w-full' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
@@ -1190,8 +1241,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                             <div
                               className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                               style={primaryTrunk.pos === 'top'
-                                ? { top: -16, left: '50%', width: 12, height: 16, transform: 'translateX(-50%)', zIndex: 1 }
-                                : { bottom: -16, left: '50%', width: 12, height: 16, transform: 'translateX(-50%)', zIndex: 1 }}
+                                ? { top: -22, left: '50%', width: 12, height: 22, transform: 'translateX(-50%)', zIndex: 1 }
+                                : { bottom: -22, left: '50%', width: 12, height: 22, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
                                 <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
