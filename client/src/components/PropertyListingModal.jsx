@@ -954,25 +954,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const isMurramSurface = compoundRoadSurface === 'murram'
                   const roadBgClass = isMurramSurface ? 'bg-[#b08968] dark:bg-[#8a6a4e]' : 'bg-gray-500 dark:bg-gray-600'
                   const laneDashColor = isMurramSurface ? 'rgba(77,52,30,0.45)' : 'rgba(255,255,255,0.55)'
-                  // Build list of trunk strips to render
-                  const trunkList = []
-                  if (!isColLayout) {
-                    trunkList.push({ dir: 'h', pos: ['top','top-left','top-right'].includes(gs) ? 'top' : 'bottom' })
-                    if (gs === 'left')  trunkList.push({ dir: 'v', pos: 'left' })
-                    if (gs === 'right') trunkList.push({ dir: 'v', pos: 'right' })
-                  } else {
-                    trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
-                  }
-                  const primaryTrunk = trunkList[0] || { dir: isColLayout ? 'v' : 'h', pos: isColLayout ? 'left' : 'bottom' }
-                  const stackedTrunkSidePx = 22
-                  const stackedTrunkCenterPx = stackedTrunkSidePx + 6
-                  const stackedFeedBottomPx = 10
-                  const stackedGateConnectorTop = (() => {
-                    if (!isColLayout) return null
-                    if (gs === 'top' || gs === 'top-left' || gs === 'top-right') return 8
-                    if (gs === 'bottom' || gs === 'bottom-left' || gs === 'bottom-right') return 'calc(100% - 20px)'
-                    return 'calc(50% - 6px)'
-                  })()
+                  const corridorDashColor = isMurramSurface ? 'rgba(77,52,30,0.45)' : 'rgba(255,255,255,0.6)'
                   const cornerClip = {
                     'top-left':     'polygon(48px 0, 100% 0, 100% 100%, 0 100%, 0 48px)',
                     'top-right':    'polygon(0 0, calc(100% - 48px) 0, 100% 48px, 100% 100%, 0 100%)',
@@ -986,10 +968,152 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                     'bottom-left':  { paddingBottom: 40, paddingLeft: 40 },
                     'bottom-right': { paddingBottom: 40, paddingRight: 40 },
                   }[gs] || {}
+
+                  // Tarmac keeps the original end-to-end fence corridor design.
+                  if (!isMurramSurface) {
+                    const trunkList = []
+                    if (!isColLayout) {
+                      trunkList.push({ dir: 'h', pos: ['top','top-left','top-right'].includes(gs) ? 'top' : 'bottom' })
+                      if (gs === 'left') trunkList.push({ dir: 'v', pos: 'left' })
+                      if (gs === 'right') trunkList.push({ dir: 'v', pos: 'right' })
+                    } else {
+                      trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                      if (['top','top-left','top-right'].includes(gs)) trunkList.push({ dir: 'h', pos: 'top' })
+                      if (['bottom','bottom-left','bottom-right'].includes(gs)) trunkList.push({ dir: 'h', pos: 'bottom' })
+                    }
+
+                    return (
+                      <div className='border-2 border-dashed border-gray-500 dark:border-gray-400 p-3 bg-gradient-to-br from-green-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 relative'
+                        style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad }}>
+                        {trunkList.map((t, i) => t.dir === 'h' ? (
+                          <div key={i} className={`absolute left-0 right-0 overflow-hidden ${roadBgClass}`}
+                            style={t.pos === 'top'
+                              ? { top: 0, height: 14, zIndex: 1 }
+                              : { bottom: 0, height: 14, zIndex: 1 }}>
+                            <div className='absolute inset-0 flex items-center' style={{ padding: '0 6px' }}>
+                              <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div key={i} className={`absolute top-0 bottom-0 overflow-hidden ${roadBgClass}`}
+                            style={t.pos === 'left'
+                              ? { left: 0, width: 14, zIndex: 1 }
+                              : { right: 0, width: 14, zIndex: 1 }}>
+                            <div className='absolute inset-0 flex justify-center'>
+                              <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                            </div>
+                          </div>
+                        ))}
+
+                        <div className={`relative flex ${isColLayout ? 'flex-col items-start' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
+                          {buildings.map((building, buildingIndex) => {
+                            const isActive = buildingIndex === activeBuilding
+                            return (
+                              <React.Fragment key={building.id}>
+                                {buildingIndex > 0 && (isColLayout ? (
+                                  <div style={{ height: 14, alignSelf: 'stretch', flexShrink: 0, marginLeft: '-12px', marginRight: '-12px' }} className='my-1.5 relative'>
+                                    <div className={`h-full w-full ${roadBgClass}`}>
+                                      <div className='absolute inset-0 flex items-center px-2'>
+                                        <div style={{ borderTop: `2px dashed ${corridorDashColor}`, width: '100%' }}></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div style={{ width: 18, alignSelf: 'stretch', flexShrink: 0, marginTop: '-12px', marginBottom: '-12px' }} className='flex items-stretch mx-1.5 relative'>
+                                    <div className={`w-full h-full ${roadBgClass}`}>
+                                      <div className='absolute inset-0 flex justify-center'>
+                                        <div style={{ borderLeft: `2px dashed ${corridorDashColor}`, height: '100%' }}></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+
+                                <div
+                                  onClick={() => { if (!isActive) { setActiveBuilding(buildingIndex); setSelectedCell(null); setSelectedCells([]) } }}
+                                  className={`relative transition-all duration-200 mx-2 my-2 ${isActive ? 'cursor-default' : 'opacity-60 cursor-pointer hover:opacity-80'}`}
+                                  style={{ transform: isActive ? 'scale(1)' : 'scale(0.88)', transformOrigin: 'bottom center' }}
+                                >
+                                  <div className={`text-center text-xs font-semibold mb-1 ${isActive ? 'text-indigo-700 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>{building.name}</div>
+
+                                  <div className='flex justify-center' style={{ marginLeft: -Math.round(baseCellPx * 0.15), marginRight: -Math.round(baseCellPx * 0.15) }}>
+                                    <svg width={building.cols * baseCellPx + Math.round(baseCellPx * 0.3)} height='28'>
+                                      <polyline
+                                        points={`0,28 ${(building.cols * baseCellPx + Math.round(baseCellPx * 0.3)) / 2},2 ${building.cols * baseCellPx + Math.round(baseCellPx * 0.3)},28`}
+                                        fill={isActive ? (darkMode ? '#4338ca' : '#ede9fe') : 'transparent'}
+                                        stroke={isActive ? '#4f46e5' : '#9ca3af'}
+                                        strokeWidth={isActive ? '3.5' : '2'}
+                                        strokeLinejoin='round'
+                                      />
+                                    </svg>
+                                  </div>
+
+                                  <div className={`bg-white dark:bg-gray-700 shadow border-2 ${isActive ? 'border-indigo-400' : 'border-gray-300 dark:border-gray-600'}`}>
+                                    {building.grid.map((row, rowIndex) => (
+                                      <div key={rowIndex} className='flex'>
+                                        {row.map((cell, colIndex) => {
+                                          const isSelected = isActive && selectedCell?.row === rowIndex && selectedCell?.col === colIndex
+                                          const isMultiSelected = isActive && selectedCells.includes(`${rowIndex},${colIndex}`)
+                                          return (
+                                            <div
+                                              key={colIndex}
+                                              onClick={(e) => { if (isActive) { e.stopPropagation(); handleCellClick(rowIndex, colIndex) } }}
+                                              onDragOver={(e) => { if (isActive) e.preventDefault() }}
+                                              onDrop={(e) => { if (isActive) { e.preventDefault(); handleDrop(rowIndex, colIndex) } }}
+                                              style={{ width: baseCellPx + 'px', height: baseCellPx + 'px' }}
+                                              className={`group relative border border-gray-300 dark:border-gray-600 flex items-center justify-center transition-all ${
+                                                isSelected ? 'ring-4 ring-indigo-500 bg-indigo-200 dark:bg-indigo-900 cursor-pointer' :
+                                                isMultiSelected ? 'ring-2 ring-yellow-400 bg-yellow-100 dark:bg-yellow-900 cursor-pointer' :
+                                                isActive && cell.type === 'room' && !cell.isVacant ? 'bg-red-200 dark:bg-red-900 border-red-400 hover:bg-red-300 cursor-pointer' :
+                                                isActive && cell.type === 'room' ? 'bg-emerald-200 dark:bg-emerald-900 border-emerald-400 hover:bg-emerald-300 cursor-pointer' :
+                                                isActive && cell.type === 'common' ? 'bg-gray-200 dark:bg-gray-700 border-gray-400 hover:bg-gray-300 cursor-pointer' :
+                                                isActive ? 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 cursor-pointer' :
+                                                cell.type === 'room' && !cell.isVacant ? 'bg-red-200 dark:bg-red-950 border-red-400' :
+                                                cell.type === 'room' ? 'bg-emerald-200 dark:bg-emerald-950 border-emerald-400' :
+                                                cell.type === 'common' ? 'bg-gray-200 dark:bg-gray-700 border-gray-400' : 'bg-gray-50'
+                                              }`}
+                                            >
+                                              {getCellDisplay(cell, cell.type === 'room' ? getRoomNumber(building.grid, rowIndex, colIndex) : 0)}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  <div className='h-2 bg-gradient-to-b from-gray-300 to-gray-500 rounded-b'></div>
+                                </div>
+                              </React.Fragment>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  // Murram uses the branch-to-houses geometry.
+                  const trunkList = []
+                  if (!isColLayout) {
+                    trunkList.push({ dir: 'h', pos: ['top','top-left','top-right'].includes(gs) ? 'top' : 'bottom' })
+                    if (gs === 'left') trunkList.push({ dir: 'v', pos: 'left' })
+                    if (gs === 'right') trunkList.push({ dir: 'v', pos: 'right' })
+                  } else {
+                    trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
+                  }
+                  const primaryTrunk = trunkList[0] || { dir: isColLayout ? 'v' : 'h', pos: isColLayout ? 'left' : 'bottom' }
+                  const stackedTrunkSidePx = 22
+                  const stackedTrunkCenterPx = stackedTrunkSidePx + 6
+                  const stackedFeedBottomPx = 10
+                  const stackedGateConnectorTop = (() => {
+                    if (!isColLayout) return null
+                    if (gs === 'left' || gs === 'right') return 'calc(50% - 6px)'
+                    if (gs === 'top-left' || gs === 'top-right') return 8
+                    if (gs === 'bottom-left' || gs === 'bottom-right') return 'calc(100% - 20px)'
+                    return null
+                  })()
+
                   return (
                 <div className='border-2 border-dashed border-gray-500 dark:border-gray-400 p-3 bg-gradient-to-br from-green-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 relative'
                   style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad }}>
-                  {/* Trunk strips */}
                   {trunkList.map((t, i) => t.dir === 'h' ? (
                     <div key={i} className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                       style={t.pos === 'top'
