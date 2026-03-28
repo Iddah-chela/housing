@@ -1102,11 +1102,11 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const rowTrunkBottomPx = 52
                   const colTrunkSide = isRightLike ? 'right' : 'left'
                   const colTrunkOffsetPx = 50
-                  const feedBottomPx = -84
-                  const gateJoinY = isTopLike ? 56 : isBottomLike ? 'calc(100% - 72px)' : 'calc(65% - 6px)'
+                  const feedBottomPx = 16
+                  const gateJoinY = isTopLike ? 70 : isBottomLike ? 'calc(100% - 90px)' : 'calc(50% + 20px)'
                   const rowGateJoinY = gateJoinY
-                  const colTrunkTopPx = isTopLike ? 56 : 112
-                  const colTrunkBottomPx = isBottomLike ? 72 : 112
+                  const colTrunkTopPx = isTopLike ? 70 : 140
+                  const colTrunkBottomPx = isBottomLike ? 90 : 140
                   const murramPad = { paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20 }
 
                   return (
@@ -1208,11 +1208,11 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                         <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                           style={isLeftLike
                             ? (isTopLike
-                              ? { left: 0, top: 0, height: 56, width: 12, zIndex: 1 }
-                              : { left: 0, bottom: 0, height: 72, width: 12, zIndex: 1 })
+                              ? { left: 0, top: 0, height: 70, width: 12, zIndex: 1 }
+                              : { left: 0, bottom: 0, height: 90, width: 12, zIndex: 1 })
                             : (isTopLike
-                              ? { right: 0, top: 0, height: 56, width: 12, zIndex: 1 }
-                              : { right: 0, bottom: 0, height: 72, width: 12, zIndex: 1 })}>
+                              ? { right: 0, top: 0, height: 70, width: 12, zIndex: 1 }
+                              : { right: 0, bottom: 0, height: 90, width: 12, zIndex: 1 })}>
                           <div className='absolute inset-0 flex justify-center'>
                             <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                           </div>
@@ -1223,8 +1223,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                         <>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                             style={isTopLike
-                              ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 60, zIndex: 1 }
-                              : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 60, zIndex: 1 }}>
+                              ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 70, zIndex: 1 }
+                              : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 90, zIndex: 1 }}>
                             <div className='absolute inset-0 flex justify-center'>
                               <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                             </div>
@@ -1252,15 +1252,15 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                           className={`relative ${isColLayout ? 'w-full mb-8' : ''}`}
                           style={isColLayout
                             ? (colTrunkSide === 'left'
-                              ? { paddingLeft: 72 }
-                              : { paddingRight: 72 })
+                              ? { paddingLeft: 72, paddingBottom: 62 }
+                              : { paddingRight: 72, paddingBottom: 62 })
                             : undefined}
                         >
                         {isColLayout && (
                           <>
                             <div
                               className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                              style={{ left: centerX, bottom: feedBottomPx, width: 12, height: 84, transform: 'translateX(-50%)', zIndex: 1 }}
+                              style={{ left: centerX, bottom: feedBottomPx, width: 12, height: 38, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
                                 <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
