@@ -1102,9 +1102,11 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const rowTrunkBottomPx = 52
                   const colTrunkSide = isRightLike ? 'right' : 'left'
                   const colTrunkOffsetPx = 50
-                  const feedBottomPx = -54
+                  const feedBottomPx = -84
                   const gateJoinY = isTopLike ? 56 : isBottomLike ? 'calc(100% - 72px)' : 'calc(65% - 6px)'
                   const rowGateJoinY = gateJoinY
+                  const colTrunkTopPx = isTopLike ? 56 : 112
+                  const colTrunkBottomPx = isBottomLike ? 72 : 112
                   const murramPad = { paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20 }
 
                   return (
@@ -1122,8 +1124,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   {isColLayout && (
                     <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                       style={colTrunkSide === 'left'
-                        ? { left: colTrunkOffsetPx, top: 12, bottom: 12, width: 12, zIndex: 1 }
-                        : { right: colTrunkOffsetPx, top: 12, bottom: 12, width: 12, zIndex: 1 }}>
+                        ? { left: colTrunkOffsetPx, top: colTrunkTopPx, bottom: colTrunkBottomPx, width: 12, zIndex: 1 }
+                        : { right: colTrunkOffsetPx, top: colTrunkTopPx, bottom: colTrunkBottomPx, width: 12, zIndex: 1 }}>
                       <div className='absolute inset-0 flex justify-center'>
                         <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                       </div>
@@ -1258,7 +1260,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                           <>
                             <div
                               className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                              style={{ left: centerX, bottom: feedBottomPx, width: 12, height: 60, transform: 'translateX(-50%)', zIndex: 1 }}
+                              style={{ left: centerX, bottom: feedBottomPx, width: 12, height: 84, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
                                 <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
