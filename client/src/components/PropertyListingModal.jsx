@@ -1104,6 +1104,17 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const stackedTrunkCenterPx = stackedTrunkSidePx + 6
                   const stackedFeedBottomPx = 10
                   const rowTrunkInsetPx = Math.max(44, Math.min(120, 52 + Math.max(0, buildings.length - 1) * 16))
+                  const isLeftLike = ['left', 'top-left', 'bottom-left'].includes(gs)
+                  const isRightLike = ['right', 'top-right', 'bottom-right'].includes(gs)
+                  const isTopLike = ['top', 'top-left', 'top-right'].includes(gs)
+                  const isBottomLike = ['bottom', 'bottom-left', 'bottom-right'].includes(gs)
+                  const rowTrunkIsTop = isTopLike
+                  const rowTrunkYStyle = rowTrunkIsTop ? { top: 22 } : { bottom: 22 }
+                  const rowConnectorX = isLeftLike
+                    ? rowTrunkInsetPx
+                    : isRightLike
+                      ? `calc(100% - ${rowTrunkInsetPx + 12}px)`
+                      : 'calc(50% - 6px)'
                   const stackedGateConnectorTop = (() => {
                     if (!isColLayout) return null
                     if (gs === 'left' || gs === 'right') return 'calc(50% - 6px)'
@@ -1111,6 +1122,12 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                     if (gs === 'bottom-left' || gs === 'bottom-right') return 'calc(100% - 20px)'
                     return null
                   })()
+                  const colConnectorY = isTopLike ? 22 : isBottomLike ? 'calc(100% - 22px)' : 'calc(50% - 6px)'
+                  const colGateX = isLeftLike
+                    ? 24
+                    : isRightLike
+                      ? 'calc(100% - 36px)'
+                      : 'calc(50% - 6px)'
 
                   return (
                 <div className='border-2 border-dashed border-gray-500 dark:border-gray-400 p-3 bg-gradient-to-br from-green-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 relative'
@@ -1142,17 +1159,17 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   {!isColLayout && (
                     <div
                       className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                      style={['top', 'top-left', 'top-right'].includes(gs)
+                      style={rowTrunkIsTop
                         ? {
                             top: 0,
-                            left: ['left', 'top-left', 'bottom-left'].includes(gs) ? 24 : ['right', 'top-right', 'bottom-right'].includes(gs) ? 'calc(100% - 36px)' : 'calc(50% - 6px)',
+                            left: rowConnectorX,
                             width: 12,
                             height: 22,
                             zIndex: 1
                           }
                         : {
                             bottom: 0,
-                            left: ['left', 'top-left', 'bottom-left'].includes(gs) ? 24 : ['right', 'top-right', 'bottom-right'].includes(gs) ? 'calc(100% - 36px)' : 'calc(50% - 6px)',
+                            left: rowConnectorX,
                             width: 12,
                             height: 22,
                             zIndex: 1
@@ -1160,6 +1177,19 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                     >
                       <div className='absolute inset-0 flex justify-center'>
                         <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isColLayout && (isLeftLike || isRightLike) && (
+                    <div
+                      className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                      style={isLeftLike
+                        ? { left: 0, width: rowTrunkInsetPx + 6, height: 12, zIndex: 1, ...rowTrunkYStyle }
+                        : { right: 0, width: rowTrunkInsetPx + 6, height: 12, zIndex: 1, ...rowTrunkYStyle }}
+                    >
+                      <div className='absolute inset-0 flex items-center px-2'>
+                        <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                       </div>
                     </div>
                   )}
@@ -1200,6 +1230,32 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                         </div>
                       </div>
                     </>
+                  )}
+
+                  {isColLayout && (
+                    <div
+                      className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                      style={primaryTrunk.pos === 'right'
+                        ? { right: 0, width: stackedTrunkCenterPx + 2, top: colConnectorY, height: 12, zIndex: 1 }
+                        : { left: 0, width: stackedTrunkCenterPx + 2, top: colConnectorY, height: 12, zIndex: 1 }}
+                    >
+                      <div className='absolute inset-0 flex items-center px-2'>
+                        <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {isColLayout && (isTopLike || isBottomLike) && (
+                    <div
+                      className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                      style={isTopLike
+                        ? { top: 0, left: colGateX, width: 12, height: 22, zIndex: 1 }
+                        : { bottom: 0, left: colGateX, width: 12, height: 22, zIndex: 1 }}
+                    >
+                      <div className='absolute inset-0 flex justify-center'>
+                        <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                      </div>
+                    </div>
                   )}
 
                   <div className={`relative flex ${isColLayout ? 'flex-col items-start w-full' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
