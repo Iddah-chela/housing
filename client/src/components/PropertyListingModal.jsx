@@ -1095,14 +1095,15 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const isRightLike = ['right', 'top-right', 'bottom-right'].includes(gs)
                   const isTopLike = ['top', 'top-left', 'top-right'].includes(gs)
                   const isBottomLike = ['bottom', 'bottom-left', 'bottom-right'].includes(gs)
-                  const rowTrunkInsetPx = Math.max(44, Math.min(120, 52 + Math.max(0, buildings.length - 1) * 16))
+                  const rowTrunkInsetPx = Math.max(64, Math.min(140, 72 + Math.max(0, buildings.length - 1) * 20))
                   const rowTrunkLeft = rowTrunkInsetPx
                   const rowTrunkRight = rowTrunkInsetPx
+                  const rowSideStemPx = 58
                   const colTrunkSide = isRightLike ? 'right' : 'left'
-                  const colTrunkOffsetPx = 26
+                  const colTrunkOffsetPx = 30
                   const feedBottomPx = 6
-                  const gateJoinY = isTopLike ? 22 : isBottomLike ? 'calc(100% - 34px)' : 'calc(50% - 6px)'
-                  const rowGateJoinY = isTopLike ? 22 : isBottomLike ? 'calc(100% - 34px)' : 'calc(50% - 6px)'
+                  const gateJoinY = isTopLike ? 26 : isBottomLike ? 'calc(100% - 38px)' : 'calc(50% - 6px)'
+                  const rowGateJoinY = gateJoinY
 
                   return (
                 <div className='border-2 border-dashed border-gray-500 dark:border-gray-400 p-3 bg-gradient-to-br from-green-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 relative'
@@ -1132,15 +1133,21 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                       {isLeftLike && (
                         <>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                            style={{ left: 0, top: rowGateJoinY, width: 28, height: 12, zIndex: 1 }}>
+                            style={{ left: 0, top: rowGateJoinY, width: rowSideStemPx + 4, height: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex items-center px-2'>
                               <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                             </div>
                           </div>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                            style={{ left: 22, top: rowGateJoinY, bottom: 22, width: 12, zIndex: 1 }}>
+                            style={{ left: rowSideStemPx, top: rowGateJoinY, bottom: 22, width: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex justify-center'>
                               <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                            </div>
+                          </div>
+                          <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                            style={{ left: rowSideStemPx, bottom: 22, width: Math.max(14, rowTrunkLeft - rowSideStemPx), height: 12, zIndex: 1 }}>
+                            <div className='absolute inset-0 flex items-center px-2'>
+                              <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                             </div>
                           </div>
                         </>
@@ -1148,15 +1155,21 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                       {isRightLike && (
                         <>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                            style={{ right: 0, top: rowGateJoinY, width: 28, height: 12, zIndex: 1 }}>
+                            style={{ right: 0, top: rowGateJoinY, width: rowSideStemPx + 4, height: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex items-center px-2'>
                               <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                             </div>
                           </div>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                            style={{ right: 22, top: rowGateJoinY, bottom: 22, width: 12, zIndex: 1 }}>
+                            style={{ right: rowSideStemPx, top: rowGateJoinY, bottom: 22, width: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex justify-center'>
                               <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                            </div>
+                          </div>
+                          <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                            style={{ right: rowSideStemPx, bottom: 22, width: Math.max(14, rowTrunkRight - rowSideStemPx), height: 12, zIndex: 1 }}>
+                            <div className='absolute inset-0 flex items-center px-2'>
+                              <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                             </div>
                           </div>
                         </>
@@ -1183,6 +1196,21 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                             : { right: 0, top: gateJoinY, width: colTrunkOffsetPx + 10, height: 12, zIndex: 1 }}>
                           <div className='absolute inset-0 flex items-center px-2'>
                             <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
+
+                      {(isTopLike || isBottomLike) && (isLeftLike || isRightLike) && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={isLeftLike
+                            ? (isTopLike
+                              ? { left: 0, top: 0, height: 26, width: 12, zIndex: 1 }
+                              : { left: 0, bottom: 0, height: 38, width: 12, zIndex: 1 })
+                            : (isTopLike
+                              ? { right: 0, top: 0, height: 26, width: 12, zIndex: 1 }
+                              : { right: 0, bottom: 0, height: 38, width: 12, zIndex: 1 })}>
+                          <div className='absolute inset-0 flex justify-center'>
+                            <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                           </div>
                         </div>
                       )}
