@@ -996,8 +996,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                       {murramTrunkList.map((t, i) => t.dir === 'h' ? (
                         <div key={i} className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                           style={t.pos === 'top'
-                            ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
-                            : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 }}>
+                            ? { top: 22, left: 0, right: 0, height: 12, zIndex: 1 }
+                            : { bottom: 22, left: 0, right: 0, height: 12, zIndex: 1 }}>
                           <div className='absolute inset-0 flex items-center px-2'>
                             <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                           </div>
@@ -1005,13 +1005,29 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                       ) : (
                         <div key={i} className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                           style={t.pos === 'left'
-                            ? { left: 22, top: 10, bottom: 10, width: 12, zIndex: 1 }
-                            : { right: 22, top: 10, bottom: 10, width: 12, zIndex: 1 }}>
+                            ? { left: 22, top: 0, bottom: 0, width: 12, zIndex: 1 }
+                            : { right: 22, top: 0, bottom: 0, width: 12, zIndex: 1 }}>
                           <div className='absolute inset-0 flex justify-center'>
                             <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                           </div>
                         </div>
                       ))}
+                      {['top-left','top-right','bottom-left','bottom-right'].includes(gs) && (
+                        <div
+                          className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={gs === 'top-left'
+                            ? { left: 0, top: 22, width: 26, height: 12, zIndex: 1 }
+                            : gs === 'top-right'
+                              ? { right: 0, top: 22, width: 26, height: 12, zIndex: 1 }
+                              : gs === 'bottom-left'
+                                ? { left: 0, bottom: 22, width: 26, height: 12, zIndex: 1 }
+                                : { right: 0, bottom: 22, width: 26, height: 12, zIndex: 1 }}
+                        >
+                          <div className='absolute inset-0 flex items-center px-1'>
+                            <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
                       <div className={`relative flex ${isColLayout ? 'flex-col items-start w-full' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
                         {buildings.map((building, buildingIndex) => {
                           const isActive = buildingIndex === activeBuilding
@@ -1129,6 +1145,22 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                       </div>
                     </div>
                   ))}
+                  {['top-left','top-right','bottom-left','bottom-right'].includes(gs) && (
+                    <div
+                      className={`absolute overflow-hidden ${roadBgClass}`}
+                      style={gs === 'top-left'
+                        ? { left: 0, top: 0, width: 26, height: 14, zIndex: 1 }
+                        : gs === 'top-right'
+                          ? { right: 0, top: 0, width: 26, height: 14, zIndex: 1 }
+                          : gs === 'bottom-left'
+                            ? { left: 0, bottom: 0, width: 26, height: 14, zIndex: 1 }
+                            : { right: 0, bottom: 0, width: 26, height: 14, zIndex: 1 }}
+                    >
+                      <div className='absolute inset-0 flex items-center px-1'>
+                        <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                      </div>
+                    </div>
+                  )}
                   <div className={`relative flex ${isColLayout ? 'flex-col items-start' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
                     {buildings.map((building, buildingIndex) => {
                       const isActive = buildingIndex === activeBuilding
