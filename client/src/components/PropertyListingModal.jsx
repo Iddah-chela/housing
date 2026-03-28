@@ -1102,7 +1102,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const primaryTrunk = trunkList[0] || { dir: isColLayout ? 'v' : 'h', pos: isColLayout ? 'left' : 'bottom' }
                   const stackedTrunkSidePx = 22
                   const stackedTrunkCenterPx = stackedTrunkSidePx + 6
-                  const stackedFeedBottomPx = 10
+                  const stackedFeedBottomPx = -18
                   const rowTrunkInsetPx = Math.max(44, Math.min(120, 52 + Math.max(0, buildings.length - 1) * 16))
                   const isLeftLike = ['left', 'top-left', 'bottom-left'].includes(gs)
                   const isRightLike = ['right', 'top-right', 'bottom-right'].includes(gs)
@@ -1122,7 +1122,11 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                     if (gs === 'bottom-left' || gs === 'bottom-right') return 'calc(100% - 20px)'
                     return null
                   })()
-                  const colConnectorY = isTopLike ? 22 : isBottomLike ? 'calc(100% - 22px)' : 'calc(50% - 6px)'
+                  const colConnectorY = isTopLike
+                    ? 22
+                    : isBottomLike
+                      ? 'calc(100% - 22px)'
+                      : (buildings.length === 1 ? 'calc(100% - 34px)' : 'calc(50% - 6px)')
                   const colGateX = isLeftLike
                     ? 24
                     : isRightLike
@@ -1232,7 +1236,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                     </>
                   )}
 
-                  {isColLayout && (
+                  {isColLayout && (isLeftLike || isRightLike) && (
                     <div
                       className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                       style={primaryTrunk.pos === 'right'
