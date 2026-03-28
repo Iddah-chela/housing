@@ -246,7 +246,7 @@ const PropertyDetails = () => {
 
     const handleRequestViewing = () => {
       if (isAdminManagedWithoutSteward) {
-        toast('This listing has no active steward account yet. Please confirm availability by call/WhatsApp first.')
+        toast('This listing has no landlord/caretaker account active in-app yet. Please call or WhatsApp first to confirm availability.')
         return
       }
       if (property?.actionability !== 'full_transaction') {
@@ -274,7 +274,7 @@ const PropertyDetails = () => {
 
     const handleDirectApply = () => {
       if (isAdminManagedWithoutSteward) {
-        toast('Direct apply is disabled until a steward starts managing this listing in-app.')
+        toast('Direct apply is disabled until a landlord/caretaker account is active in-app. Please call or WhatsApp first.')
         return
       }
       if (property?.actionability !== 'full_transaction') {
@@ -431,11 +431,13 @@ const PropertyDetails = () => {
       !!String(property?.claimedBy || '').trim() ||
       String(property?.owner?.role || '').toLowerCase() !== 'admin'
     )
+  const hasInAppStewardAccount =
+    String(property?.owner?.role || '').toLowerCase() !== 'admin' ||
+    !!String(property?.claimedBy || '').trim() ||
+    (Array.isArray(property?.caretakers) && property.caretakers.length > 0)
   const isAdminManagedWithoutSteward =
     listingTier === 'live' &&
-    String(property?.owner?.role || '').toLowerCase() === 'admin' &&
-    !String(property?.landlordName || '').trim() &&
-    (!Array.isArray(property?.caretakers) || property.caretakers.length === 0)
+    !hasInAppStewardAccount
   const shouldHideGridUntilSteward = isPartnerListing && listingTier !== 'live' && !hasVerifiedSteward
   const canShowRoomGrid = hasRoomGrid && !shouldHideGridUntilSteward
   const isAdminVerifiedNoStewardLive =
@@ -477,6 +479,10 @@ const PropertyDetails = () => {
   const propertyPriceMin = derivedMinPrice ?? fallbackMinPrice
   const propertyPriceMax = derivedMaxPrice ?? fallbackMaxPrice ?? propertyPriceMin
   const hasPropertyPrice = Number(propertyPriceMin || 0) > 0
+  const compoundRoadSurface = String(property?.compoundRoadSurface || '').toLowerCase() === 'murram' ? 'murram' : 'tarmac'
+  const isMurramRoad = compoundRoadSurface === 'murram'
+  const compoundRoadBgClass = isMurramRoad ? 'bg-[#b08968] dark:bg-[#8a6a4e]' : 'bg-gray-500 dark:bg-gray-600'
+  const compoundRoadDashColor = isMurramRoad ? 'rgba(77,52,30,0.45)' : 'rgba(255,255,255,0.55)'
 
   // Informational mode fallback for directory records with no room map.
   if (!canShowRoomGrid) {
@@ -951,16 +957,16 @@ const PropertyDetails = () => {
                     return (
                       <>
                         {trunkList.map((t, i) => t.dir === 'h' ? (
-                          <div key={i} className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                          <div key={i} className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                             style={t.pos === 'top'
                               ? { top: 22, left: 10, right: 10, height: 12, zIndex: 1 }
                               : { bottom: 22, left: 10, right: 10, height: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex items-center' style={{ padding: '0 8px' }}>
-                              <div style={{ borderTop: '2px dashed rgba(77,52,30,0.45)', width: '100%' }}></div>
+                              <div style={{ borderTop: `2px dashed ${compoundRoadDashColor}`, width: '100%' }}></div>
                             </div>
                           </div>
                         ) : (
-                          <div key={i} className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                          <div key={i} className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                             style={t.pos === 'left'
                               ? (isColLayout
                                 ? { left: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
@@ -969,19 +975,19 @@ const PropertyDetails = () => {
                                 ? { right: stackedTrunkSidePx, top: stackedTrunkTopAdjusted, height: stackedTrunkHeightAdjusted + (isBottomCornerGate ? 16 : 0), width: 12, zIndex: 1 }
                                 : { right: 22, top: ['top-left','top-right'].includes(gs) ? 6 : 10, bottom: ['bottom-left','bottom-right'].includes(gs) ? -2 : 10, width: 12, zIndex: 1 })}>
                             <div className='absolute inset-0 flex justify-center'>
-                              <div style={{ borderLeft: '2px dashed rgba(77,52,30,0.45)', height: '100%' }}></div>
+                              <div style={{ borderLeft: `2px dashed ${compoundRoadDashColor}`, height: '100%' }}></div>
                             </div>
                           </div>
                         ))}
                         {isColLayout && stackedGateConnectorTop !== null && ['left','right'].includes(gs) && (
                           <div
-                            className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                            className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                             style={['left','top-left','bottom-left'].includes(gs)
                               ? { left: -stackedGateEdgeOverflow, top: stackedGateConnectorTop, width: stackedGateConnectorWidth, height: 12, zIndex: 1 }
                               : { right: -stackedGateEdgeOverflow, top: stackedGateConnectorTop, width: stackedGateConnectorWidth, height: 12, zIndex: 1 }}
                           >
                             <div className='absolute inset-0 flex items-center px-2'>
-                              <div style={{ borderTop: '2px dashed rgba(77,52,30,0.45)', width: '100%' }}></div>
+                              <div style={{ borderTop: `2px dashed ${compoundRoadDashColor}`, width: '100%' }}></div>
                             </div>
                           </div>
                         )}
@@ -1009,13 +1015,13 @@ const PropertyDetails = () => {
                           {/* Branch connector from trunk lane to building center for side-by-side layout */}
                           {!isColLayout && (
                             <div
-                              className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                              className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                               style={primaryTrunk.pos === 'top'
                                 ? { top: -16, left: '50%', width: 12, height: 16, transform: 'translateX(-50%)', zIndex: 1 }
                                 : { bottom: -16, left: '50%', width: 12, height: 16, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
-                                <div style={{ borderLeft: '2px dashed rgba(77,52,30,0.45)', height: '100%' }}></div>
+                                <div style={{ borderLeft: `2px dashed ${compoundRoadDashColor}`, height: '100%' }}></div>
                               </div>
                             </div>
                           )}
@@ -1095,21 +1101,21 @@ const PropertyDetails = () => {
                         {isColLayout && (
                           <>
                             <div
-                              className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                              className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                               style={{ left: centerX, bottom: stackedFeedBottomPx, width: 12, height: 25, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
-                                <div style={{ borderLeft: '2px dashed rgba(77,52,30,0.45)', height: '100%' }}></div>
+                                <div style={{ borderLeft: `2px dashed ${compoundRoadDashColor}`, height: '100%' }}></div>
                               </div>
                             </div>
                             <div
-                              className='absolute overflow-hidden rounded-sm bg-[#b08968] dark:bg-[#8a6a4e]'
+                              className={`absolute overflow-hidden rounded-sm ${compoundRoadBgClass}`}
                               style={primaryTrunk.pos === 'right'
                                 ? { left: centerX, right: stackedFeederTrunkInsetPx, bottom: stackedFeedBottomPx, height: 12, zIndex: 1 }
                                 : { left: stackedFeederTrunkInsetPx, right: `calc(100% - ${centerX}px)`, bottom: stackedFeedBottomPx, height: 12, zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex items-center px-2'>
-                                <div style={{ borderTop: '2px dashed rgba(77,52,30,0.45)', width: '100%' }}></div>
+                                <div style={{ borderTop: `2px dashed ${compoundRoadDashColor}`, width: '100%' }}></div>
                               </div>
                             </div>
                           </>
@@ -1150,6 +1156,7 @@ const PropertyDetails = () => {
             <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className='w-4 h-4 bg-amber-200 dark:bg-amber-700 border border-amber-400 dark:border-amber-500 rounded-sm'></div><span>Booked</span></div>
             <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className='w-4 h-4 bg-orange-200 dark:bg-orange-700 border border-orange-400 dark:border-orange-500 rounded-sm'></div><span>Available Soon</span></div>
             <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className='w-4 h-4 bg-gray-200 dark:bg-gray-600 border border-gray-400 dark:border-gray-500 rounded-sm'></div><span>Common</span></div>
+            <div className='flex items-center gap-2 text-gray-700 dark:text-gray-200'><div className={`w-4 h-4 border rounded-sm ${compoundRoadBgClass}`}></div><span>Compound Road: {isMurramRoad ? 'Murram' : 'Tarmac'}</span></div>
           </div>
         </div>
 
@@ -1274,7 +1281,35 @@ const PropertyDetails = () => {
                         {(isAdminVerifiedNoStewardLive || property.needsRefresh) && (
                           <p className='text-xs text-amber-700 dark:text-amber-300 mb-2'>Confirm current availability first before paying to unlock contacts.</p>
                         )}
-                        {!user ? (
+                        {isAdminManagedWithoutSteward ? (
+                          <>
+                            <div className='text-2xl mb-2'>
+                              <Smartphone className='w-8 h-8 text-amber-600 mx-auto' />
+                            </div>
+                            <p className='text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1'>No in-app landlord/caretaker account yet</p>
+                            <p className='text-xs text-amber-700 dark:text-amber-300 mb-3'>Please call or WhatsApp to confirm availability first. In-app viewing and booking are disabled for this listing until an account is active.</p>
+                            <div className='flex flex-col gap-2'>
+                              {property.whatsappNumber && (
+                                <a
+                                  href={`https://wa.me/${property.whatsappNumber.replace(/[^0-9]/g, '')}?text=Hi, I'm interested in ${property.name}. Please confirm current availability.`}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  className='w-full py-2.5 rounded-lg border-2 border-green-600 bg-green-50 text-green-700 hover:bg-green-100 transition-all inline-flex items-center justify-center gap-2 font-semibold'
+                                >
+                                  <Smartphone className='w-4 h-4' /> WhatsApp to Confirm
+                                </a>
+                              )}
+                              {property.contact && (
+                                <a
+                                  href={`tel:${String(property.contact).replace(/[^0-9+]/g, '')}`}
+                                  className='w-full py-2.5 rounded-lg border-2 border-gray-400 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all inline-flex items-center justify-center gap-2 font-semibold'
+                                >
+                                  <Smartphone className='w-4 h-4' /> Call to Confirm
+                                </a>
+                              )}
+                            </div>
+                          </>
+                        ) : !user ? (
                           /* Not logged in - two options: free sign-in OR pay without login */
                           <>
                             <Gift className='w-8 h-8 text-indigo-400 mx-auto mb-2' />

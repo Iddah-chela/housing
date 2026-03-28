@@ -203,6 +203,11 @@ const propertySchema = new mongoose.Schema({
     side: { type: String, enum: ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'], default: 'bottom' },
     layout: { type: String, enum: ['row', 'col'], default: 'row' }
   },
+  compoundRoadSurface: {
+    type: String,
+    enum: ['tarmac', 'murram'],
+    default: 'tarmac'
+  },
   isVerified: {
     type: Boolean,
     default: false

@@ -55,10 +55,21 @@ const hasContactAccess = async (propertyId, req) => {
   const userEmail = req.user?.email;
   const role = req.user?.role;
 
-  const prop = await Property.findById(propertyId).select('owner caretakers listingTier sourceType landlordName').lean();
+  const prop = await Property.findById(propertyId).select('owner caretakers listingTier sourceType landlordName claimedBy').lean();
   if (!prop) return false;
 
   if (role === 'admin') return true;
+
+  const ownerUser = await User.findById(prop.owner).select('role').lean();
+  const noInAppStewardLive =
+    String(prop.listingTier || '').toLowerCase() === 'live' &&
+    String(ownerUser?.role || '').toLowerCase() === 'admin' &&
+    !String(prop.claimedBy || '').trim() &&
+    (!Array.isArray(prop.caretakers) || prop.caretakers.length === 0);
+
+  // For live listings without a landlord/caretaker account in-app,
+  // expose phone/WhatsApp so tenants can confirm availability before paying.
+  if (noInAppStewardLive) return true;
 
   if (userId) {
     // Owner or caretaker always see their own property
@@ -123,6 +134,7 @@ export const createProperty = async (req, res) => {
       contactDisplayMode,
       consentStatus,
       compoundGate,
+      compoundRoadSurface,
       googleMapsUrl,
       landlordName
     } = req.body;
@@ -188,7 +200,8 @@ export const createProperty = async (req, res) => {
       landlordName: landlordName?.trim() || '',
       buildings: parsedBuildings,
       images: uploadedImageUrls,
-      compoundGate: compoundGate || { side: 'bottom' }
+      compoundGate: compoundGate || { side: 'bottom' },
+      compoundRoadSurface: String(compoundRoadSurface || '').toLowerCase() === 'murram' ? 'murram' : 'tarmac'
     });
 
     applyAutoListingLifecycle(property);
@@ -328,6 +341,7 @@ export const updateProperty = async (req, res) => {
       contactDisplayMode,
       consentStatus,
       compoundGate,
+      compoundRoadSurface,
       googleMapsUrl,
       landlordName
     } = req.body;
@@ -400,6 +414,9 @@ export const updateProperty = async (req, res) => {
       consentStatus: consentStatus || existing.consentStatus,
       googleMapsUrl: googleMapsUrl !== undefined ? googleMapsUrl : (existing.googleMapsUrl || ''),
       landlordName: landlordName !== undefined ? (landlordName?.trim() || '') : (existing.landlordName || ''),
+      compoundRoadSurface: compoundRoadSurface !== undefined
+        ? (String(compoundRoadSurface || '').toLowerCase() === 'murram' ? 'murram' : 'tarmac')
+        : (existing.compoundRoadSurface || 'tarmac'),
       images: updatedImages,
       totalRooms,
       vacantRooms,

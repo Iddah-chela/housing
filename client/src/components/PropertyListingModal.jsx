@@ -94,8 +94,13 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
   const [locationPermission, setLocationPermission] = useState('unknown') // unknown | prompt | granted | denied
   const [selectMode, setSelectMode] = useState(false) // Multi-select mode
   const [compoundGate, setCompoundGate] = useState(existingProperty?.compoundGate || { side: 'bottom', layout: 'row' })
+  const [compoundRoadSurface, setCompoundRoadSurface] = useState(existingProperty?.compoundRoadSurface || 'tarmac')
   const [quickSetup, setQuickSetup] = useState({ rooms: '', roomType: 'BedSitter', price: '', floors: 1 })
   const [dragPrice, setDragPrice] = useState(3500)
+  const [showDragPalette, setShowDragPalette] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.innerWidth >= 1024
+  })
   const dragDataRef = useRef(null)
 
   useEffect(() => {
@@ -119,6 +124,18 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
     return () => { mounted = false }
   }, [])
 
+  useEffect(() => {
+    const syncDragPaletteMode = () => {
+      if (window.innerWidth >= 1024) {
+        setShowDragPalette(true)
+      }
+    }
+
+    syncDragPaletteMode()
+    window.addEventListener('resize', syncDragPaletteMode)
+    return () => window.removeEventListener('resize', syncDragPaletteMode)
+  }, [])
+
   const openGoogleMapsPicker = () => {
     const query = [propertyInfo.address, propertyInfo.estate, propertyInfo.place]
       .map(v => String(v || '').trim())
@@ -138,7 +155,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
       return [
         'Open iPhone Settings > Privacy & Security > Location Services and ensure it is ON.',
         'In Settings > Safari > Location, choose Allow.',
-        'Return here and tap Ask permission again.'
+        'Return here and tap Use my location again.'
       ]
     }
 
@@ -146,43 +163,15 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
       return [
         'Open browser settings > Site settings > Location.',
         'Allow location for this site.',
-        'Return here and tap Ask permission again.'
+        'Return here and tap Use my location again.'
       ]
     }
 
     return [
       'Open browser site permissions for this page.',
       'Allow location access for this site.',
-      'Return here and tap Ask permission again.'
+      'Return here and tap Use my location again.'
     ]
-  }
-
-  const requestLocationPermission = () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser')
-      return
-    }
-
-    if (!window.isSecureContext) {
-      toast.error('Location only works on HTTPS (or localhost).')
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      () => {
-        setLocationPermission('granted')
-        toast.success('Location permission granted. You can now use my location.')
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
-          setLocationPermission('denied')
-          toast.error('Location permission is blocked. Use the steps below to enable it, then tap Ask permission again.')
-        } else {
-          toast.error('Could not request location permission right now. Please try again.')
-        }
-      },
-      { enableHighAccuracy: false, timeout: 10000 }
-    )
   }
 
   // Get device GPS location -> build a Google Maps URL
@@ -201,10 +190,6 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
       try {
         const status = await navigator.permissions.query({ name: 'geolocation' })
         setLocationPermission(status.state || 'unknown')
-        if (status.state === 'denied') {
-          toast.error('Location is blocked for this site. Tap Ask permission after enabling location in browser/app settings.')
-          return
-        }
       } catch (_) {
         // Ignore permission-query errors and still attempt geolocation.
       }
@@ -224,7 +209,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
           setLocationPermission('denied')
         }
         if (err.code === err.PERMISSION_DENIED) {
-          toast.error('Location permission denied. Use Ask permission and follow the steps shown below.')
+          toast.error('Location permission denied. Enable location and tap Use my location again.')
         } else {
           toast.error('Could not get location. Use address fallback or paste a Google Maps link manually.')
         }
@@ -617,6 +602,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
         estate: propertyInfo.estate?.trim() || propertyInfo.name,
         buildings: buildings,
         compoundGate: compoundGate,
+        compoundRoadSurface,
         // When editing with no new images chosen, pass existing URLs so server keeps them
         images: imageUrls.length > 0 ? imageUrls : (existingProperty?.images || [])
       }
@@ -703,13 +689,6 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                 />
                 <button
                   type='button'
-                  onClick={requestLocationPermission}
-                  className='flex items-center justify-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded text-sm font-medium transition-all'
-                >
-                  <Navigation className='w-4 h-4' /> Ask permission
-                </button>
-                <button
-                  type='button'
                   onClick={handleGetLocation}
                   disabled={locating}
                   className='flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded text-sm font-medium transition-all'
@@ -717,7 +696,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   {locating ? (
                     <><span className='w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block' /> Locating...</>
                   ) : (
-                    <><Navigation className='w-4 h-4' /> {locationPermission === 'denied' ? 'Location blocked' : 'Use my location'}</>
+                    <><Navigation className='w-4 h-4' /> Use my location</>
                   )}
                 </button>
                 <button
@@ -847,7 +826,18 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
 
         {/* Grid Editor */}
         <div className='border-l-4 border-purple-500 pl-4 mb-6'>
-          <h2 className='text-xl font-semibold mb-3 flex items-center gap-2'>Building Layout <HardHat className='w-5 h-5 text-purple-500' /></h2>
+          <div className='mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2'>
+            <h2 className='text-xl font-semibold flex items-center gap-2'>Building Layout <HardHat className='w-5 h-5 text-purple-500' /></h2>
+            <button
+              type='button'
+              onClick={() => setShowDragPalette((s) => !s)}
+              className='inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-gray-300 dark:border-gray-600 text-xs font-medium bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors self-start sm:self-auto'
+              title='Show or hide drag & drop tools'
+            >
+              <GripVertical className='w-4 h-4' />
+              {showDragPalette ? 'Hide Drag Tools' : 'Show Drag Tools'}
+            </button>
+          </div>
 
           {/* Action buttons */}
           <div className='flex gap-2 mb-3 flex-wrap text-sm'>
@@ -881,6 +871,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
           </div>
 
           {/* Drag & Drop Palette */}
+          {showDragPalette && (
           <div className='mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg'>
             <p className='text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-2 flex items-center gap-1.5'>
               <GripVertical className='w-3.5 h-3.5' /> Drag & Drop — drag a room type onto the grid
@@ -909,6 +900,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
               </div>
             </div>
           </div>
+          )}
 
           {/* Gate side selector — 8 positions */}
           <div className='mb-2'>
@@ -941,6 +933,15 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
               </button>
             ))}
           </div>
+          <div className='mb-3 flex items-center gap-2'>
+            <span className='text-gray-600 font-medium text-xs'>Compound road surface:</span>
+            {[{ id: 'tarmac', label: 'Tarmac' }, { id: 'murram', label: 'Murram' }].map(({ id, label }) => (
+              <button key={id} type='button' onClick={() => setCompoundRoadSurface(id)}
+                className={`px-2 py-1 rounded text-xs font-medium transition-all ${compoundRoadSurface === id ? 'bg-emerald-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
 
           {/* Compound — all buildings in ONE fenced compound, ONE gate */}
           <div className='overflow-x-auto mb-3'>
@@ -950,6 +951,10 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                 {(() => {
                   const gs = compoundGate.side
                   const isColLayout = (compoundGate.layout || 'row') === 'col'
+                  const isMurramSurface = compoundRoadSurface === 'murram'
+                  const roadBgClass = isMurramSurface ? 'bg-[#b08968] dark:bg-[#8a6a4e]' : 'bg-gray-500 dark:bg-gray-600'
+                  const laneDashColor = isMurramSurface ? 'rgba(77,52,30,0.45)' : 'rgba(255,255,255,0.55)'
+                  const corridorDashColor = isMurramSurface ? 'rgba(77,52,30,0.45)' : 'rgba(255,255,255,0.6)'
                   // Build list of trunk strips to render
                   const trunkList = []
                   if (!isColLayout) {
@@ -979,21 +984,21 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad }}>
                   {/* Trunk strips — grey path towards gate, corridors bleed into them creating T-junctions */}
                   {trunkList.map((t, i) => t.dir === 'h' ? (
-                    <div key={i} className='absolute left-0 right-0 overflow-hidden bg-gray-500 dark:bg-gray-600'
+                    <div key={i} className={`absolute left-0 right-0 overflow-hidden ${roadBgClass}`}
                       style={t.pos === 'top'
                         ? { top: 0, height: 14, zIndex: 1 }
                         : { bottom: 0, height: 14, zIndex: 1 }}>
                       <div className='absolute inset-0 flex items-center' style={{ padding: '0 6px' }}>
-                        <div style={{ borderTop: '2px dashed rgba(255,255,255,0.55)', width: '100%' }}></div>
+                        <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                       </div>
                     </div>
                   ) : (
-                    <div key={i} className='absolute top-0 bottom-0 overflow-hidden bg-gray-500 dark:bg-gray-600'
+                    <div key={i} className={`absolute top-0 bottom-0 overflow-hidden ${roadBgClass}`}
                       style={t.pos === 'left'
                         ? { left: 0, width: 14, zIndex: 1 }
                         : { right: 0, width: 14, zIndex: 1 }}>
                       <div className='absolute inset-0 flex justify-center'>
-                        <div style={{ borderLeft: '2px dashed rgba(255,255,255,0.55)', height: '100%' }}></div>
+                        <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                       </div>
                     </div>
                   ))}
@@ -1006,18 +1011,18 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                           {buildingIndex > 0 && (isColLayout ? (
                             /* Horizontal corridor for stacked buildings — bleeds to left+right fence */
                             <div style={{ height: 14, alignSelf: 'stretch', flexShrink: 0, marginLeft: '-12px', marginRight: '-12px' }} className='my-1.5 relative'>
-                              <div className='h-full w-full bg-gray-500 dark:bg-gray-600'>
+                              <div className={`h-full w-full ${roadBgClass}`}>
                                 <div className='absolute inset-0 flex items-center px-2'>
-                                  <div style={{ borderTop: '2px dashed rgba(255,255,255,0.6)', width: '100%' }}></div>
+                                  <div style={{ borderTop: `2px dashed ${corridorDashColor}`, width: '100%' }}></div>
                                 </div>
                               </div>
                             </div>
                           ) : (
                             /* Vertical corridor for side-by-side buildings — bleeds to top+bottom fence */
                             <div style={{ width: 18, alignSelf: 'stretch', flexShrink: 0, marginTop: '-12px', marginBottom: '-12px' }} className='flex items-stretch mx-1.5 relative'>
-                              <div className='w-full h-full bg-gray-500 dark:bg-gray-600'>
+                              <div className={`w-full h-full ${roadBgClass}`}>
                                 <div className='absolute inset-0 flex justify-center'>
-                                  <div style={{ borderLeft: '2px dashed rgba(255,255,255,0.6)', height: '100%' }}></div>
+                                  <div style={{ borderLeft: `2px dashed ${corridorDashColor}`, height: '100%' }}></div>
                                 </div>
                               </div>
                             </div>

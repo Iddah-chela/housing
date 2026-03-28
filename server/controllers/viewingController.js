@@ -35,6 +35,17 @@ const validateMoveInAgainstAvailability = (property, roomDetails, moveInDateRaw)
     return { ok: true };
 };
 
+const isLiveListingWithoutSteward = async (property) => {
+    if (!property) return false;
+    if (String(property.listingTier || '').toLowerCase() !== 'live') return false;
+    const ownerUser = await User.findById(property.owner).select('role').lean();
+    return (
+        String(ownerUser?.role || '').toLowerCase() === 'admin' &&
+        !String(property.claimedBy || '').trim() &&
+        (!Array.isArray(property.caretakers) || property.caretakers.length === 0)
+    );
+};
+
 // Create a viewing request
 export const createViewingRequest = async (req, res) => {
     try {
@@ -50,6 +61,13 @@ export const createViewingRequest = async (req, res) => {
         const property = await Property.findById(propertyId);
         if (!property) {
             return res.json({ success: false, message: "Property not found" });
+        }
+
+        if (await isLiveListingWithoutSteward(property)) {
+            return res.json({
+                success: false,
+                message: "This listing has no landlord/caretaker account in-app yet. Please call or WhatsApp first to confirm availability."
+            });
         }
 
         const building = property.buildings?.find(b => String(b.id) === String(roomDetails?.buildingId));
@@ -403,6 +421,13 @@ export const createDirectApply = async (req, res) => {
 
         const property = await Property.findById(propertyId);
         if (!property) return res.json({ success: false, message: "Property not found" });
+
+        if (await isLiveListingWithoutSteward(property)) {
+            return res.json({
+                success: false,
+                message: "Direct apply is disabled for this listing until a landlord/caretaker account is active in-app. Please call or WhatsApp first."
+            });
+        }
 
         const building = property.buildings?.find(b => String(b.id) === String(roomDetails?.buildingId));
         const cell = building?.grid?.[roomDetails?.row]?.[roomDetails?.col];
