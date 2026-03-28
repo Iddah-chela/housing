@@ -1095,22 +1095,24 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                   const isRightLike = ['right', 'top-right', 'bottom-right'].includes(gs)
                   const isTopLike = ['top', 'top-left', 'top-right'].includes(gs)
                   const isBottomLike = ['bottom', 'bottom-left', 'bottom-right'].includes(gs)
-                  const rowTrunkInsetPx = Math.max(64, Math.min(140, 72 + Math.max(0, buildings.length - 1) * 20))
+                  const rowTrunkInsetPx = Math.max(84, Math.min(160, 92 + Math.max(0, buildings.length - 1) * 20))
                   const rowTrunkLeft = rowTrunkInsetPx
                   const rowTrunkRight = rowTrunkInsetPx
-                  const rowSideStemPx = 58
+                  const rowSideStemPx = 78
+                  const rowTrunkBottomPx = 32
                   const colTrunkSide = isRightLike ? 'right' : 'left'
-                  const colTrunkOffsetPx = 30
-                  const feedBottomPx = 6
-                  const gateJoinY = isTopLike ? 26 : isBottomLike ? 'calc(100% - 38px)' : 'calc(50% - 6px)'
+                  const colTrunkOffsetPx = 50
+                  const feedBottomPx = -24
+                  const gateJoinY = isTopLike ? 46 : isBottomLike ? 'calc(100% - 58px)' : 'calc(50% - 6px)'
                   const rowGateJoinY = gateJoinY
+                  const murramPad = { paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20 }
 
                   return (
                 <div className='border-2 border-dashed border-gray-500 dark:border-gray-400 p-3 bg-gradient-to-br from-green-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 relative'
-                  style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad }}>
+                  style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad, ...murramPad }}>
                   {!isColLayout && (
                     <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                      style={{ bottom: 22, left: rowTrunkLeft, right: rowTrunkRight, height: 12, zIndex: 1 }}>
+                      style={{ bottom: rowTrunkBottomPx, left: rowTrunkLeft, right: rowTrunkRight, height: 12, zIndex: 1 }}>
                       <div className='absolute inset-0 flex items-center' style={{ padding: '0 8px' }}>
                         <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                       </div>
@@ -1139,13 +1141,13 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                             </div>
                           </div>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                            style={{ left: rowSideStemPx, top: rowGateJoinY, bottom: 22, width: 12, zIndex: 1 }}>
+                            style={{ left: rowSideStemPx, top: rowGateJoinY, bottom: rowTrunkBottomPx, width: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex justify-center'>
                               <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                             </div>
                           </div>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                            style={{ left: rowSideStemPx, bottom: 22, width: Math.max(14, rowTrunkLeft - rowSideStemPx), height: 12, zIndex: 1 }}>
+                            style={{ left: rowSideStemPx, bottom: rowTrunkBottomPx, width: Math.max(14, rowTrunkLeft - rowSideStemPx), height: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex items-center px-2'>
                               <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                             </div>
@@ -1161,13 +1163,13 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                             </div>
                           </div>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                            style={{ right: rowSideStemPx, top: rowGateJoinY, bottom: 22, width: 12, zIndex: 1 }}>
+                            style={{ right: rowSideStemPx, top: rowGateJoinY, bottom: rowTrunkBottomPx, width: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex justify-center'>
                               <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                             </div>
                           </div>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                            style={{ right: rowSideStemPx, bottom: 22, width: Math.max(14, rowTrunkRight - rowSideStemPx), height: 12, zIndex: 1 }}>
+                            style={{ right: rowSideStemPx, bottom: rowTrunkBottomPx, width: Math.max(14, rowTrunkRight - rowSideStemPx), height: 12, zIndex: 1 }}>
                             <div className='absolute inset-0 flex items-center px-2'>
                               <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                             </div>
@@ -1177,8 +1179,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                       {!isLeftLike && !isRightLike && (isTopLike || isBottomLike) && (
                         <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                           style={isTopLike
-                            ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 'calc(100% - 34px)', zIndex: 1 }
-                            : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 22, zIndex: 1 }}>
+                            ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 'calc(100% - 44px)', zIndex: 1 }
+                            : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: rowTrunkBottomPx, zIndex: 1 }}>
                           <div className='absolute inset-0 flex justify-center'>
                             <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                           </div>
@@ -1204,11 +1206,11 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                         <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                           style={isLeftLike
                             ? (isTopLike
-                              ? { left: 0, top: 0, height: 26, width: 12, zIndex: 1 }
-                              : { left: 0, bottom: 0, height: 38, width: 12, zIndex: 1 })
+                              ? { left: 0, top: 0, height: 46, width: 12, zIndex: 1 }
+                              : { left: 0, bottom: 0, height: 58, width: 12, zIndex: 1 })
                             : (isTopLike
-                              ? { right: 0, top: 0, height: 26, width: 12, zIndex: 1 }
-                              : { right: 0, bottom: 0, height: 38, width: 12, zIndex: 1 })}>
+                              ? { right: 0, top: 0, height: 46, width: 12, zIndex: 1 }
+                              : { right: 0, bottom: 0, height: 58, width: 12, zIndex: 1 })}>
                           <div className='absolute inset-0 flex justify-center'>
                             <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                           </div>
@@ -1219,8 +1221,8 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                         <>
                           <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                             style={isTopLike
-                              ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 30, zIndex: 1 }
-                              : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 30, zIndex: 1 }}>
+                              ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 50, zIndex: 1 }
+                              : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 50, zIndex: 1 }}>
                             <div className='absolute inset-0 flex justify-center'>
                               <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                             </div>
@@ -1249,7 +1251,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                           <>
                             <div
                               className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                              style={{ left: centerX, bottom: feedBottomPx, width: 12, height: 18, transform: 'translateX(-50%)', zIndex: 1 }}
+                              style={{ left: centerX, bottom: feedBottomPx, width: 12, height: 30, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
                                 <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
@@ -1276,7 +1278,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                           {!isColLayout && (
                             <div
                               className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                              style={{ bottom: -22, left: '50%', width: 12, height: 22, transform: 'translateX(-50%)', zIndex: 1 }}
+                              style={{ bottom: -32, left: '50%', width: 12, height: 32, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
                                 <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
