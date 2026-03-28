@@ -1090,156 +1090,107 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                     )
                   }
 
-                  // Murram uses the branch-to-houses geometry.
-                  const trunkList = []
-                  if (!isColLayout) {
-                    trunkList.push({ dir: 'h', pos: 'bottom' })
-                    if (['left', 'top-left', 'bottom-left'].includes(gs)) trunkList.push({ dir: 'v', pos: 'left' })
-                    if (['right', 'top-right', 'bottom-right'].includes(gs)) trunkList.push({ dir: 'v', pos: 'right' })
-                  } else {
-                    trunkList.push({ dir: 'v', pos: ['right','top-right','bottom-right'].includes(gs) ? 'right' : 'left' })
-                  }
-                  const primaryTrunk = trunkList[0] || { dir: isColLayout ? 'v' : 'h', pos: isColLayout ? 'left' : 'bottom' }
-                  const stackedTrunkSidePx = 22
-                  const stackedTrunkCenterPx = stackedTrunkSidePx + 6
-                  const stackedFeedBottomPx = 6
-                  const rowTrunkInsetPx = Math.max(44, Math.min(120, 52 + Math.max(0, buildings.length - 1) * 16))
+                  // Murram: gate connector -> one trunk -> short feeders to each house.
                   const isLeftLike = ['left', 'top-left', 'bottom-left'].includes(gs)
                   const isRightLike = ['right', 'top-right', 'bottom-right'].includes(gs)
                   const isTopLike = ['top', 'top-left', 'top-right'].includes(gs)
                   const isBottomLike = ['bottom', 'bottom-left', 'bottom-right'].includes(gs)
+                  const rowTrunkInsetPx = Math.max(44, Math.min(120, 52 + Math.max(0, buildings.length - 1) * 16))
                   const rowTrunkLeft = isLeftLike ? 22 : rowTrunkInsetPx
                   const rowTrunkRight = isRightLike ? 22 : rowTrunkInsetPx
-                  const stackedGateConnectorTop = (() => {
-                    if (!isColLayout) return null
-                    if (gs === 'left' || gs === 'right') return 'calc(50% - 6px)'
-                    if (gs === 'top-left' || gs === 'top-right') return 8
-                    if (gs === 'bottom-left' || gs === 'bottom-right') return 'calc(100% - 20px)'
-                    return null
-                  })()
-                  const colConnectorY = isTopLike
-                    ? 22
-                    : isBottomLike
-                      ? 'calc(100% - 22px)'
-                      : (buildings.length === 1 ? 'calc(100% - 34px)' : 'calc(50% - 6px)')
-                  const colGateX = isLeftLike
-                    ? 24
-                    : isRightLike
-                      ? 'calc(100% - 36px)'
-                      : 'calc(50% - 6px)'
+                  const colTrunkSide = isRightLike ? 'right' : 'left'
+                  const colTrunkOffsetPx = 22
+                  const feedBottomPx = 6
+                  const gateJoinY = isTopLike ? 18 : isBottomLike ? 'calc(100% - 30px)' : 'calc(50% - 6px)'
 
                   return (
                 <div className='border-2 border-dashed border-gray-500 dark:border-gray-400 p-3 bg-gradient-to-br from-green-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 relative'
                   style={{ ...(cornerClip ? { clipPath: cornerClip } : {}), ...cornerPad }}>
-                  {trunkList.map((t, i) => t.dir === 'h' ? (
-                    <div key={i} className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                  {!isColLayout && (
+                    <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
                       style={{ bottom: 22, left: rowTrunkLeft, right: rowTrunkRight, height: 12, zIndex: 1 }}>
                       <div className='absolute inset-0 flex items-center' style={{ padding: '0 8px' }}>
                         <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
                       </div>
                     </div>
-                  ) : (
-                    <div key={i} className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                      style={t.pos === 'left'
-                        ? (isColLayout
-                          ? { left: stackedTrunkSidePx, top: 12, bottom: 12, width: 12, zIndex: 1 }
-                          : { left: 22, top: 10, bottom: 10, width: 12, zIndex: 1 })
-                        : (isColLayout
-                          ? { right: stackedTrunkSidePx, top: 12, bottom: 12, width: 12, zIndex: 1 }
-                          : { right: 22, top: 10, bottom: 10, width: 12, zIndex: 1 })}>
-                      <div className='absolute inset-0 flex justify-center'>
-                        <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
-                      </div>
-                    </div>
-                  ))}
+                  )}
 
-                  {!isColLayout && (gs === 'top' || gs === 'bottom') && (
-                    <div
-                      className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                      style={gs === 'top'
-                        ? {
-                            top: 0,
-                            left: 'calc(50% - 6px)',
-                            width: 12,
-                            height: 22,
-                            zIndex: 1
-                          }
-                        : {
-                            bottom: 0,
-                            left: 'calc(50% - 6px)',
-                            width: 12,
-                            height: 22,
-                            zIndex: 1
-                          }}
-                    >
+                  {isColLayout && (
+                    <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                      style={colTrunkSide === 'left'
+                        ? { left: colTrunkOffsetPx, top: 12, bottom: 12, width: 12, zIndex: 1 }
+                        : { right: colTrunkOffsetPx, top: 12, bottom: 12, width: 12, zIndex: 1 }}>
                       <div className='absolute inset-0 flex justify-center'>
                         <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
                       </div>
                     </div>
                   )}
 
-                  {isColLayout && stackedGateConnectorTop !== null && (
-                    <div
-                      className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                      style={['left','top-left','bottom-left'].includes(gs)
-                        ? { left: 0, top: stackedGateConnectorTop, width: stackedTrunkCenterPx + 2, height: 12, zIndex: 1 }
-                        : { right: 0, top: stackedGateConnectorTop, width: stackedTrunkCenterPx + 2, height: 12, zIndex: 1 }}
-                    >
-                      <div className='absolute inset-0 flex items-center px-2'>
-                        <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {isColLayout && (gs === 'top' || gs === 'bottom') && (
+                  {!isColLayout && (
                     <>
-                      <div
-                        className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                        style={primaryTrunk.pos === 'right'
-                          ? { left: '50%', right: stackedTrunkCenterPx, top: gs === 'top' ? 22 : undefined, bottom: gs === 'bottom' ? 22 : undefined, height: 12, zIndex: 1 }
-                          : { left: stackedTrunkCenterPx, right: '50%', top: gs === 'top' ? 22 : undefined, bottom: gs === 'bottom' ? 22 : undefined, height: 12, zIndex: 1 }}
-                      >
-                        <div className='absolute inset-0 flex items-center px-2'>
-                          <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                      {isLeftLike && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={{ left: 0, bottom: 22, width: rowTrunkLeft + 6, height: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex items-center px-2'>
+                            <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                          </div>
                         </div>
-                      </div>
-                      <div
-                        className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                        style={gs === 'top'
-                          ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 22, zIndex: 1 }
-                          : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 22, zIndex: 1 }}
-                      >
-                        <div className='absolute inset-0 flex justify-center'>
-                          <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                      )}
+                      {isRightLike && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={{ right: 0, bottom: 22, width: rowTrunkRight + 6, height: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex items-center px-2'>
+                            <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                          </div>
                         </div>
-                      </div>
+                      )}
+                      {!isLeftLike && !isRightLike && (isTopLike || isBottomLike) && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={isTopLike
+                            ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 'calc(100% - 34px)', zIndex: 1 }
+                            : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 22, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex justify-center'>
+                            <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
 
-                  {isColLayout && (isLeftLike || isRightLike) && (
-                    <div
-                      className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                      style={primaryTrunk.pos === 'right'
-                        ? { right: 0, width: stackedTrunkCenterPx + 2, top: colConnectorY, height: 12, zIndex: 1 }
-                        : { left: 0, width: stackedTrunkCenterPx + 2, top: colConnectorY, height: 12, zIndex: 1 }}
-                    >
-                      <div className='absolute inset-0 flex items-center px-2'>
-                        <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
-                      </div>
-                    </div>
-                  )}
+                  {isColLayout && (
+                    <>
+                      {(isLeftLike || isRightLike) && (
+                        <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                          style={colTrunkSide === 'left'
+                            ? { left: 0, top: gateJoinY, width: colTrunkOffsetPx + 8, height: 12, zIndex: 1 }
+                            : { right: 0, top: gateJoinY, width: colTrunkOffsetPx + 8, height: 12, zIndex: 1 }}>
+                          <div className='absolute inset-0 flex items-center px-2'>
+                            <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
 
-                  {isColLayout && (isTopLike || isBottomLike) && (
-                    <div
-                      className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                      style={isTopLike
-                        ? { top: 0, left: colGateX, width: 12, height: 22, zIndex: 1 }
-                        : { bottom: 0, left: colGateX, width: 12, height: 22, zIndex: 1 }}
-                    >
-                      <div className='absolute inset-0 flex justify-center'>
-                        <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
-                      </div>
-                    </div>
+                      {!isLeftLike && !isRightLike && (isTopLike || isBottomLike) && (
+                        <>
+                          <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                            style={isTopLike
+                              ? { top: 0, left: 'calc(50% - 6px)', width: 12, height: 30, zIndex: 1 }
+                              : { bottom: 0, left: 'calc(50% - 6px)', width: 12, height: 30, zIndex: 1 }}>
+                            <div className='absolute inset-0 flex justify-center'>
+                              <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
+                            </div>
+                          </div>
+                          <div className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
+                            style={colTrunkSide === 'left'
+                              ? { left: colTrunkOffsetPx + 6, right: '50%', top: gateJoinY, height: 12, zIndex: 1 }
+                              : { left: '50%', right: colTrunkOffsetPx + 6, top: gateJoinY, height: 12, zIndex: 1 }}>
+                            <div className='absolute inset-0 flex items-center px-2'>
+                              <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </>
                   )}
 
                   <div className={`relative flex ${isColLayout ? 'flex-col items-start w-full' : 'flex-row items-end'}`} style={{ zIndex: 2 }}>
@@ -1253,7 +1204,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                           <>
                             <div
                               className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                              style={{ left: centerX, bottom: stackedFeedBottomPx, width: 12, height: 18, transform: 'translateX(-50%)', zIndex: 1 }}
+                              style={{ left: centerX, bottom: feedBottomPx, width: 12, height: 18, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
                                 <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
@@ -1261,9 +1212,9 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                             </div>
                             <div
                               className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                              style={primaryTrunk.pos === 'right'
-                                ? { left: centerX, right: stackedTrunkSidePx + 2, bottom: stackedFeedBottomPx, height: 12, zIndex: 1 }
-                                : { left: stackedTrunkSidePx + 2, right: `calc(100% - ${centerX}px)`, bottom: stackedFeedBottomPx, height: 12, zIndex: 1 }}
+                              style={colTrunkSide === 'right'
+                                ? { left: centerX, right: colTrunkOffsetPx + 2, bottom: feedBottomPx, height: 12, zIndex: 1 }
+                                : { left: colTrunkOffsetPx + 2, right: `calc(100% - ${centerX}px)`, bottom: feedBottomPx, height: 12, zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex items-center px-2'>
                                 <div style={{ borderTop: `2px dashed ${laneDashColor}`, width: '100%' }}></div>
@@ -1280,9 +1231,7 @@ const PropertyListingModal = ({ onClose, existingProperty = null, showAsLandlord
                           {!isColLayout && (
                             <div
                               className={`absolute overflow-hidden rounded-sm ${roadBgClass}`}
-                              style={primaryTrunk.pos === 'top'
-                                ? { top: -22, left: '50%', width: 12, height: 22, transform: 'translateX(-50%)', zIndex: 1 }
-                                : { bottom: -22, left: '50%', width: 12, height: 22, transform: 'translateX(-50%)', zIndex: 1 }}
+                              style={{ bottom: -22, left: '50%', width: 12, height: 22, transform: 'translateX(-50%)', zIndex: 1 }}
                             >
                               <div className='absolute inset-0 flex justify-center'>
                                 <div style={{ borderLeft: `2px dashed ${laneDashColor}`, height: '100%' }}></div>
