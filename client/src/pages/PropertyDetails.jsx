@@ -9,7 +9,7 @@ import PaymentModal from '../components/PaymentModal'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
 import { SignInButton, SignUpButton } from '@clerk/clerk-react'
-import { Gift, Lock, Unlock, Key, CreditCard, MessageCircle, Smartphone, PartyPopper, Check, Share2, Copy, Users, User as UserIcon } from 'lucide-react'
+import { Gift, Lock, Unlock, Key, CreditCard, MessageCircle, Smartphone, PartyPopper, Check, Share2, Copy, Users, User as UserIcon, Image as ImageIcon } from 'lucide-react'
 import { PropertyDetailSkeleton } from '../components/Skeletons'
 
 const PropertyDetails = () => {
@@ -745,18 +745,34 @@ const PropertyDetails = () => {
         {/* Images */}
         <div className='flex flex-col lg:flex-row mt-8 gap-4'>
           <div className='lg:w-2/3 w-full'>
-            <img src={mainImage} alt="" className='w-full h-96 rounded-lg object-cover' />
+            {mainImage ? (
+              <img src={mainImage} alt='' className='w-full h-96 rounded-lg object-cover' />
+            ) : (
+              <div className='w-full h-96 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400'>
+                <ImageIcon className='w-12 h-12 mb-2 opacity-70' />
+                <span className='text-sm font-medium'>No image available</span>
+              </div>
+            )}
           </div>
           <div className='grid grid-cols-2 gap-2 lg:w-1/3 w-full'>
-            {property.images.slice(0, 4).map((image, index)=>(
-              <img 
-                onClick={()=> setMainImage(image)}
-                key={index} 
-                src={image} 
-                alt=''
-                className={`w-full h-44 rounded-lg object-cover cursor-pointer ${mainImage === image ? 'ring-2 ring-primary' : ''}`}
-              />
-            ))}
+            {Array.isArray(property.images) && property.images.length > 0 ? (
+              property.images.slice(0, 4).map((image, index) => (
+                <img
+                  onClick={() => setMainImage(image)}
+                  key={index}
+                  src={image}
+                  alt=''
+                  className={`w-full h-44 rounded-lg object-cover cursor-pointer ${mainImage === image ? 'ring-2 ring-primary' : ''}`}
+                />
+              ))
+            ) : (
+              <div className='col-span-2 h-44 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400'>
+                <div className='flex items-center gap-2'>
+                  <ImageIcon className='w-5 h-5 opacity-70' />
+                  <span className='text-xs font-medium'>No gallery images</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1366,35 +1382,13 @@ const PropertyDetails = () => {
                         {(isAdminVerifiedNoStewardLive || property.needsRefresh) && (
                           <p className='text-xs text-amber-700 dark:text-amber-300 mb-2'>Confirm current availability first before paying to unlock contacts.</p>
                         )}
-                        {isAdminManagedWithoutSteward ? (
-                          <>
-                            <div className='text-2xl mb-2'>
-                              <Smartphone className='w-8 h-8 text-amber-600 mx-auto' />
-                            </div>
+                        {isAdminManagedWithoutSteward && (
+                          <div className='mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-left'>
                             <p className='text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1'>No in-app landlord/caretaker account yet</p>
-                            <p className='text-xs text-amber-700 dark:text-amber-300 mb-3'>Please call or WhatsApp to confirm availability first. In-app viewing and booking are disabled for this listing until an account is active.</p>
-                            <div className='flex flex-col gap-2'>
-                              {property.whatsappNumber && (
-                                <a
-                                  href={`https://wa.me/${property.whatsappNumber.replace(/[^0-9]/g, '')}?text=Hi, I'm interested in ${property.name}. Please confirm current availability.`}
-                                  target='_blank'
-                                  rel='noopener noreferrer'
-                                  className='w-full py-2.5 rounded-lg border-2 border-green-600 bg-green-50 text-green-700 hover:bg-green-100 transition-all inline-flex items-center justify-center gap-2 font-semibold'
-                                >
-                                  <Smartphone className='w-4 h-4' /> WhatsApp to Confirm
-                                </a>
-                              )}
-                              {property.contact && (
-                                <a
-                                  href={`tel:${String(property.contact).replace(/[^0-9+]/g, '')}`}
-                                  className='w-full py-2.5 rounded-lg border-2 border-gray-400 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all inline-flex items-center justify-center gap-2 font-semibold'
-                                >
-                                  <Smartphone className='w-4 h-4' /> Call to Confirm
-                                </a>
-                              )}
-                            </div>
-                          </>
-                        ) : !user ? (
+                            <p className='text-xs text-amber-700 dark:text-amber-300'>Please confirm current availability before paying to unlock contact details. In-app viewing and booking are disabled for this listing until an account is active.</p>
+                          </div>
+                        )}
+                        {!user ? (
                           /* Not logged in - two options: free sign-in OR pay without login */
                           <>
                             <Gift className='w-8 h-8 text-indigo-400 mx-auto mb-2' />
