@@ -1449,8 +1449,8 @@ const PropertyDetails = () => {
                                   <div className='h-8 w-32 mx-auto bg-gray-200 rounded animate-pulse' />
                                 ) : (
                                   <>
-                                    <div className='text-2xl font-bold text-indigo-600'>from Ksh 50</div>
-                                    <p className='text-xs text-indigo-500'>Ksh 50/day or Ksh 250/week</p>
+                                    <div className='text-2xl font-bold text-indigo-600'>from Ksh 25</div>
+                                    <p className='text-xs text-indigo-500'>Ksh 25/day or Ksh 175/week</p>
                                   </>
                                 )}
                               </div>

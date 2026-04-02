@@ -46,6 +46,37 @@ const isLiveListingWithoutSteward = async (property) => {
     );
 };
 
+// Find the actual landlord who should receive viewing requests
+// If property owner is admin, find the claimed landlord instead
+const getViewingRequestOwner = async (property) => {
+    if (!property) return null;
+    
+    const ownerUser = await User.findById(property.owner).select('role').lean();
+    
+    // If owner is not admin, return the owner ID as-is
+    if (String(ownerUser?.role || '').toLowerCase() !== 'admin') {
+        return property.owner;
+    }
+    
+    // Owner is admin, so find the actual landlord
+    if (property.claimedBy) {
+        return property.claimedBy;
+    }
+    
+    // No claimed landlord, check for caretaker emails and find user by email
+    if (Array.isArray(property.caretakers) && property.caretakers.length > 0) {
+        const firstCaretaker = await User.findOne({ 
+            email: { $in: property.caretakers } 
+        }).select('_id').lean();
+        if (firstCaretaker) {
+            return firstCaretaker._id;
+        }
+    }
+    
+    // Fallback to original owner (shouldn't happen in normal flow)
+    return property.owner;
+};
+
 // Create a viewing request
 export const createViewingRequest = async (req, res) => {
     try {
@@ -135,6 +166,10 @@ export const createViewingRequest = async (req, res) => {
             return res.json({ success: false, message: "This room already has a pending viewing request" });
         }
 
+        // Determine the actual owner who should receive the viewing request
+        // If the property owner is an admin, find the actual landlord (claimedBy or caretaker)
+        const actualOwnerForViewing = await getViewingRequestOwner(property);
+
         // Create viewing request
         const viewingRequest = await ViewingRequest.create({
             renter: renterId,
@@ -146,7 +181,7 @@ export const createViewingRequest = async (req, res) => {
                 col: roomDetails.col,
                 roomType: roomDetails.roomType
             },
-            owner: ownerId,
+            owner: actualOwnerForViewing,
             viewingDate,
             viewingTimeRange,
             message,
@@ -467,6 +502,10 @@ export const createDirectApply = async (req, res) => {
             return res.json({ success: false, message: "This room already has a pending application" });
         }
 
+        // Determine the actual owner who should receive the viewing request
+        // If the property owner is an admin, find the actual landlord (claimedBy or caretaker)
+        const actualOwnerForViewing = await getViewingRequestOwner(property);
+
         const viewingRequest = await ViewingRequest.create({
             renter: renterId,
             property: propertyId,
@@ -477,7 +516,7 @@ export const createDirectApply = async (req, res) => {
                 col: roomDetails.col,
                 roomType: roomDetails.roomType
             },
-            owner: ownerId,
+            owner: actualOwnerForViewing,
             message,
             preferredMoveInDate: preferredMoveInDate || null,
             isDirectApply: true,

@@ -13,8 +13,8 @@ const PaymentModal = ({ property, onClose, onSuccess, freeReason, referralInfo, 
     const [unlockId, setUnlockId] = useState(null)
 
     const PASS_OPTIONS = [
-        { value: '1day',  label: '1 Day',   price: 50, color: 'indigo' },
-        { value: '7day',  label: '7 Days',  price: 250, color: 'purple' },
+        { value: '1day',  label: '1 Day',   price: 25, color: 'indigo' },
+        { value: '7day',  label: '7 Days',  price: 175, color: 'purple' },
     ]
 
     // Claim free access (no phone needed)
