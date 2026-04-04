@@ -1415,7 +1415,7 @@ const PropertyDetails = () => {
 
                             {/* Option B: pay without login via M-Pesa */}
                             <div className='p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg'>
-                              <p className='text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-0.5 flex items-center gap-1'><Lock className='w-3.5 h-3.5' /> Ksh 50/day or Ksh 250/week - via M-Pesa</p>
+                              <p className='text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-0.5 flex items-center gap-1'><Lock className='w-3.5 h-3.5' /> Ksh 25/day or Ksh 250/week - via M-Pesa</p>
                               <p className='text-xs text-indigo-600 dark:text-indigo-400 mb-2'>Pay directly, no account needed</p>
                               <button
                                 onClick={() => setShowGuestPayment(true)}
@@ -1450,7 +1450,7 @@ const PropertyDetails = () => {
                                 ) : (
                                   <>
                                     <div className='text-2xl font-bold text-indigo-600'>from Ksh 25</div>
-                                    <p className='text-xs text-indigo-500'>Ksh 25/day or Ksh 175/week</p>
+                                    <p className='text-xs text-indigo-500'>Ksh 25/day or Ksh 250/week</p>
                                   </>
                                 )}
                               </div>
@@ -1470,7 +1470,7 @@ const PropertyDetails = () => {
                                 ? <span className='flex items-center justify-center gap-2 animate-pulse'>Loading...</span>
                                 : showFree 
                                   ? <span className='flex items-center justify-center gap-2'><Gift className='w-4 h-4' /> Claim Free Access</span> 
-                                      : <span className='flex items-center justify-center gap-2'><Unlock className='w-4 h-4' /> Unlock - from Ksh 50</span>}
+                                      : <span className='flex items-center justify-center gap-2'><Unlock className='w-4 h-4' /> Unlock - from Ksh 25</span>}
                             </button>
                           </>
                         )})()}

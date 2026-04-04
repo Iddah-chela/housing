@@ -13,6 +13,18 @@
   font-family: Outfit;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html,
+body {
+  background-color: #000000;
+  color: #f3f4f6;
+}
+
 .font-playfair{
   font-family: Playfair !important;
 }

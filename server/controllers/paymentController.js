@@ -3,7 +3,7 @@ import UserPass from "../models/userPass.js";
 import User from "../models/user.js";
 import Property from "../models/property.js";
 
-const PASS_PRICES = { '1day': 50, '7day': 250 };
+const PASS_PRICES = { '1day': 25, '7day': 250 };
 const PASS_DAYS   = { '1day': 1,   '7day': 7   };
 
 // Find an active pass for a user.
@@ -89,7 +89,7 @@ export const initiateUnlock = async (req, res) => {
                 success: true, isFree: true,
                 message: remaining > 0
                     ? `Free view ${priorCount + 1}/${FREE_UNLOCKS}! You have ${remaining} more free view${remaining > 1 ? 's' : ''} left.`
-                    : `Last free view used. From your next property, choose Ksh 50/day or Ksh 250/week.`,
+                    : `Last free view used. From your next property, choose Ksh 25/day or Ksh 250/week.`,
                 unlock: { passType: '1day', expiresAt: freePass.expiresAt, daysRemaining: 1 },
                 unlockId: freePass._id
             });
@@ -121,7 +121,7 @@ export const initiateUnlock = async (req, res) => {
 
         // Validate passType only for paid unlocks
         if (!PASS_PRICES[passType]) {
-            return res.json({ success: false, message: "Invalid pass type. Choose '1day' (Ksh 50) or '7day' (Ksh 250)." });
+            return res.json({ success: false, message: "Invalid pass type. Choose '1day' (Ksh 25) or '7day' (Ksh 250)." });
         }
 
         // Format phone number
