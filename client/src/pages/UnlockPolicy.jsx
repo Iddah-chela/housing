@@ -40,7 +40,7 @@ const UnlockPolicy = () => {
             <div className='flex items-start gap-4'>
               <div className='bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap'>7-Day Pass</div>
               <div>
-                <p className='text-gray-700'><strong>Ksh 175</strong> - Full access for 7 days. Best for active house hunters comparing multiple properties.</p>
+                <p className='text-gray-700'><strong>Ksh 250</strong> - Full access for 7 days. Best for active house hunters comparing multiple properties.</p>
               </div>
             </div>
           </div>
