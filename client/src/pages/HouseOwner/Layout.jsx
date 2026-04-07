@@ -5,15 +5,15 @@ import {useAppContext} from '../../context/AppContext'
 import { useEffect } from 'react'
 
 const Layout = () => {
-  const { isOwner, isAdmin, navigate, user, authLoading } = useAppContext()
+  const { isOwner, isAdmin, isCaretaker, navigate, user, authLoading } = useAppContext()
 
-  const canAccess = isOwner || isAdmin
+  const canAccess = isOwner || isAdmin || isCaretaker
 
   useEffect(() => {
     if (authLoading) return
     if (!user) { navigate('/'); return }
     if (!canAccess) { navigate('/'); return }
-  }, [canAccess, user, authLoading])
+  }, [canAccess, user, authLoading, navigate])
 
   if (authLoading) {
     return (

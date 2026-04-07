@@ -77,6 +77,13 @@ const getViewingRequestOwner = async (property) => {
     return property.owner;
 };
 
+const isCaretakerForProperty = (property, userEmail) => {
+    if (!property || !userEmail) return false;
+    return (property.caretakers || []).some(
+        (email) => String(email || '').toLowerCase() === String(userEmail).toLowerCase()
+    );
+};
+
 // Create a viewing request
 export const createViewingRequest = async (req, res) => {
     try {
@@ -264,14 +271,17 @@ export const respondToViewingRequest = async (req, res) => {
     try {
         const { requestId, status, ownerResponse } = req.body;
         const ownerId = req.user._id;
+        const userEmail = req.user?.email;
 
-        const viewingRequest = await ViewingRequest.findById(requestId);
+        const viewingRequest = await ViewingRequest.findById(requestId).populate('property');
         if (!viewingRequest) {
             return res.json({ success: false, message: "Request not found" });
         }
 
-        // Verify owner
-        if (viewingRequest.owner !== ownerId) {
+        // Allow property owner OR assigned caretaker to respond
+        const isOwner = String(viewingRequest.owner) === String(ownerId);
+        const isCaretaker = isCaretakerForProperty(viewingRequest.property, userEmail);
+        if (!isOwner && !isCaretaker) {
             return res.json({ success: false, message: "Unauthorized" });
         }
 
@@ -1062,7 +1072,21 @@ export const handleRenterDecision = async (req, res) => {
 export const getOwnerViewingRequests = async (req, res) => {
     try {
         const ownerId = req.user._id;
-        const requests = await ViewingRequest.find({ owner: ownerId })
+        const userEmail = req.user?.email;
+
+        // Include requests where user is the request owner OR caretaker of the property
+        const caretakerPropertyIds = userEmail
+            ? (await Property.find({
+                caretakers: { $elemMatch: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+              }).select('_id').lean()).map((p) => p._id)
+            : [];
+
+        const requests = await ViewingRequest.find({
+            $or: [
+                { owner: ownerId },
+                ...(caretakerPropertyIds.length ? [{ property: { $in: caretakerPropertyIds } }] : [])
+            ]
+        })
             .populate('renter', 'username image')
             .populate('property', 'name')
             .sort({ createdAt: -1 });

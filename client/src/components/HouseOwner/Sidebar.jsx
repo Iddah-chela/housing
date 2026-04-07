@@ -1,15 +1,23 @@
 import React from 'react'
 import { assets } from '../../assets/assets'
 import { NavLink } from 'react-router-dom'
+import { useAppContext } from '../../context/AppContext'
 
 const Sidebar = () => {
-    const SidebarLinks = [
-        {name: "Dashboard", path: "/owner", icon: assets.dashboardIcon},
-        {name: "Bookings", path: "/owner/bookings", icon: assets.totalBookingIcon},
-        {name: "Viewing Requests", path: "/owner/viewing-requests", icon: assets.calenderIcon},
-        {name: "My Listings", path: "/owner/list-room", icon: assets.listIcon},
-        {name: "Utilities", path: "/owner/utilities", icon: assets.listIcon},
-    ]
+    const { isCaretaker } = useAppContext()
+    const SidebarLinks = isCaretaker
+        ? [
+            {name: "Managed Properties", path: "/managed-properties", icon: assets.dashboardIcon},
+            {name: "Bookings", path: "/owner/bookings", icon: assets.totalBookingIcon},
+            {name: "Viewing Requests", path: "/owner/viewing-requests", icon: assets.calenderIcon},
+          ]
+        : [
+            {name: "Dashboard", path: "/owner", icon: assets.dashboardIcon},
+            {name: "Bookings", path: "/owner/bookings", icon: assets.totalBookingIcon},
+            {name: "Viewing Requests", path: "/owner/viewing-requests", icon: assets.calenderIcon},
+            {name: "My Listings", path: "/owner/list-room", icon: assets.listIcon},
+            {name: "Utilities", path: "/owner/utilities", icon: assets.listIcon},
+          ]
     const linkClass = ({ isActive }) =>
         `flex items-center py-3 px-4 md:px-8 gap-3 transition-colors ${isActive
             ? 'border-r-[6px] bg-indigo-600/10 border-indigo-600 text-indigo-600'

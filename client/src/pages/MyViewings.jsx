@@ -33,6 +33,11 @@ const MyViewings = () => {
     }
   };
 
+  const handleViewedAction = async (viewingId) => {
+    const shouldBookNow = window.confirm('Do you want to book this room now? Click OK to book, or Cancel to mark as viewed and complete this request.');
+    await handleRenterDecision(viewingId, shouldBookNow ? 'yes' : 'no');
+  };
+
   useEffect(() => {
     if (user) {
       fetchViewings();
@@ -305,37 +310,29 @@ const MyViewings = () => {
                       </div>
                     )}
 
-                    {/* Nudge / booking status — renter only */}
-                    {isRenter && viewing.status === 'confirmed' && !viewing.isDirectApply && (() => {
-                      const viewingPassed = viewing.viewingDate && new Date(viewing.viewingDate) < new Date();
-                      return viewingPassed ? (
-                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
-                          <p className="text-sm text-blue-700 dark:text-blue-300 font-semibold mb-2">How did the viewing go?</p>
-                          <p className="text-xs text-blue-600 dark:text-blue-400 mb-3">Did you like the room? You can book it instantly or let us know it wasn't for you.</p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleRenterDecision(viewing._id, 'yes')}
-                              disabled={decidingId === viewing._id}
-                              className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-semibold py-2 px-3 rounded-lg transition-colors"
-                            >
-                              {decidingId === viewing._id ? 'Processing...' : '✓ Book This Room'}
-                            </button>
-                            <button
-                              onClick={() => handleRenterDecision(viewing._id, 'no')}
-                              disabled={decidingId === viewing._id}
-                              className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-60 text-gray-700 dark:text-gray-200 text-sm font-semibold py-2 px-3 rounded-lg transition-colors"
-                            >
-                              Not for me
-                            </button>
-                          </div>
+                    {/* Booking actions — renter only */}
+                    {isRenter && viewing.status === 'confirmed' && !viewing.isDirectApply && (
+                      <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                        <p className="text-sm text-blue-700 dark:text-blue-300 font-semibold mb-2">Viewing confirmed</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mb-3">You can book now, or mark this as viewed and decide whether to book.</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRenterDecision(viewing._id, 'yes')}
+                            disabled={decidingId === viewing._id}
+                            className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-semibold py-2 px-3 rounded-lg transition-colors"
+                          >
+                            {decidingId === viewing._id ? 'Processing...' : 'Book Now'}
+                          </button>
+                          <button
+                            onClick={() => handleViewedAction(viewing._id)}
+                            disabled={decidingId === viewing._id}
+                            className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-60 text-gray-700 dark:text-gray-200 text-sm font-semibold py-2 px-3 rounded-lg transition-colors"
+                          >
+                            I viewed this property
+                          </button>
                         </div>
-                      ) : (
-                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-                          <p className="text-sm text-green-700 dark:text-green-300 font-medium">Viewing confirmed!</p>
-                          <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">After your visit, we'll email you a one-tap option to book this room.</p>
-                        </div>
-                      );
-                    })()}
+                      </div>
+                    )}
 
                     {isRenter && viewing.status === 'confirmed' && viewing.isDirectApply && (
                       <div className="mt-2 p-3 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-700 rounded-lg">

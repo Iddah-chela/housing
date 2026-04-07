@@ -1,4 +1,4 @@
-const CACHE_NAME = 'patakeja-v8';
+const CACHE_NAME = 'patakeja-v9';
 const STATIC_ASSETS = [
   '/icons/icon-192.png',
   '/icons/badge-mono.png',

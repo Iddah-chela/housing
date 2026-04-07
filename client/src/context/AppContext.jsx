@@ -122,7 +122,7 @@ export const AppProvider = ({children})=>{
             
             const ownerStatus = data.role === "houseOwner" || data.role === "admin";
             const adminStatus = data.role === "admin";
-            const caretakerStatus = !!data.isCaretaker && !ownerStatus;
+            const caretakerStatus = !!data.isCaretaker;
             setIsOwner(ownerStatus);
             setIsAdmin(adminStatus);
             setIsCaretaker(caretakerStatus);
