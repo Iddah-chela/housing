@@ -43,8 +43,25 @@ const styleOptions = [
 
 const linkTypeOptions = [
   { value: 'regular', label: 'Regular Link' },
-  { value: 'whatsapp', label: 'WhatsApp (wa.me)' },
+  { value: 'whatsapp', label: 'WhatsApp (choose recipient)' },
 ];
+
+const extractWhatsAppMessage = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  try {
+    const parsed = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
+    const host = parsed.hostname.toLowerCase();
+    if (host.includes('wa.me') || host.includes('whatsapp.com') || host.includes('api.whatsapp.com')) {
+      return (parsed.searchParams.get('text') || '').trim();
+    }
+  } catch {
+    // Treat non-url input as plain message text.
+  }
+
+  return raw;
+};
 
 const AdminAnnouncements = () => {
   const { axios, getToken } = useAppContext();
@@ -102,6 +119,14 @@ const AdminAnnouncements = () => {
   }, [form.audience, form.recipientTokens]);
 
   const selectedChannels = useMemo(() => new Set(form.channels), [form.channels]);
+  const whatsappPreviewUrl = useMemo(() => {
+    const fallbackMessage = [
+      'Hello, I saw this announcement on PataKeja.',
+      form.title ? `Title: ${form.title}` : '',
+    ].filter(Boolean).join('\n');
+    const message = (form.linkUrl || fallbackMessage).trim();
+    return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  }, [form.linkUrl, form.title]);
 
   const toggleChannel = (channel) => {
     setForm((current) => ({
@@ -126,7 +151,9 @@ const AdminAnnouncements = () => {
       ctaLabel: announcement.ctaLabel || '',
       ctaUrl: announcement.ctaUrl || '',
       linkLabel: announcement.linkLabel || '',
-      linkUrl: announcement.linkUrl || '',
+      linkUrl: announcement.linkType === 'whatsapp'
+        ? extractWhatsAppMessage(announcement.linkUrl)
+        : (announcement.linkUrl || ''),
       linkType: announcement.linkType || 'regular',
       expiresInHours: announcement.expiresAt ? String(Math.max(1, Math.round((new Date(announcement.expiresAt) - new Date()) / 3600000))) : '72',
     });
@@ -318,7 +345,7 @@ const AdminAnnouncements = () => {
           </div>
 
           <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p className="text-xs font-medium text-blue-900 dark:text-blue-200 mb-3">Optional: Add a link button (e.g., WhatsApp support link)</p>
+            <p className="text-xs font-medium text-blue-900 dark:text-blue-200 mb-3">Optional: Add a link button. For WhatsApp, users will choose who to message after tapping.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <label className="block">
                 <span className="text-sm font-medium">Link Type</span>
@@ -331,12 +358,12 @@ const AdminAnnouncements = () => {
                 <input value={form.linkLabel} onChange={(e) => setForm((cur) => ({ ...cur, linkLabel: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" placeholder="Contact us on WhatsApp" />
               </label>
               <label className="block">
-                <span className="text-sm font-medium">{form.linkType === 'whatsapp' ? 'WhatsApp Number (+254...)' : 'Link URL'}</span>
-                <input value={form.linkUrl} onChange={(e) => setForm((cur) => ({ ...cur, linkUrl: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" placeholder={form.linkType === 'whatsapp' ? '254700000000' : 'https://...'} />
+                <span className="text-sm font-medium">{form.linkType === 'whatsapp' ? 'Prefilled WhatsApp Message' : 'Link URL'}</span>
+                <input value={form.linkUrl} onChange={(e) => setForm((cur) => ({ ...cur, linkUrl: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" placeholder={form.linkType === 'whatsapp' ? 'Hi, I need help with this announcement...' : 'https://...'} />
               </label>
             </div>
-            {form.linkType === 'whatsapp' && form.linkUrl && (
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">Preview: wa.me/{form.linkUrl.replace(/^\+?/, '')}</p>
+            {form.linkType === 'whatsapp' && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 break-all">Preview: {whatsappPreviewUrl}</p>
             )}
           </div>
 

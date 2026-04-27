@@ -36,6 +36,45 @@ const normalizeTokens = (value) => {
     .filter(Boolean);
 };
 
+const buildDefaultWhatsAppMessage = ({ title, body }) => {
+  const safeTitle = String(title || '').trim();
+  const safeBody = String(body || '').trim();
+  const bodySnippet = safeBody ? safeBody.slice(0, 180) : '';
+  return [
+    'Hello, I saw this announcement on PataKeja.',
+    safeTitle ? `Title: ${safeTitle}` : '',
+    bodySnippet ? `Message: ${bodySnippet}` : '',
+  ].filter(Boolean).join('\n');
+};
+
+const normalizeWhatsAppComposeUrl = ({ value, title, body }) => {
+  const raw = String(value || '').trim();
+  const fallbackMessage = buildDefaultWhatsAppMessage({ title, body });
+  let message = '';
+
+  if (raw) {
+    const looksLikePhoneNumber = /^[+()\d\s-]+$/.test(raw);
+
+    if (!looksLikePhoneNumber) {
+      try {
+        const parsed = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
+        const host = parsed.hostname.toLowerCase();
+        if (host.includes('wa.me') || host.includes('whatsapp.com') || host.includes('api.whatsapp.com')) {
+          const extractedText = parsed.searchParams.get('text');
+          message = extractedText ? extractedText.trim() : '';
+        } else {
+          message = raw;
+        }
+      } catch {
+        message = raw;
+      }
+    }
+  }
+
+  const finalMessage = (message || fallbackMessage).trim();
+  return `https://wa.me/?text=${encodeURIComponent(finalMessage)}`;
+};
+
 const resolveCaretakerEmails = async () => {
   const properties = await Property.find({ caretakers: { $exists: true, $ne: [] } })
     .select('caretakers')
@@ -213,10 +252,13 @@ export const createAnnouncement = async (req, res) => {
     const linkType = String(req.body.linkType || 'regular').trim();
     let linkUrl = String(req.body.linkUrl || '').trim();
 
-    // Format WhatsApp URL
-    if (linkType === 'whatsapp' && linkUrl) {
-      const cleanNumber = linkUrl.replace(/\D/g, '');
-      linkUrl = `https://wa.me/${cleanNumber}`;
+    // For WhatsApp links, always open compose mode without preselecting a number.
+    if (linkType === 'whatsapp') {
+      linkUrl = normalizeWhatsAppComposeUrl({
+        value: linkUrl,
+        title: req.body.title,
+        body: req.body.body,
+      });
     }
 
     const announcement = await Announcement.create({
@@ -270,10 +312,13 @@ export const updateAnnouncement = async (req, res) => {
     const linkType = req.body.linkType ?? announcement.linkType;
     let linkUrl = req.body.linkUrl ?? announcement.linkUrl;
 
-    // Format WhatsApp URL
-    if (linkType === 'whatsapp' && linkUrl && !linkUrl.startsWith('https://wa.me')) {
-      const cleanNumber = String(linkUrl).replace(/\D/g, '');
-      linkUrl = `https://wa.me/${cleanNumber}`;
+    // For WhatsApp links, always open compose mode without preselecting a number.
+    if (linkType === 'whatsapp') {
+      linkUrl = normalizeWhatsAppComposeUrl({
+        value: linkUrl,
+        title: req.body.title ?? announcement.title,
+        body: req.body.body ?? announcement.body,
+      });
     }
 
     announcement.title = req.body.title ?? announcement.title;
