@@ -4,6 +4,20 @@ import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { Users, Home, Building2, ClipboardList, CheckCircle, AlertTriangle, UserX, LayoutList, Shield, FileText, Activity, CalendarClock, BarChart3, Eye } from 'lucide-react';
 
+const roleColors = {
+  user: '#3b82f6',
+  houseOwner: '#10b981',
+  caretaker: '#f59e0b',
+  admin: '#8b5cf6',
+};
+
+const formatHourLabel = (hour) => {
+  const normalized = Number(hour) || 0;
+  const period = normalized >= 12 ? 'PM' : 'AM';
+  const hour12 = normalized % 12 === 0 ? 12 : normalized % 12;
+  return `${hour12}:00 ${period}`;
+};
+
 const AdminDashboard = () => {
   const { axios, getToken } = useAppContext();
   const navigate = useNavigate();
@@ -102,6 +116,32 @@ const AdminDashboard = () => {
     { label: 'Reports', desc: 'Handle pending reports', path: '/admin/reports', icon: FileText, bg: 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40', textColor: 'text-red-700 dark:text-red-300' },
   ];
 
+  const hourlyVisits = Array.isArray(stats.visitByHour) ? stats.visitByHour : [];
+  const maxHourlyVisits = Math.max(...hourlyVisits.map((row) => row.visits || 0), 1);
+  const peakHourText = stats.peakVisitHour
+    ? `${formatHourLabel(stats.peakVisitHour.hour)} (${stats.peakVisitHour.visits} visits)`
+    : 'No visits yet';
+
+  const roleDist = stats.userRoleDistribution || { user: 0, houseOwner: 0, caretaker: 0, admin: 0 };
+  const roleSegments = [
+    { key: 'user', label: 'Users', value: roleDist.user || 0, color: roleColors.user },
+    { key: 'houseOwner', label: 'House Owners', value: roleDist.houseOwner || 0, color: roleColors.houseOwner },
+    { key: 'caretaker', label: 'Caretakers', value: roleDist.caretaker || 0, color: roleColors.caretaker },
+    { key: 'admin', label: 'Admin', value: roleDist.admin || 0, color: roleColors.admin },
+  ];
+  const totalRoleCount = roleSegments.reduce((sum, seg) => sum + seg.value, 0);
+
+  let cumulative = 0;
+  const pieGradient = roleSegments
+    .filter((seg) => seg.value > 0)
+    .map((seg) => {
+      const start = cumulative;
+      const pct = totalRoleCount ? (seg.value / totalRoleCount) * 100 : 0;
+      cumulative += pct;
+      return `${seg.color} ${start}% ${cumulative}%`;
+    })
+    .join(', ');
+
   return (
     <div className="p-4 md:p-8">
       <h1 className="text-2xl md:text-3xl font-semibold mb-6 md:mb-8">Dashboard Overview</h1>
@@ -185,6 +225,67 @@ const AdminDashboard = () => {
         ) : (
           <p className="text-sm text-gray-500 dark:text-gray-400">No visit data yet. Traffic stats will appear after users browse the site.</p>
         )}
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Peak Visit Times (Last 7 Days)</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Peak: {peakHourText}</p>
+          </div>
+
+          {hourlyVisits.length > 0 ? (
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px] h-56 flex items-end gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
+                {hourlyVisits.map((row) => {
+                  const height = Math.max(8, Math.round(((row.visits || 0) / maxHourlyVisits) * 180));
+                  return (
+                    <div key={row.hour} className="flex flex-col items-center gap-2">
+                      <div
+                        className="w-5 bg-cyan-500/80 hover:bg-cyan-500 rounded-t transition-colors"
+                        style={{ height: `${height}px` }}
+                        title={`${formatHourLabel(row.hour)}: ${row.visits} visits`}
+                      />
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">{String(row.hour).padStart(2, '0')}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 dark:text-gray-400">No visit timing data yet.</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+          <h3 className="text-lg font-semibold mb-4">User Mix</h3>
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div
+              className="w-44 h-44 rounded-full border border-gray-200 dark:border-gray-700"
+              style={{
+                background: totalRoleCount > 0
+                  ? `conic-gradient(${pieGradient})`
+                  : '#e5e7eb',
+              }}
+              title="User role distribution"
+            />
+            <div className="flex-1 space-y-2 w-full">
+              {roleSegments.map((seg) => {
+                const pct = totalRoleCount ? ((seg.value / totalRoleCount) * 100).toFixed(1) : '0.0';
+                return (
+                  <div key={seg.key} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: seg.color }} />
+                      <span className="text-gray-700 dark:text-gray-200">{seg.label}</span>
+                    </div>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{seg.value} ({pct}%)</span>
+                  </div>
+                );
+              })}
+              <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">Caretaker bucket excludes admin and house owner accounts.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

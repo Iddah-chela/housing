@@ -69,6 +69,14 @@ const userSchema = mongoose.Schema({
         type: Number,
         default: 0
     },
+    lastLoginAt: {
+        type: Date,
+        default: null
+    },
+    lastSeenAt: {
+        type: Date,
+        default: null
+    },
     
     recentSearchedPlaces: [{
         type: String,

@@ -1,6 +1,8 @@
 import User from "../models/user.js";
 import { createClerkClient, verifyToken } from '@clerk/express'
 
+const LOGIN_ACTIVITY_WINDOW_MS = 30 * 60 * 1000;
+
 // Create a Clerk client for backend operations
 const clerk = createClerkClient({
     secretKey: process.env.CLERK_SECRET_KEY
@@ -94,6 +96,20 @@ export const protect = async (req, res, next)=>{
             }
         }
         
+        const now = new Date();
+        const lastSeenAt = user.lastSeenAt ? new Date(user.lastSeenAt) : null;
+        const shouldMarkLogin = !lastSeenAt || (now.getTime() - lastSeenAt.getTime()) > LOGIN_ACTIVITY_WINDOW_MS;
+
+        if (shouldMarkLogin) {
+            user.lastLoginAt = now;
+        }
+        user.lastSeenAt = now;
+        if (shouldMarkLogin || !user.lastLoginAt) {
+            await user.save();
+        } else {
+            await user.save();
+        }
+
         // Enforce account suspension
         if (user.isSuspended) {
             return res.status(403).json({ success: false, message: 'Your account has been suspended. Please contact support.' });

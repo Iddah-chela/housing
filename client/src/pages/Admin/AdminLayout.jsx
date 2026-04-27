@@ -30,6 +30,7 @@ const AdminLayout = () => {
   const navLinks = [
     { name: 'Dashboard', path: '/admin' },
     { name: 'Applications', path: '/admin/applications' },
+    { name: 'Announcements', path: '/admin/announcements' },
     { name: 'Reports', path: '/admin/reports' },
     { name: 'Users', path: '/admin/users' },
     { name: 'Listings', path: '/admin/listings' },

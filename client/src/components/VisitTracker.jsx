@@ -26,7 +26,7 @@ const getOrCreateId = (storage, key) => {
 
 const buildVisitEndpoints = () => {
   const base = String(import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
-  const relative = ['/api/site/visit', '/api/analytics/visit'];
+  const relative = ['/api/site/visit', '/api/visit/site', '/api/analytics/visit'];
 
   if (!base) {
     return relative;
@@ -34,8 +34,8 @@ const buildVisitEndpoints = () => {
 
   return [
     `${base}/api/site/visit`,
+    `${base}/api/visit/site`,
     `${base}/api/analytics/visit`,
-    ...relative,
   ];
 };
 

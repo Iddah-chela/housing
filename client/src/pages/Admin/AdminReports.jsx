@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { toast } from 'react-hot-toast';
-import { AlertTriangle, Ban, Trash2, ShieldOff, Eye, ExternalLink, UserCheck, Send, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle, Ban, Trash2, ShieldOff, Eye, ExternalLink, UserCheck, Send, ChevronDown, ChevronUp, Download, FileSpreadsheet } from 'lucide-react';
 
 const AdminReports = () => {
   const { axios, getToken } = useAppContext();
@@ -11,10 +11,51 @@ const AdminReports = () => {
   const [expandedReport, setExpandedReport] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [reportDataset, setReportDataset] = useState('bookings');
+  const [reportFormat, setReportFormat] = useState('xlsx');
+  const [reportFrom, setReportFrom] = useState('');
+  const [reportTo, setReportTo] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     fetchReports();
   }, [filter]);
+
+  const downloadReport = async () => {
+    setExportLoading(true);
+    try {
+      const token = await getToken();
+      const params = new URLSearchParams();
+      params.set('dataset', reportDataset);
+      params.set('format', reportFormat);
+      if (reportFrom) params.set('from', reportFrom);
+      if (reportTo) params.set('to', reportTo);
+
+      const { data } = await axios.get(`/api/admin/reports/export?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([data], {
+        type: reportFormat === 'csv'
+          ? 'text/csv'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `patakeja-${reportDataset}-report.${reportFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Report downloaded');
+    } catch (error) {
+      toast.error('Could not generate report');
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const fetchReports = async () => {
     setLoading(true);
@@ -132,6 +173,47 @@ const AdminReports = () => {
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <h1 className="text-2xl md:text-3xl font-semibold mb-2">Reports Management</h1>
       <p className="text-gray-500 text-sm mb-6">Review reports and take enforcement actions</p>
+
+      <div className="mb-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+          <h2 className="text-lg font-semibold">Export Activity Report</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <label className="block">
+            <span className="text-sm font-medium">Report Type</span>
+            <select value={reportDataset} onChange={(e) => setReportDataset(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+              <option value="bookings">Bookings</option>
+              <option value="logins">Recent Logins</option>
+              <option value="users">Users</option>
+              <option value="properties">Properties</option>
+              <option value="visits">Site Visits</option>
+              <option value="reports">Moderation Reports</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium">Format</span>
+            <select value={reportFormat} onChange={(e) => setReportFormat(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+              <option value="xlsx">Excel (.xlsx)</option>
+              <option value="csv">CSV</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium">From</span>
+            <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium">To</span>
+            <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-3 mt-4 items-center">
+          <button onClick={downloadReport} disabled={exportLoading} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60">
+            <Download className="w-4 h-4" /> {exportLoading ? 'Generating...' : 'Download Report'}
+          </button>
+          <p className="text-xs text-gray-500 dark:text-gray-400">If you leave dates blank, the last 30 days are used.</p>
+        </div>
+      </div>
 
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2 mb-6">

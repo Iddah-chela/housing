@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { assets } from '../assets/assets'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
@@ -81,59 +81,81 @@ const AllRooms = () => {
     return 'View Units'
   }
   
-  useEffect(() => {
-    const fetchProperties = async () => {
-      try {
-        setLoading(true)
-        const response = await axios.get('/api/properties', {
-          params: {
-            includePreLive,
-            includeFull: includeFullyOccupied,
+  const fetchProperties = useCallback(async ({ silent = false, showLoader = false } = {}) => {
+    try {
+      if (showLoader) setLoading(true)
+
+      const response = await axios.get('/api/properties', {
+        params: {
+          includePreLive,
+          includeFull: includeFullyOccupied,
+        }
+      })
+      
+      if (response.data.success) {
+        // Process properties to calculate min/max prices from grid
+        const processedProperties = response.data.properties.map(property => {
+          const prices = []
+          
+          ;(property.buildings || []).forEach(building => {
+            ;(building.grid || []).forEach(row => {
+              row.forEach(cell => {
+                if (cell.type === 'room' && cell.pricePerMonth) {
+                  prices.push(cell.pricePerMonth)
+                }
+              })
+            })
+          })
+
+          const fallbackMin = property.listedRentMin || property.listedRentMax || 0
+          const fallbackMax = property.listedRentMax || property.listedRentMin || 0
+          
+          return {
+            ...property,
+            minPrice: prices.length > 0 ? Math.min(...prices) : 0,
+            maxPrice: prices.length > 0 ? Math.max(...prices) : 0,
+            minPriceDisplay: prices.length > 0 ? Math.min(...prices) : fallbackMin,
+            maxPriceDisplay: prices.length > 0 ? Math.max(...prices) : fallbackMax,
+            hasRealImages: !!(property.images && property.images.length > 0),
+            images: property.images && property.images.length > 0 ? property.images : []
           }
         })
         
-        if (response.data.success) {
-          // Process properties to calculate min/max prices from grid
-          const processedProperties = response.data.properties.map(property => {
-            const prices = []
-            
-            ;(property.buildings || []).forEach(building => {
-              ;(building.grid || []).forEach(row => {
-                row.forEach(cell => {
-                  if (cell.type === 'room' && cell.pricePerMonth) {
-                    prices.push(cell.pricePerMonth)
-                  }
-                })
-              })
-            })
+        setProperties(processedProperties)
+      } else if (!silent) {
+        toast.error(response.data.message)
+      }
+    } catch (error) {
+      if (!silent) toast.error('Failed to load properties')
+    } finally {
+      if (showLoader) setLoading(false)
+    }
+  }, [includePreLive, includeFullyOccupied])
 
-            const fallbackMin = property.listedRentMin || property.listedRentMax || 0
-            const fallbackMax = property.listedRentMax || property.listedRentMin || 0
-            
-            return {
-              ...property,
-              minPrice: prices.length > 0 ? Math.min(...prices) : 0,
-              maxPrice: prices.length > 0 ? Math.max(...prices) : 0,
-              minPriceDisplay: prices.length > 0 ? Math.min(...prices) : fallbackMin,
-              maxPriceDisplay: prices.length > 0 ? Math.max(...prices) : fallbackMax,
-              hasRealImages: !!(property.images && property.images.length > 0),
-              images: property.images && property.images.length > 0 ? property.images : []
-            }
-          })
-          
-          setProperties(processedProperties)
-        } else {
-          toast.error(response.data.message)
-        }
-      } catch (error) {
-        toast.error('Failed to load properties')
-      } finally {
-        setLoading(false)
+  useEffect(() => {
+    fetchProperties({ showLoader: true })
+  }, [fetchProperties])
+
+  useEffect(() => {
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchProperties({ silent: true })
+      }
+    }, 15000)
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchProperties({ silent: true })
       }
     }
-    
-    fetchProperties()
-  }, [includePreLive, includeFullyOccupied])
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      window.clearInterval(pollId)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [fetchProperties])
 
   const roomTypes = [
     "BedSitter",

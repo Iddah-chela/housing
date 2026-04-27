@@ -23,6 +23,8 @@ import {
     approvePropertyClaim,
     rejectPropertyClaim,
     resetPropertyClaimState
+    ,
+    exportAdminReport
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -42,6 +44,7 @@ adminRouter.post("/delete-user", deleteUser);
 adminRouter.get("/users", getAllUsers);
 adminRouter.get("/rooms", getAllRooms);
 adminRouter.get("/stats", getDashboardStats);
+adminRouter.get("/reports/export", exportAdminReport);
 adminRouter.get("/properties", getAllProperties);
 adminRouter.post("/delist-property", delistProperty);
 adminRouter.post("/relist-property", relistProperty);

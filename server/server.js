@@ -24,6 +24,7 @@ import profileRouter from "./routes/profileRoutes.js";
 import paymentRouter from "./routes/paymentRoutes.js";
 import newsletterRouter from "./routes/newsletterRoutes.js";
 import notificationRouter from "./routes/notificationRoutes.js";
+import announcementRouter from "./routes/announcementRoutes.js";
 import utilityRouter from "./routes/utilityRoutes.js";
 import analyticsRouter from "./routes/analyticsRoutes.js";
 import { expireViewingRequests } from "./utils/expirationHandler.js";
@@ -145,7 +146,9 @@ app.use('/api/rent-payment', generalLimiter, rentPaymentRouter)
 app.use('/api/utility', generalLimiter, utilityRouter)
 app.use('/api/newsletter', generalLimiter, newsletterRouter)
 app.use('/api/notifications', generalLimiter, notificationRouter)
+app.use('/api/announcements', generalLimiter, announcementRouter)
 app.use('/api/site', generalLimiter, analyticsRouter)
+app.use('/api/visit', generalLimiter, analyticsRouter)
 app.use('/api/analytics', generalLimiter, analyticsRouter)
 
 

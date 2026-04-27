@@ -6,6 +6,7 @@ import {useUser, useAuth} from "@clerk/clerk-react"
 import { useState } from "react";
 import {toast} from 'react-hot-toast'
 import { useEffect } from "react";
+import { useCallback } from "react";
 import { roomsDummyData } from "../assets/assets";
 import { resubscribeIfNeeded, subscribeToPush, isPushSupported, getPermissionState } from "../utils/pushNotifications";
 
@@ -79,7 +80,7 @@ export const AppProvider = ({children})=>{
         }
     }
 
-    const fetchRooms = async () =>{
+    const fetchRooms = useCallback(async () =>{
         try {
             // Fetch real properties from API
             const {data} = await axios.get('/api/properties')
@@ -89,7 +90,7 @@ export const AppProvider = ({children})=>{
             }
         } catch (error) {
         }
-    }
+    }, [])
 
     const fetchUser = async () => {
         try {
@@ -231,7 +232,26 @@ export const AppProvider = ({children})=>{
 
     useEffect(()=>{
         fetchRooms()
-    },[])
+
+        const pollId = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                fetchRooms()
+            }
+        }, 20000)
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchRooms()
+            }
+        }
+
+        document.addEventListener('visibilitychange', onVisibilityChange)
+
+        return () => {
+            window.clearInterval(pollId)
+            document.removeEventListener('visibilitychange', onVisibilityChange)
+        }
+    },[fetchRooms])
 
     const value ={
         currency, 

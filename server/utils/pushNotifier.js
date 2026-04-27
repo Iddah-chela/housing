@@ -19,11 +19,16 @@ export const sendPushNotification = async (userId, payload) => {
     // Always save in-app notification regardless of push status
     try {
         await Notification.create({
+            broadcastId: payload.broadcastId || null,
             user: userId,
             title: payload.title || 'PataKeja',
             body: payload.body || '',
             url: payload.url || '/',
             type: payload.type || 'system',
+            channel: payload.channel || 'inApp',
+            style: payload.style || 'info',
+            imageUrl: payload.imageUrl || '',
+            expiresAt: payload.expiresAt || undefined,
         });
     } catch (dbErr) {
         console.warn('[Notification] Failed to save in-app notification:', dbErr.message);

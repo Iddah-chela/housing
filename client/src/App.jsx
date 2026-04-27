@@ -8,6 +8,7 @@ import {Toaster} from 'react-hot-toast'
 import FeedbackModal from './components/FeedbackModal'
 import Footer from './components/Footer'
 import VisitTracker from './components/VisitTracker'
+import SiteAnnouncements from './components/SiteAnnouncements'
 
 // Lazy-load all pages - they won't be in the initial JS bundle
 const Home            = lazy(() => import('./pages/home'))
@@ -28,6 +29,7 @@ const UtilityManager  = lazy(() => import('./pages/HouseOwner/UtilityManager'))
 const AdminLayout     = lazy(() => import('./pages/Admin/AdminLayout'))
 const AdminDashboard  = lazy(() => import('./pages/Admin/AdminDashboard'))
 const AdminApplications = lazy(() => import('./pages/Admin/AdminApplications'))
+const AdminAnnouncements = lazy(() => import('./pages/Admin/AdminAnnouncements'))
 const AdminReports    = lazy(() => import('./pages/Admin/AdminReports'))
 const AdminUsers      = lazy(() => import('./pages/Admin/AdminUsers'))
 const AdminListings   = lazy(() => import('./pages/Admin/AdminListings'))
@@ -87,6 +89,7 @@ const App = () => {
         style: { zIndex: 99999, marginTop: '60px' }, // avoid overlapping navbar
          }}
       />
+        {!isAdminPath && <SiteAnnouncements />}
      {!isAdminPath && <Navbar />}
      <main className={isAdminPath ? '' : 'min-h-[70vh]'}>
         <Suspense fallback={
@@ -122,6 +125,7 @@ const App = () => {
           <Route path='/admin' element={<AdminLayout/>}>
               <Route index element={<AdminDashboard/>}/>
               <Route path='applications' element={<AdminApplications/>}/>
+              <Route path='announcements' element={<AdminAnnouncements/>}/>
               <Route path='reports' element={<AdminReports/>}/>
               <Route path='users' element={<AdminUsers/>}/>
               <Route path='listings' element={<AdminListings/>}/>

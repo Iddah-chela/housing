@@ -5,6 +5,8 @@ import Report from "../models/report.js";
 import Property from "../models/property.js";
 import PropertyClaim from "../models/propertyClaim.js";
 import SiteVisit from "../models/siteVisit.js";
+import Booking from "../models/booking.js";
+import xlsx from "xlsx";
 import { applyAutoListingLifecycle, evaluateListingReadiness } from "../utils/listingLifecycle.js";
 import { sendEmail } from "../utils/mailer.js";
 import { sendPushNotification } from "../utils/pushNotifier.js";
@@ -332,14 +334,6 @@ export const getDashboardStats = async (req, res) => {
     try {
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
-        const totalUsers = await User.countDocuments();
-        const totalOwners = await User.countDocuments({ role: 'houseOwner' });
-        const totalProperties = await Property.countDocuments();
-        const activeListings = await Property.countDocuments({ isExpired: { $ne: true } });
-        const verifiedListings = await Property.countDocuments({ isVerified: true });
-        const totalReports = await Report.countDocuments({ status: 'pending' });
-        const suspendedUsers = await User.countDocuments({ isSuspended: true });
-
         const now = new Date();
         const startOfDay = new Date(now);
         startOfDay.setHours(0, 0, 0, 0);
@@ -349,15 +343,41 @@ export const getDashboardStats = async (req, res) => {
 
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
         const [
+            totalUsers,
+            totalOwners,
+            totalProperties,
+            activeListings,
+            verifiedListings,
+            totalReports,
+            suspendedUsers,
+            users,
+            caretakerEmailRows,
             totalVisits,
             todayVisits,
             weekVisits,
             monthVisits,
             uniqueVisitors30d,
             topPages,
+            visitsByHourRows,
         ] = await Promise.all([
+            User.countDocuments(),
+            User.countDocuments({ role: 'houseOwner' }),
+            Property.countDocuments(),
+            Property.countDocuments({ isExpired: { $ne: true } }),
+            Property.countDocuments({ isVerified: true }),
+            Report.countDocuments({ status: 'pending' }),
+            User.countDocuments({ isSuspended: true }),
+            User.find().select('_id role email').lean(),
+            Property.aggregate([
+                { $project: { caretakers: { $ifNull: ['$caretakers', []] } } },
+                { $unwind: '$caretakers' },
+                { $project: { email: { $toLower: '$caretakers' } } },
+                { $match: { email: { $ne: '' } } },
+                { $group: { _id: '$email' } },
+            ]),
             SiteVisit.countDocuments(),
             SiteVisit.countDocuments({ createdAt: { $gte: startOfDay } }),
             SiteVisit.countDocuments({ createdAt: { $gte: startOfWeek } }),
@@ -370,7 +390,47 @@ export const getDashboardStats = async (req, res) => {
                 { $limit: 5 },
                 { $project: { _id: 0, path: '$_id', visits: 1 } },
             ]),
+            SiteVisit.aggregate([
+                { $match: { createdAt: { $gte: last7Days } } },
+                {
+                    $group: {
+                        _id: { $hour: { date: '$createdAt', timezone: 'Africa/Nairobi' } },
+                        visits: { $sum: 1 },
+                    }
+                },
+                { $sort: { _id: 1 } },
+            ]),
         ]);
+
+        const visitByHourMap = new Map(visitsByHourRows.map((row) => [row._id, row.visits]));
+        const visitByHour = Array.from({ length: 24 }, (_, hour) => ({
+            hour,
+            visits: visitByHourMap.get(hour) || 0,
+        }));
+
+        const peakVisitHour = visitByHour.reduce((peak, row) => {
+            if (row.visits > peak.visits) return row;
+            return peak;
+        }, { hour: 0, visits: 0 });
+
+        const caretakerEmailSet = new Set(caretakerEmailRows.map((row) => String(row._id || '').toLowerCase()).filter(Boolean));
+
+        const userRoleDistribution = users.reduce((acc, user) => {
+            const role = String(user.role || '').toLowerCase();
+            const email = String(user.email || '').toLowerCase();
+
+            if (role === 'admin') {
+                acc.admin += 1;
+            } else if (role === 'houseowner') {
+                acc.houseOwner += 1;
+            } else if (caretakerEmailSet.has(email)) {
+                acc.caretaker += 1;
+            } else {
+                acc.user += 1;
+            }
+
+            return acc;
+        }, { user: 0, houseOwner: 0, caretaker: 0, admin: 0 });
 
         res.json({
             success: true,
@@ -388,6 +448,9 @@ export const getDashboardStats = async (req, res) => {
                 monthVisits,
                 uniqueVisitors30d,
                 topPages,
+                visitByHour,
+                peakVisitHour,
+                userRoleDistribution,
             }
         });
     } catch (error) {
@@ -409,6 +472,166 @@ export const getPropertyClaims = async (req, res) => {
         res.json({ success: true, claims });
     } catch (error) {
         res.json({ success: false, message: error.message });
+    }
+};
+
+const formatDateValue = (value) => (value ? new Date(value).toISOString() : '');
+
+const buildReportRows = async ({ dataset, from, to }) => {
+    const start = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = to ? new Date(to) : new Date();
+
+    if (dataset === 'bookings') {
+        const bookings = await Booking.find({ createdAt: { $gte: start, $lte: end } })
+            .populate('property', 'name estate place')
+            .populate('user', 'username email')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return bookings.map((booking) => ({
+            id: booking._id,
+            createdAt: formatDateValue(booking.createdAt),
+            status: booking.status,
+            moveInDate: formatDateValue(booking.moveInDate),
+            property: booking.property?.name || '',
+            location: [booking.property?.estate, booking.property?.place].filter(Boolean).join(', '),
+            roomType: booking.roomDetails?.roomType || '',
+            pricePerMonth: booking.roomDetails?.pricePerMonth || '',
+            user: booking.user?.username || '',
+            email: booking.user?.email || '',
+        }));
+    }
+
+    if (dataset === 'logins') {
+        const users = await User.find({ lastLoginAt: { $gte: start, $lte: end } })
+            .sort({ lastLoginAt: -1 })
+            .lean();
+
+        return users.map((user) => ({
+            userId: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            lastLoginAt: formatDateValue(user.lastLoginAt),
+            lastSeenAt: formatDateValue(user.lastSeenAt),
+            suspended: user.isSuspended ? 'yes' : 'no',
+        }));
+    }
+
+    if (dataset === 'users') {
+        const users = await User.find({ createdAt: { $gte: start, $lte: end } })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return users.map((user) => ({
+            userId: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            createdAt: formatDateValue(user.createdAt),
+            lastLoginAt: formatDateValue(user.lastLoginAt),
+            lastSeenAt: formatDateValue(user.lastSeenAt),
+            suspended: user.isSuspended ? 'yes' : 'no',
+        }));
+    }
+
+    if (dataset === 'properties') {
+        const properties = await Property.find({ createdAt: { $gte: start, $lte: end } })
+            .populate('owner', 'username email role')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return properties.map((property) => ({
+            propertyId: property._id,
+            name: property.name,
+            place: property.place,
+            estate: property.estate,
+            owner: property.owner?.username || '',
+            ownerEmail: property.owner?.email || '',
+            listingTier: property.listingTier,
+            vacancyStatus: property.vacancyStatus,
+            isVerified: property.isVerified ? 'yes' : 'no',
+            createdAt: formatDateValue(property.createdAt),
+            lastVerifiedAt: formatDateValue(property.lastVerifiedAt),
+            claimStatus: property.claimStatus,
+        }));
+    }
+
+    if (dataset === 'visits') {
+        const visits = await SiteVisit.find({ createdAt: { $gte: start, $lte: end } })
+            .sort({ createdAt: -1 })
+            .limit(5000)
+            .lean();
+
+        return visits.map((visit) => ({
+            visitId: visit._id,
+            createdAt: formatDateValue(visit.createdAt),
+            path: visit.path,
+            referrer: visit.referrer || '',
+            visitorId: visit.visitorId,
+            sessionId: visit.sessionId,
+            ip: visit.ip || '',
+        }));
+    }
+
+    if (dataset === 'reports') {
+        const reports = await Report.find({ createdAt: { $gte: start, $lte: end } })
+            .populate('reportedBy', 'username email')
+            .populate('reportedUserId', 'username email')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return reports.map((report) => ({
+            reportId: report._id,
+            createdAt: formatDateValue(report.createdAt),
+            status: report.status,
+            reportType: report.reportType,
+            reason: report.reason,
+            description: report.description,
+            reportedBy: report.reportedBy?.username || '',
+            reportedByEmail: report.reportedBy?.email || '',
+            reportedUser: report.reportedUserId?.username || '',
+            reportedUserEmail: report.reportedUserId?.email || '',
+            actionTaken: report.actionTaken || '',
+        }));
+    }
+
+    throw new Error('Unsupported report dataset');
+};
+
+export const exportAdminReport = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const dataset = String(req.query.dataset || 'bookings');
+        const format = String(req.query.format || 'xlsx').toLowerCase();
+        const from = req.query.from;
+        const to = req.query.to;
+
+        const rows = await buildReportRows({ dataset, from, to });
+        const exportDate = new Date().toISOString().slice(0, 10);
+        const fileBase = `patakeja-${dataset}-report-${exportDate}`;
+
+        if (format === 'csv') {
+            const worksheet = xlsx.utils.json_to_sheet(rows);
+            const csv = xlsx.utils.sheet_to_csv(worksheet);
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.csv"`);
+            return res.send(csv);
+        }
+
+        const workbook = xlsx.utils.book_new();
+        const worksheet = xlsx.utils.json_to_sheet(rows);
+        xlsx.utils.book_append_sheet(workbook, worksheet, dataset.slice(0, 31) || 'report');
+        const buffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.xlsx"`);
+        return res.send(buffer);
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
     }
 };
 
