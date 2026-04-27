@@ -13,6 +13,9 @@ const defaultForm = {
   type: 'info',
   ctaLabel: '',
   ctaUrl: '',
+  linkLabel: '',
+  linkUrl: '',
+  linkType: 'regular',
   expiresInHours: '72',
 };
 
@@ -36,6 +39,11 @@ const styleOptions = [
   { value: 'info', label: 'Info' },
   { value: 'general', label: 'General' },
   { value: 'critical', label: 'Critical' },
+];
+
+const linkTypeOptions = [
+  { value: 'regular', label: 'Regular Link' },
+  { value: 'whatsapp', label: 'WhatsApp (wa.me)' },
 ];
 
 const AdminAnnouncements = () => {
@@ -115,6 +123,9 @@ const AdminAnnouncements = () => {
       type: announcement.type || 'info',
       ctaLabel: announcement.ctaLabel || '',
       ctaUrl: announcement.ctaUrl || '',
+      linkLabel: announcement.linkLabel || '',
+      linkUrl: announcement.linkUrl || '',
+      linkType: announcement.linkType || 'regular',
       expiresInHours: announcement.expiresAt ? String(Math.max(1, Math.round((new Date(announcement.expiresAt) - new Date()) / 3600000))) : '72',
     });
     setImageFile(null);
@@ -154,6 +165,9 @@ const AdminAnnouncements = () => {
       payload.append('type', form.type);
       payload.append('ctaLabel', form.ctaLabel);
       payload.append('ctaUrl', form.ctaUrl);
+      payload.append('linkLabel', form.linkLabel);
+      payload.append('linkUrl', form.linkUrl);
+      payload.append('linkType', form.linkType);
       if (form.expiresInHours) {
         const expiresAt = new Date(Date.now() + Number(form.expiresInHours) * 60 * 60 * 1000);
         payload.append('expiresAt', expiresAt.toISOString());
@@ -273,6 +287,29 @@ const AdminAnnouncements = () => {
               <span className="text-sm font-medium">CTA URL</span>
               <input value={form.ctaUrl} onChange={(e) => setForm((cur) => ({ ...cur, ctaUrl: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" placeholder="/owner/list-room" />
             </label>
+          </div>
+
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-xs font-medium text-blue-900 dark:text-blue-200 mb-3">Optional: Add a link button (e.g., WhatsApp support link)</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label className="block">
+                <span className="text-sm font-medium">Link Type</span>
+                <select value={form.linkType} onChange={(e) => setForm((cur) => ({ ...cur, linkType: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                  {linkTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium">Link Button Label</span>
+                <input value={form.linkLabel} onChange={(e) => setForm((cur) => ({ ...cur, linkLabel: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" placeholder="Contact us on WhatsApp" />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium">{form.linkType === 'whatsapp' ? 'WhatsApp Number (+254...)' : 'Link URL'}</span>
+                <input value={form.linkUrl} onChange={(e) => setForm((cur) => ({ ...cur, linkUrl: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" placeholder={form.linkType === 'whatsapp' ? '254700000000' : 'https://...'} />
+              </label>
+            </div>
+            {form.linkType === 'whatsapp' && form.linkUrl && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">Preview: wa.me/{form.linkUrl.replace(/^\+?/, '')}</p>
+            )}
           </div>
 
           <label className="block">

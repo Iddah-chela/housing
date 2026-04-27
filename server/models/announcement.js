@@ -56,6 +56,21 @@ const announcementSchema = new mongoose.Schema({
     default: '',
     maxlength: 1024,
   },
+  linkLabel: {
+    type: String,
+    default: '',
+    maxlength: 80,
+  },
+  linkUrl: {
+    type: String,
+    default: '',
+    maxlength: 1024,
+  },
+  linkType: {
+    type: String,
+    enum: ['regular', 'whatsapp'],
+    default: 'regular',
+  },
   expiresAt: {
     type: Date,
     default: null,

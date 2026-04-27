@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useAppContext } from '../context/AppContext';
-import { X, AlertTriangle, Info, Megaphone } from 'lucide-react';
+import { X, AlertTriangle, Info, Megaphone, MessageCircle } from 'lucide-react';
 
 const styleMap = {
   info: {
@@ -23,14 +22,16 @@ const styleMap = {
 const DISMISS_KEY = 'PataKeja_dismissed_announcements';
 
 const SiteAnnouncements = () => {
-  const { axios } = useAppContext();
   const [announcements, setAnnouncements] = useState([]);
 
   const loadAnnouncements = async () => {
     try {
-      const { data } = await axios.get('/api/announcements/active');
-      if (data.success) {
-        setAnnouncements(data.announcements || []);
+      const response = await fetch('/api/announcements/active');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAnnouncements(data.announcements || []);
+        }
       }
     } catch {
       // Silent fallback; banners are optional.
@@ -66,23 +67,23 @@ const SiteAnnouncements = () => {
   if (!visible.length) return null;
 
   return (
-    <div className="px-4 pt-3 md:px-6 lg:px-8 space-y-3">
+    <div className="fixed top-0 left-0 right-0 z-[100] px-4 pt-2 md:px-6 lg:px-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 space-y-2">
       {visible.map((announcement) => {
         const config = styleMap[announcement.bannerStyle] || styleMap.info;
         const Icon = config.icon;
 
         return (
-          <div key={announcement._id} className={`rounded-2xl border shadow-sm overflow-hidden ${config.wrapper}`}>
-            <div className="flex items-start gap-3 p-4 md:p-5">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 ${config.iconBg}`}>
-                <Icon className="w-5 h-5" />
+          <div key={announcement._id} className={`rounded-lg border shadow-sm overflow-hidden ${config.wrapper}`}>
+            <div className="flex items-start gap-2 md:gap-3 p-3 md:p-4">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0 ${config.iconBg}`}>
+                <Icon className="w-4 h-4" />
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-2 md:gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-base md:text-lg">{announcement.title}</p>
-                    <p className="text-sm md:text-[15px] mt-1 leading-6 whitespace-pre-line">{announcement.body}</p>
+                    <p className="font-semibold text-sm md:text-base">{announcement.title}</p>
+                    <p className="text-xs md:text-sm mt-0.5 leading-5 whitespace-pre-line">{announcement.body}</p>
                   </div>
                   <button
                     onClick={() => dismiss(announcement._id)}
@@ -93,23 +94,38 @@ const SiteAnnouncements = () => {
                   </button>
                 </div>
 
-                {(announcement.imageUrl || announcement.ctaLabel) && (
-                  <div className="mt-4 flex flex-col md:flex-row gap-4 md:items-center">
+                {(announcement.imageUrl || announcement.ctaLabel || announcement.linkLabel) && (
+                  <div className="mt-3 flex flex-col md:flex-row gap-2 md:gap-3 md:items-center">
                     {announcement.imageUrl && (
                       <img
                         src={announcement.imageUrl}
                         alt={announcement.title}
-                        className="w-full md:w-48 h-32 object-cover rounded-xl border border-white/40 dark:border-white/10"
+                        className="w-full md:w-40 h-24 object-cover rounded-lg border border-white/40 dark:border-white/10"
                       />
                     )}
-                    {announcement.ctaLabel && (
-                      <a
-                        href={announcement.ctaUrl || '/'}
-                        className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold bg-black/90 text-white hover:bg-black transition-colors"
-                      >
-                        {announcement.ctaLabel}
-                      </a>
-                    )}
+                    <div className="flex gap-2 flex-wrap">
+                      {announcement.ctaLabel && (
+                        <a
+                          href={announcement.ctaUrl || '/'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs md:text-sm font-semibold bg-black/90 text-white hover:bg-black transition-colors"
+                        >
+                          {announcement.ctaLabel}
+                        </a>
+                      )}
+                      {announcement.linkLabel && (
+                        <a
+                          href={announcement.linkUrl || '/'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs md:text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors"
+                        >
+                          {announcement.linkType === 'whatsapp' && <MessageCircle className="w-4 h-4" />}
+                          {announcement.linkLabel}
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

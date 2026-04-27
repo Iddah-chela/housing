@@ -121,11 +121,18 @@ const deliverAnnouncement = async ({ announcement, recipients, sendEmailToRecipi
         channel: announcement.channels.includes('push') ? 'push' : 'inApp',
         style: announcement.bannerStyle,
         imageUrl: announcement.imageUrl || '',
+        linkLabel: announcement.linkLabel || '',
+        linkUrl: announcement.linkUrl || '',
+        linkType: announcement.linkType || 'regular',
         expiresAt,
       });
     }
 
     if (sendEmailToRecipients && announcement.channels.includes('email')) {
+      const ctaButton = announcement.ctaLabel ? `<a href="${bannerUrl}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;margin-right:12px;">${announcement.ctaLabel}</a>` : '';
+      const linkButton = announcement.linkLabel ? `<a href="${announcement.linkUrl}" style="display:inline-block;background:${announcement.linkType === 'whatsapp' ? '#25d366' : '#4f46e5'};color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;">${announcement.linkLabel}</a>` : '';
+      const buttonGroup = ctaButton || linkButton ? `<div style="margin-top:20px;">${ctaButton}${linkButton}</div>` : '';
+      
       await sendEmail(
         recipient.email,
         announcement.title,
@@ -134,7 +141,7 @@ const deliverAnnouncement = async ({ announcement, recipients, sendEmailToRecipi
             ${announcement.imageUrl ? `<img src="${announcement.imageUrl}" alt="${announcement.title}" style="max-width:100%;border-radius:12px;margin-bottom:16px;" />` : ''}
             <h2 style="margin:0 0 12px;font-size:22px;">${announcement.title}</h2>
             <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">${announcement.body}</p>
-            ${announcement.ctaLabel ? `<a href="${bannerUrl}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;">${announcement.ctaLabel}</a>` : ''}
+            ${buttonGroup}
           </div>
         </div>`
       );
@@ -203,6 +210,14 @@ export const createAnnouncement = async (req, res) => {
     });
 
     const expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : null;
+    const linkType = String(req.body.linkType || 'regular').trim();
+    let linkUrl = String(req.body.linkUrl || '').trim();
+
+    // Format WhatsApp URL
+    if (linkType === 'whatsapp' && linkUrl) {
+      const cleanNumber = linkUrl.replace(/\D/g, '');
+      linkUrl = `https://wa.me/${cleanNumber}`;
+    }
 
     const announcement = await Announcement.create({
       title: String(req.body.title || '').trim(),
@@ -216,6 +231,9 @@ export const createAnnouncement = async (req, res) => {
       imageUrl,
       ctaLabel: String(req.body.ctaLabel || '').trim(),
       ctaUrl: String(req.body.ctaUrl || '').trim(),
+      linkLabel: String(req.body.linkLabel || '').trim(),
+      linkUrl,
+      linkType,
       expiresAt,
       active: true,
       createdBy: req.user._id,
@@ -249,6 +267,15 @@ export const updateAnnouncement = async (req, res) => {
     const recipientTokens = req.body.recipientTokens ?? announcement.recipientEmails;
     const recipients = await resolveRecipients({ audience, recipientTokens });
 
+    const linkType = req.body.linkType ?? announcement.linkType;
+    let linkUrl = req.body.linkUrl ?? announcement.linkUrl;
+
+    // Format WhatsApp URL
+    if (linkType === 'whatsapp' && linkUrl && !linkUrl.startsWith('https://wa.me')) {
+      const cleanNumber = String(linkUrl).replace(/\D/g, '');
+      linkUrl = `https://wa.me/${cleanNumber}`;
+    }
+
     announcement.title = req.body.title ?? announcement.title;
     announcement.body = req.body.body ?? announcement.body;
     announcement.audience = audience;
@@ -260,6 +287,9 @@ export const updateAnnouncement = async (req, res) => {
     announcement.imageUrl = typeof imageUrl === 'string' ? imageUrl : announcement.imageUrl;
     announcement.ctaLabel = req.body.ctaLabel ?? announcement.ctaLabel;
     announcement.ctaUrl = req.body.ctaUrl ?? announcement.ctaUrl;
+    announcement.linkLabel = req.body.linkLabel ?? announcement.linkLabel;
+    announcement.linkUrl = linkUrl;
+    announcement.linkType = linkType;
     announcement.expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : announcement.expiresAt;
     announcement.active = req.body.active === undefined ? announcement.active : String(req.body.active) === 'true';
     announcement.updatedBy = req.user._id;
