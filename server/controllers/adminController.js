@@ -622,8 +622,74 @@ export const exportAdminReport = async (req, res) => {
             return res.send(csv);
         }
 
+        // Create styled Excel workbook
         const workbook = xlsx.utils.book_new();
         const worksheet = xlsx.utils.json_to_sheet(rows);
+
+        // Apply styling
+        const headerStyle = {
+            font: { bold: true, color: { rgb: 'FFFFFF' }, size: 11 },
+            fill: { fgColor: { rgb: '4F46E5' } }, // Indigo
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+            border: {
+                top: { style: 'thin', color: { rgb: '000000' } },
+                bottom: { style: 'thin', color: { rgb: '000000' } },
+                left: { style: 'thin', color: { rgb: '000000' } },
+                right: { style: 'thin', color: { rgb: '000000' } },
+            },
+        };
+
+        const cellStyle = (isEven) => ({
+            font: { size: 10 },
+            fill: isEven ? { fgColor: { rgb: 'F3F4F6' } } : { fgColor: { rgb: 'FFFFFF' } },
+            alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+            border: {
+                top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+                bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+                left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+                right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            },
+        });
+
+        // Get column count
+        const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+        const colCount = columns.length;
+
+        // Apply header styling
+        for (let col = 0; col < colCount; col++) {
+            const cellAddr = xlsx.utils.encode_cell({ r: 0, c: col });
+            if (!worksheet[cellAddr]) worksheet[cellAddr] = { t: 's', v: '' };
+            worksheet[cellAddr].s = headerStyle;
+        }
+
+        // Apply row styling with alternating colors
+        for (let row = 1; row < rows.length + 1; row++) {
+            const isEven = row % 2 === 0;
+            const style = cellStyle(isEven);
+            for (let col = 0; col < colCount; col++) {
+                const cellAddr = xlsx.utils.encode_cell({ r: row, c: col });
+                if (worksheet[cellAddr]) {
+                    worksheet[cellAddr].s = style;
+                }
+            }
+        }
+
+        // Set column widths based on content
+        const colWidths = columns.map((col) => {
+            const maxLen = Math.max(
+                col.length,
+                ...rows.map((row) => String(row[col] || '').length)
+            );
+            return { wch: Math.min(maxLen + 2, 50) };
+        });
+        worksheet['!cols'] = colWidths;
+
+        // Freeze header row
+        worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+        // Set row height for header
+        worksheet['!rows'] = [{ hpx: 25 }];
+
         xlsx.utils.book_append_sheet(workbook, worksheet, dataset.slice(0, 31) || 'report');
         const buffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
 
