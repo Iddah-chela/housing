@@ -130,40 +130,40 @@ const SiteAnnouncements = () => {
   if (!visible.length) return null;
 
   return (
-    <div ref={containerRef} className="fixed top-0 left-0 right-0 z-[200] px-4 pt-2 md:px-6 lg:px-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 space-y-2">
-      {visible.map((announcement) => {
+    <div ref={containerRef} className="fixed top-0 left-0 right-0 z-[200] px-3 pt-1 md:px-6 lg:px-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 space-y-1 max-h-[24vh] overflow-y-auto">
+      {visible.map((announcement, index) => {
         const config = styleMap[announcement.bannerStyle] || styleMap.info;
         const Icon = config.icon;
 
         return (
-          <div key={announcement._id} className={`rounded-lg border shadow-sm overflow-hidden ${config.wrapper}`}>
-            <div className="flex items-start gap-2 md:gap-3 p-3 md:p-4">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0 ${config.iconBg}`}>
-                <Icon className="w-4 h-4" />
+          <div key={announcement._id} className={`${index > 0 ? 'hidden md:block' : ''} rounded-md border shadow-sm overflow-hidden ${config.wrapper}`}>
+            <div className="flex items-start gap-2 p-2 md:gap-2.5 md:p-2.5">
+              <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white shrink-0 ${config.iconBg}`}>
+                <Icon className="w-3.5 h-3.5" />
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2 md:gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm md:text-base">{announcement.title}</p>
-                    <p className="text-xs md:text-sm mt-0.5 leading-5 whitespace-pre-line">{announcement.body}</p>
+                    <p className="font-semibold text-xs md:text-sm leading-4">{announcement.title}</p>
+                    <p className="text-[11px] md:text-xs mt-0.5 leading-4 whitespace-pre-line line-clamp-2 md:line-clamp-3">{announcement.body}</p>
                   </div>
                   <button
                     onClick={() => dismiss(announcement._id, announcement.updatedAt || announcement.createdAt)}
-                    className="text-current/70 hover:text-current shrink-0 rounded-full p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                    className="text-current/70 hover:text-current shrink-0 rounded-full p-0.5 hover:bg-black/5 dark:hover:bg-white/10"
                     aria-label="Dismiss banner"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
                 {(announcement.imageUrl || announcement.ctaLabel || announcement.linkLabel) && (
-                  <div className="mt-3 flex flex-col md:flex-row gap-2 md:gap-3 md:items-center">
+                  <div className="mt-2 flex flex-col md:flex-row gap-1.5 md:gap-2 md:items-center">
                     {announcement.imageUrl && (
                       <img
                         src={announcement.imageUrl}
                         alt={announcement.title}
-                        className="w-full md:w-40 h-24 object-cover rounded-lg border border-white/40 dark:border-white/10"
+                        className="hidden md:block w-28 h-14 object-cover rounded-md border border-white/40 dark:border-white/10"
                       />
                     )}
                     <div className="flex gap-2 flex-wrap">
@@ -172,7 +172,7 @@ const SiteAnnouncements = () => {
                           href={announcement.ctaUrl || '/'}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs md:text-sm font-semibold bg-black/90 text-white hover:bg-black transition-colors"
+                          className="inline-flex items-center justify-center rounded-md px-2.5 py-1 text-[11px] md:text-xs font-semibold bg-black/90 text-white hover:bg-black transition-colors"
                         >
                           {announcement.ctaLabel}
                         </a>
@@ -182,9 +182,9 @@ const SiteAnnouncements = () => {
                           href={announcement.linkUrl || '/'}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs md:text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors"
+                          className="inline-flex items-center justify-center gap-1 rounded-md px-2.5 py-1 text-[11px] md:text-xs font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors"
                         >
-                          {announcement.linkType === 'whatsapp' && <MessageCircle className="w-4 h-4" />}
+                          {announcement.linkType === 'whatsapp' && <MessageCircle className="w-3.5 h-3.5" />}
                           {announcement.linkLabel}
                         </a>
                       )}
