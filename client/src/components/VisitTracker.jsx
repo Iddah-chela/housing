@@ -24,6 +24,21 @@ const getOrCreateId = (storage, key) => {
   }
 };
 
+const buildVisitEndpoints = () => {
+  const base = String(import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+  const relative = ['/api/site/visit', '/api/analytics/visit'];
+
+  if (!base) {
+    return relative;
+  }
+
+  return [
+    `${base}/api/site/visit`,
+    `${base}/api/analytics/visit`,
+    ...relative,
+  ];
+};
+
 const VisitTracker = () => {
   const location = useLocation();
 
@@ -42,16 +57,29 @@ const VisitTracker = () => {
       referrer: document.referrer || '',
     };
 
-    const base = String(import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
-    const endpoint = base ? `${base}/api/analytics/visit` : '/api/analytics/visit';
+    const endpoints = buildVisitEndpoints();
 
-    fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      keepalive: true,
-      credentials: 'omit',
-    }).catch(() => {});
+    const sendVisit = async () => {
+      for (const endpoint of endpoints) {
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true,
+            credentials: 'omit',
+          });
+
+          if (response.ok) {
+            return;
+          }
+        } catch {
+          // Try next endpoint.
+        }
+      }
+    };
+
+    sendVisit();
   }, [location.pathname, location.search]);
 
   return null;

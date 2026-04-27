@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -9,12 +9,13 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  const fetchStats = useCallback(async ({ silent = false, showLoader = false } = {}) => {
+    if (showLoader) {
+      setLoading(true);
+    }
 
-  const fetchStats = async () => {
     try {
       const token = await getToken();
       const { data } = await axios.get('/api/admin/stats', {
@@ -23,18 +24,58 @@ const AdminDashboard = () => {
 
       if (data.success) {
         setStats(data.stats);
+        setLastUpdatedAt(new Date());
       } else {
-        toast.error(data.message);
+        if (!silent) toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      if (!silent) toast.error(error.message);
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
-  };
+  }, [axios, getToken]);
+
+  useEffect(() => {
+    fetchStats({ showLoader: true });
+
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchStats({ silent: true });
+      }
+    }, 15000);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchStats({ silent: true });
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.clearInterval(pollId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [fetchStats]);
 
   if (loading) {
     return <div className="p-4 md:p-8">Loading...</div>;
+  }
+
+  if (!stats) {
+    return (
+      <div className="p-4 md:p-8">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Unable to load dashboard stats right now.</p>
+        <button
+          onClick={() => fetchStats({ silent: false, showLoader: true })}
+          className="mt-3 px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+        >
+          Try Again
+        </button>
+      </div>
+    );
   }
 
   const statCards = [
@@ -64,6 +105,18 @@ const AdminDashboard = () => {
   return (
     <div className="p-4 md:p-8">
       <h1 className="text-2xl md:text-3xl font-semibold mb-6 md:mb-8">Dashboard Overview</h1>
+
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {lastUpdatedAt ? `Live updates every 15s. Last updated: ${lastUpdatedAt.toLocaleTimeString()}` : 'Live updates every 15s.'}
+        </p>
+        <button
+          onClick={() => fetchStats({ silent: false })}
+          className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+        >
+          Refresh Now
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {statCards.map((stat, index) => {

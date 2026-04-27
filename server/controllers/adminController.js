@@ -330,6 +330,8 @@ export const promotePropertyToLive = async (req, res) => {
 // Get dashboard stats
 export const getDashboardStats = async (req, res) => {
     try {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
         const totalUsers = await User.countDocuments();
         const totalOwners = await User.countDocuments({ role: 'houseOwner' });
         const totalProperties = await Property.countDocuments();

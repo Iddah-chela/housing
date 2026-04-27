@@ -145,6 +145,7 @@ app.use('/api/rent-payment', generalLimiter, rentPaymentRouter)
 app.use('/api/utility', generalLimiter, utilityRouter)
 app.use('/api/newsletter', generalLimiter, newsletterRouter)
 app.use('/api/notifications', generalLimiter, notificationRouter)
+app.use('/api/site', generalLimiter, analyticsRouter)
 app.use('/api/analytics', generalLimiter, analyticsRouter)
 
 
