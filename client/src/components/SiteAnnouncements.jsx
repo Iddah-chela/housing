@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, AlertTriangle, Info, Megaphone, MessageCircle } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 const styleMap = {
   info: {
@@ -19,20 +20,45 @@ const styleMap = {
   },
 };
 
-const DISMISS_KEY = 'PataKeja_dismissed_announcements';
+const DISMISS_KEY = 'PataKeja_dismissed_announcements_v2';
+
+const readDismissedMap = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DISMISS_KEY) || '{}');
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  } catch {
+    // ignore parse errors
+  }
+
+  // Backward compatibility: migrate old array format once.
+  try {
+    const legacy = JSON.parse(localStorage.getItem('PataKeja_dismissed_announcements') || '[]');
+    if (Array.isArray(legacy)) {
+      const migrated = legacy.reduce((acc, id) => {
+        acc[String(id)] = 'legacy';
+        return acc;
+      }, {});
+      localStorage.setItem(DISMISS_KEY, JSON.stringify(migrated));
+      return migrated;
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  return {};
+};
 
 const SiteAnnouncements = () => {
+  const { axios } = useAppContext();
   const [announcements, setAnnouncements] = useState([]);
+  const [dismissedMap, setDismissedMap] = useState(() => readDismissedMap());
   const containerRef = useRef(null);
 
   const loadAnnouncements = async () => {
     try {
-      const response = await fetch('/api/announcements/active');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setAnnouncements(data.announcements || []);
-        }
+      const { data } = await axios.get('/api/announcements/active');
+      if (data?.success) {
+        setAnnouncements(data.announcements || []);
       }
     } catch {
       // Silent fallback; banners are optional.
@@ -45,15 +71,16 @@ const SiteAnnouncements = () => {
     return () => window.clearInterval(pollId);
   }, []);
 
-  const dismissed = (() => {
-    try {
-      return JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]');
-    } catch {
-      return [];
-    }
-  })();
+  const visible = announcements.filter((announcement) => {
+    const currentVersion = String(announcement.updatedAt || announcement.createdAt || '');
+    const dismissedVersion = dismissedMap[String(announcement._id)];
 
-  const visible = announcements.filter((announcement) => !dismissed.includes(announcement._id));
+    if (!dismissedVersion) return true;
+    if (!currentVersion) return false;
+
+    // If announcement changed after dismissal, show it again.
+    return dismissedVersion !== currentVersion;
+  });
 
   useEffect(() => {
     const root = document.documentElement;
@@ -65,7 +92,8 @@ const SiteAnnouncements = () => {
 
     const updateOffset = () => {
       const height = containerRef.current?.offsetHeight || 0;
-      root.style.setProperty('--announcement-offset', `${height}px`);
+      const paddedHeight = height > 0 ? height + 4 : 0;
+      root.style.setProperty('--announcement-offset', `${paddedHeight}px`);
     };
 
     updateOffset();
@@ -85,10 +113,14 @@ const SiteAnnouncements = () => {
     };
   }, [visible.length]);
 
-  const dismiss = (id) => {
+  const dismiss = (id, version) => {
     try {
-      const next = Array.from(new Set([...dismissed, id]));
+      const next = {
+        ...dismissedMap,
+        [String(id)]: String(version || new Date().toISOString()),
+      };
       localStorage.setItem(DISMISS_KEY, JSON.stringify(next));
+      setDismissedMap(next);
       setAnnouncements((current) => current.filter((announcement) => announcement._id !== id));
     } catch {
       setAnnouncements((current) => current.filter((announcement) => announcement._id !== id));
@@ -98,7 +130,7 @@ const SiteAnnouncements = () => {
   if (!visible.length) return null;
 
   return (
-    <div ref={containerRef} className="fixed top-0 left-0 right-0 z-[100] px-4 pt-2 md:px-6 lg:px-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 space-y-2">
+    <div ref={containerRef} className="fixed top-0 left-0 right-0 z-[200] px-4 pt-2 md:px-6 lg:px-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 space-y-2">
       {visible.map((announcement) => {
         const config = styleMap[announcement.bannerStyle] || styleMap.info;
         const Icon = config.icon;
@@ -117,7 +149,7 @@ const SiteAnnouncements = () => {
                     <p className="text-xs md:text-sm mt-0.5 leading-5 whitespace-pre-line">{announcement.body}</p>
                   </div>
                   <button
-                    onClick={() => dismiss(announcement._id)}
+                    onClick={() => dismiss(announcement._id, announcement.updatedAt || announcement.createdAt)}
                     className="text-current/70 hover:text-current shrink-0 rounded-full p-1 hover:bg-black/5 dark:hover:bg-white/10"
                     aria-label="Dismiss banner"
                   >

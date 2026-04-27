@@ -70,6 +70,7 @@ const AdminAnnouncements = () => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editingWasDeleted, setEditingWasDeleted] = useState(false);
+  const [editingSnapshot, setEditingSnapshot] = useState(null);
   const [form, setForm] = useState(defaultForm);
   const [imageFile, setImageFile] = useState(null);
   const [recipientPreview, setRecipientPreview] = useState(null);
@@ -119,6 +120,28 @@ const AdminAnnouncements = () => {
   }, [form.audience, form.recipientTokens]);
 
   const selectedChannels = useMemo(() => new Set(form.channels), [form.channels]);
+  const isEditingDirty = useMemo(() => {
+    if (!editingId || !editingSnapshot) return false;
+
+    const current = {
+      title: form.title,
+      body: form.body,
+      audience: form.audience,
+      recipientTokens: form.recipientTokens,
+      channels: [...form.channels].sort().join(','),
+      bannerStyle: form.bannerStyle,
+      type: form.type,
+      ctaLabel: form.ctaLabel,
+      ctaUrl: form.ctaUrl,
+      linkLabel: form.linkLabel,
+      linkUrl: form.linkUrl,
+      linkType: form.linkType,
+      expiresInHours: form.expiresInHours,
+      hasImageFile: Boolean(imageFile),
+    };
+
+    return Object.keys(current).some((key) => String(current[key]) !== String(editingSnapshot[key] ?? ''));
+  }, [editingId, editingSnapshot, form, imageFile]);
   const whatsappPreviewUrl = useMemo(() => {
     const fallbackMessage = [
       'Hello, I saw this announcement on PataKeja.',
@@ -140,7 +163,7 @@ const AdminAnnouncements = () => {
   const toggleEditing = (announcement) => {
     setEditingId(announcement._id);
     setEditingWasDeleted(!announcement.active);
-    setForm({
+    const nextForm = {
       title: announcement.title,
       body: announcement.body,
       audience: announcement.audience,
@@ -156,6 +179,12 @@ const AdminAnnouncements = () => {
         : (announcement.linkUrl || ''),
       linkType: announcement.linkType || 'regular',
       expiresInHours: announcement.expiresAt ? String(Math.max(1, Math.round((new Date(announcement.expiresAt) - new Date()) / 3600000))) : '72',
+    };
+    setForm(nextForm);
+    setEditingSnapshot({
+      ...nextForm,
+      channels: [...nextForm.channels].sort().join(','),
+      hasImageFile: false,
     });
     setImageFile(null);
   };
@@ -163,6 +192,7 @@ const AdminAnnouncements = () => {
   const resetForm = () => {
     setEditingId(null);
     setEditingWasDeleted(false);
+    setEditingSnapshot(null);
     setForm(defaultForm);
     setImageFile(null);
   };
@@ -179,6 +209,10 @@ const AdminAnnouncements = () => {
     }
     if (!form.channels.includes('banner') && !form.channels.includes('inApp') && !form.channels.includes('push') && !form.channels.includes('email')) {
       toast.error('Choose at least one delivery channel');
+      return;
+    }
+    if (editingId && !isEditingDirty) {
+      toast.error('Make at least one change before updating the banner');
       return;
     }
 
@@ -216,9 +250,9 @@ const AdminAnnouncements = () => {
       const { data } = await axios[method](endpoint, payload, config);
 
       if (data.success) {
+        await fetchAnnouncements();
         toast.success(editingId ? (editingWasDeleted ? 'Announcement updated and restored' : 'Announcement updated') : 'Announcement sent');
         resetForm();
-        fetchAnnouncements();
       } else {
         toast.error(data.message);
       }
@@ -386,7 +420,7 @@ const AdminAnnouncements = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 text-sm disabled:opacity-60">
+            <button type="submit" disabled={saving || (editingId && !isEditingDirty)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 text-sm disabled:opacity-60">
               <Send className="w-4 h-4" /> {editingId ? (editingWasDeleted ? 'Update + Restore Broadcast' : 'Update Broadcast') : 'Send Broadcast'}
             </button>
             {editingId && (

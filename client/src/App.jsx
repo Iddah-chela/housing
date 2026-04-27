@@ -83,7 +83,7 @@ const App = () => {
   return (
     <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
       <VisitTracker />
-      {!isAdminPath && <SiteAnnouncements />}
+      <SiteAnnouncements />
       <Toaster
         position="top-center"
          toastOptions={{
@@ -91,7 +91,7 @@ const App = () => {
          }}
       />
      {!isAdminPath && <Navbar />}
-      <main className={isAdminPath ? '' : 'min-h-[70vh]'}>
+      <main style={{ paddingTop: 'var(--announcement-offset, 0px)' }} className={isAdminPath ? '' : 'min-h-[70vh]'}>
         <Suspense fallback={
           <div className="flex items-center justify-center min-h-[70vh]">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
