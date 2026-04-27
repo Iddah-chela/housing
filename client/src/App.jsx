@@ -87,11 +87,11 @@ const App = () => {
       <Toaster
         position="top-center"
          toastOptions={{
-        style: { zIndex: 99999, marginTop: '120px' }
+        style: { zIndex: 99999, marginTop: 'calc(var(--announcement-offset, 0px) + 60px)' }
          }}
       />
      {!isAdminPath && <Navbar />}
-     <main className={isAdminPath ? '' : 'min-h-[70vh] pt-12'}>
+      <main className={isAdminPath ? '' : 'min-h-[70vh]'}>
         <Suspense fallback={
           <div className="flex items-center justify-center min-h-[70vh]">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />

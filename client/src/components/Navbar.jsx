@@ -72,13 +72,16 @@ const Navbar = () => {
 
     return (
         <>
-            <nav className={`fixed top-0 left-0 w-full flex items-center justify-between px-4 md:px-16 lg:px-24 xl:px-32 transition-all duration-500 z-40 overflow-visible ${
+            <nav
+                style={{ top: 'var(--announcement-offset, 0px)' }}
+                className={`fixed left-0 w-full flex items-center justify-between px-4 md:px-16 lg:px-24 xl:px-32 transition-all duration-500 z-40 overflow-visible ${
                 isScrolled
                     ? "bg-white/80 dark:bg-gray-900/80 shadow-md text-gray-700 dark:text-gray-200 backdrop-blur-lg py-2 md:py-2"
                     : heroLight
                         ? "py-3 md:py-4 bg-gradient-to-b from-white/50 min-[1100px]:from-white/75 to-transparent text-gray-900"
                         : "py-3 md:py-4 bg-gradient-to-b from-black/50 to-transparent text-white"
-            }`}>
+            }`}
+            >
 
                 {/* Logo - overflows navbar intentionally */}
                 <Link to ="/" className="flex-shrink-0 relative z-50">

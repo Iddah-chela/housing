@@ -52,6 +52,7 @@ const AdminAnnouncements = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editingWasDeleted, setEditingWasDeleted] = useState(false);
   const [form, setForm] = useState(defaultForm);
   const [imageFile, setImageFile] = useState(null);
   const [recipientPreview, setRecipientPreview] = useState(null);
@@ -113,6 +114,7 @@ const AdminAnnouncements = () => {
 
   const toggleEditing = (announcement) => {
     setEditingId(announcement._id);
+    setEditingWasDeleted(!announcement.active);
     setForm({
       title: announcement.title,
       body: announcement.body,
@@ -133,6 +135,7 @@ const AdminAnnouncements = () => {
 
   const resetForm = () => {
     setEditingId(null);
+    setEditingWasDeleted(false);
     setForm(defaultForm);
     setImageFile(null);
   };
@@ -168,6 +171,10 @@ const AdminAnnouncements = () => {
       payload.append('linkLabel', form.linkLabel);
       payload.append('linkUrl', form.linkUrl);
       payload.append('linkType', form.linkType);
+      if (editingId) {
+        // Editing an item always re-activates it so recoverable deletes can return.
+        payload.append('active', 'true');
+      }
       if (form.expiresInHours) {
         const expiresAt = new Date(Date.now() + Number(form.expiresInHours) * 60 * 60 * 1000);
         payload.append('expiresAt', expiresAt.toISOString());
@@ -182,7 +189,7 @@ const AdminAnnouncements = () => {
       const { data } = await axios[method](endpoint, payload, config);
 
       if (data.success) {
-        toast.success(editingId ? 'Announcement updated' : 'Announcement sent');
+        toast.success(editingId ? (editingWasDeleted ? 'Announcement updated and restored' : 'Announcement updated') : 'Announcement sent');
         resetForm();
         fetchAnnouncements();
       } else {
@@ -195,15 +202,36 @@ const AdminAnnouncements = () => {
     }
   };
 
-  const killAnnouncement = async (announcementId) => {
-    if (!confirm('Kill this announcement? It will disappear from the banner and in-app feed.')) return;
+  const deleteAnnouncement = async (announcementId) => {
+    if (!confirm('Delete this announcement? It will disappear but can be restored by editing and updating it.')) return;
     try {
       const token = await getToken();
-      const { data } = await axios.post(`/api/announcements/${announcementId}/kill`, {}, {
+      const { data } = await axios.post(`/api/announcements/${announcementId}/delete`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (data.success) {
-        toast.success('Announcement killed');
+        toast.success('Announcement deleted (recoverable)');
+        fetchAnnouncements();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const deleteAnnouncementForever = async (announcementId) => {
+    if (!confirm('Permanently delete this announcement? This cannot be undone.')) return;
+    try {
+      const token = await getToken();
+      const { data } = await axios.delete(`/api/announcements/${announcementId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (data.success) {
+        toast.success('Announcement permanently deleted');
+        if (editingId === announcementId) {
+          resetForm();
+        }
         fetchAnnouncements();
       } else {
         toast.error(data.message);
@@ -332,7 +360,7 @@ const AdminAnnouncements = () => {
 
           <div className="flex items-center gap-3">
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 text-sm disabled:opacity-60">
-              <Send className="w-4 h-4" /> {editingId ? 'Update Broadcast' : 'Send Broadcast'}
+              <Send className="w-4 h-4" /> {editingId ? (editingWasDeleted ? 'Update + Restore Broadcast' : 'Update Broadcast') : 'Send Broadcast'}
             </button>
             {editingId && (
               <button type="button" onClick={resetForm} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm">Cancel Edit</button>
@@ -341,6 +369,11 @@ const AdminAnnouncements = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400">Estimated recipients: <strong>{recipientPreview.count}</strong></p>
             )}
           </div>
+          {editingWasDeleted && (
+            <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+              This announcement is currently deleted. Clicking Update will restore it.
+            </p>
+          )}
         </div>
 
         <div className="xl:col-span-2 space-y-4">
@@ -369,15 +402,22 @@ const AdminAnnouncements = () => {
                         <h3 className="font-semibold text-sm">{announcement.title}</h3>
                         <p className="text-xs text-gray-500 mt-1">{announcement.audience} · {Array.isArray(announcement.channels) ? announcement.channels.join(', ') : ''}</p>
                       </div>
-                      <span className={`text-[11px] px-2 py-1 rounded-full ${announcement.active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>{announcement.active ? 'Active' : 'Off'}</span>
+                      <span className={`text-[11px] px-2 py-1 rounded-full ${announcement.active ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {announcement.active ? 'Active' : 'Deleted (Recoverable)'}
+                      </span>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3">{announcement.body}</p>
                     <div className="flex items-center gap-2 mt-3 flex-wrap">
                       <button onClick={() => toggleEditing(announcement)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium hover:bg-indigo-100">
-                        <PencilLine className="w-3.5 h-3.5" /> Update
+                        <PencilLine className="w-3.5 h-3.5" /> Edit
                       </button>
-                      <button onClick={() => killAnnouncement(announcement._id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100">
-                        <Trash2 className="w-3.5 h-3.5" /> Kill
+                      {announcement.active && (
+                        <button onClick={() => deleteAnnouncement(announcement._id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100">
+                          <Trash2 className="w-3.5 h-3.5" /> Delete (Recoverable)
+                        </button>
+                      )}
+                      <button onClick={() => deleteAnnouncementForever(announcement._id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100">
+                        <Trash2 className="w-3.5 h-3.5" /> Delete Permanently
                       </button>
                     </div>
                   </div>

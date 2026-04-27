@@ -7,6 +7,7 @@ import PropertyClaim from "../models/propertyClaim.js";
 import SiteVisit from "../models/siteVisit.js";
 import Booking from "../models/booking.js";
 import xlsx from "xlsx";
+import ExcelJS from "exceljs";
 import { applyAutoListingLifecycle, evaluateListingReadiness } from "../utils/listingLifecycle.js";
 import { sendEmail } from "../utils/mailer.js";
 import { sendPushNotification } from "../utils/pushNotifier.js";
@@ -622,80 +623,84 @@ export const exportAdminReport = async (req, res) => {
             return res.send(csv);
         }
 
-        // Create styled Excel workbook
-        const workbook = xlsx.utils.book_new();
-        const worksheet = xlsx.utils.json_to_sheet(rows);
-
-        // Apply styling
-        const headerStyle = {
-            font: { bold: true, color: { rgb: 'FFFFFF' }, size: 11 },
-            fill: { fgColor: { rgb: '4F46E5' } }, // Indigo
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: {
-                top: { style: 'thin', color: { rgb: '000000' } },
-                bottom: { style: 'thin', color: { rgb: '000000' } },
-                left: { style: 'thin', color: { rgb: '000000' } },
-                right: { style: 'thin', color: { rgb: '000000' } },
-            },
-        };
-
-        const cellStyle = (isEven) => ({
-            font: { size: 10 },
-            fill: isEven ? { fgColor: { rgb: 'F3F4F6' } } : { fgColor: { rgb: 'FFFFFF' } },
-            alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-            border: {
-                top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-                bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-                left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-                right: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            },
+        // Build a truly styled Excel workbook using ExcelJS.
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet(dataset.slice(0, 31) || 'report', {
+            views: [{ state: 'frozen', ySplit: 1 }],
         });
 
-        // Get column count
-        const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-        const colCount = columns.length;
+        const keys = rows.length ? Object.keys(rows[0]) : [];
+        const labelFromKey = (key) => String(key)
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/[_-]+/g, ' ')
+            .replace(/\b\w/g, (char) => char.toUpperCase())
+            .trim();
 
-        // Apply header styling
-        for (let col = 0; col < colCount; col++) {
-            const cellAddr = xlsx.utils.encode_cell({ r: 0, c: col });
-            if (!worksheet[cellAddr]) worksheet[cellAddr] = { t: 's', v: '' };
-            worksheet[cellAddr].s = headerStyle;
+        if (!keys.length) {
+            worksheet.addRow(['No records found for the selected filters.']);
+            const buffer = await workbook.xlsx.writeBuffer();
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.xlsx"`);
+            return res.send(Buffer.from(buffer));
         }
 
-        // Apply row styling with alternating colors
-        for (let row = 1; row < rows.length + 1; row++) {
-            const isEven = row % 2 === 0;
-            const style = cellStyle(isEven);
-            for (let col = 0; col < colCount; col++) {
-                const cellAddr = xlsx.utils.encode_cell({ r: row, c: col });
-                if (worksheet[cellAddr]) {
-                    worksheet[cellAddr].s = style;
-                }
-            }
-        }
+        const headers = keys.map((key) => labelFromKey(key));
+        const tableRows = rows.map((row) => keys.map((key) => row[key] ?? ''));
 
-        // Set column widths based on content
-        const colWidths = columns.map((col) => {
-            const maxLen = Math.max(
-                col.length,
-                ...rows.map((row) => String(row[col] || '').length)
+        worksheet.addTable({
+            name: `Report_${dataset}`.replace(/[^A-Za-z0-9_]/g, '').slice(0, 30) || 'ReportTable',
+            ref: 'A1',
+            headerRow: true,
+            style: {
+                theme: 'TableStyleMedium2',
+                showRowStripes: true,
+            },
+            columns: headers.map((name) => ({ name })),
+            rows: tableRows,
+        });
+
+        worksheet.columns = keys.map((key, idx) => {
+            const maxContent = Math.max(
+                headers[idx].length,
+                ...rows.map((row) => String(row[key] ?? '').length)
             );
-            return { wch: Math.min(maxLen + 2, 50) };
+            return {
+                width: Math.min(Math.max(maxContent + 2, 12), 50),
+            };
         });
-        worksheet['!cols'] = colWidths;
 
-        // Freeze header row
-        worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+        const headerRow = worksheet.getRow(1);
+        headerRow.height = 22;
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            cell.border = {
+                top: { style: 'thin', color: { argb: 'FF1F2937' } },
+                left: { style: 'thin', color: { argb: 'FF1F2937' } },
+                bottom: { style: 'thin', color: { argb: 'FF1F2937' } },
+                right: { style: 'thin', color: { argb: 'FF1F2937' } },
+            };
+        });
 
-        // Set row height for header
-        worksheet['!rows'] = [{ hpx: 25 }];
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return;
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                    left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                    bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                    right: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                };
+            });
+        });
 
-        xlsx.utils.book_append_sheet(workbook, worksheet, dataset.slice(0, 31) || 'report');
-        const buffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+        const buffer = await workbook.xlsx.writeBuffer();
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.xlsx"`);
-        return res.send(buffer);
+        return res.send(Buffer.from(buffer));
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

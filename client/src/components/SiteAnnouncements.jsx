@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, AlertTriangle, Info, Megaphone, MessageCircle } from 'lucide-react';
 
 const styleMap = {
@@ -23,6 +23,7 @@ const DISMISS_KEY = 'PataKeja_dismissed_announcements';
 
 const SiteAnnouncements = () => {
   const [announcements, setAnnouncements] = useState([]);
+  const containerRef = useRef(null);
 
   const loadAnnouncements = async () => {
     try {
@@ -54,6 +55,36 @@ const SiteAnnouncements = () => {
 
   const visible = announcements.filter((announcement) => !dismissed.includes(announcement._id));
 
+  useEffect(() => {
+    const root = document.documentElement;
+
+    if (!visible.length) {
+      root.style.removeProperty('--announcement-offset');
+      return;
+    }
+
+    const updateOffset = () => {
+      const height = containerRef.current?.offsetHeight || 0;
+      root.style.setProperty('--announcement-offset', `${height}px`);
+    };
+
+    updateOffset();
+
+    let resizeObserver;
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      resizeObserver = new ResizeObserver(updateOffset);
+      resizeObserver.observe(containerRef.current);
+    }
+
+    window.addEventListener('resize', updateOffset);
+
+    return () => {
+      window.removeEventListener('resize', updateOffset);
+      if (resizeObserver) resizeObserver.disconnect();
+      root.style.removeProperty('--announcement-offset');
+    };
+  }, [visible.length]);
+
   const dismiss = (id) => {
     try {
       const next = Array.from(new Set([...dismissed, id]));
@@ -67,7 +98,7 @@ const SiteAnnouncements = () => {
   if (!visible.length) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[100] px-4 pt-2 md:px-6 lg:px-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 space-y-2">
+    <div ref={containerRef} className="fixed top-0 left-0 right-0 z-[100] px-4 pt-2 md:px-6 lg:px-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 space-y-2">
       {visible.map((announcement) => {
         const config = styleMap[announcement.bannerStyle] || styleMap.info;
         const Icon = config.icon;

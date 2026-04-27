@@ -292,22 +292,32 @@ export const updateAnnouncement = async (req, res) => {
     announcement.linkType = linkType;
     announcement.expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : announcement.expiresAt;
     announcement.active = req.body.active === undefined ? announcement.active : String(req.body.active) === 'true';
+    if (announcement.active) {
+      announcement.killedAt = null;
+      announcement.killedBy = null;
+    }
     announcement.updatedBy = req.user._id;
     await announcement.save();
 
+    const notificationSet = {
+      title: announcement.title,
+      body: announcement.body,
+      url: announcement.ctaUrl || '/',
+      channel: announcement.channels.includes('push') ? 'push' : 'inApp',
+      style: announcement.bannerStyle,
+      imageUrl: announcement.imageUrl || '',
+      expiresAt: announcement.expiresAt || undefined,
+    };
+
+    if (announcement.active) {
+      notificationSet.revokedAt = null;
+    }
+
     await Notification.updateMany(
-      { broadcastId: String(announcement._id), revokedAt: null },
-      {
-        $set: {
-          title: announcement.title,
-          body: announcement.body,
-          url: announcement.ctaUrl || '/',
-          channel: announcement.channels.includes('push') ? 'push' : 'inApp',
-          style: announcement.bannerStyle,
-          imageUrl: announcement.imageUrl || '',
-          expiresAt: announcement.expiresAt || undefined,
-        }
-      }
+      announcement.active
+        ? { broadcastId: String(announcement._id) }
+        : { broadcastId: String(announcement._id), revokedAt: null },
+      { $set: notificationSet }
     );
 
     res.json({ success: true, announcement });
@@ -316,7 +326,7 @@ export const updateAnnouncement = async (req, res) => {
   }
 };
 
-export const killAnnouncement = async (req, res) => {
+export const deleteAnnouncement = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Unauthorized' });
@@ -339,7 +349,28 @@ export const killAnnouncement = async (req, res) => {
       { $set: { revokedAt: new Date() } }
     );
 
-    res.json({ success: true, message: 'Announcement killed' });
+    res.json({ success: true, message: 'Announcement deleted (can be restored by editing and updating)' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteAnnouncementForever = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { announcementId } = req.params;
+    const announcement = await Announcement.findById(announcementId);
+    if (!announcement) {
+      return res.status(404).json({ success: false, message: 'Announcement not found' });
+    }
+
+    await Notification.deleteMany({ broadcastId: String(announcement._id) });
+    await Announcement.findByIdAndDelete(announcement._id);
+
+    res.json({ success: true, message: 'Announcement permanently deleted' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
