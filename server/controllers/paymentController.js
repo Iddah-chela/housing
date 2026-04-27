@@ -175,7 +175,7 @@ export const initiateUnlock = async (req, res) => {
                 first_name: (req.user.fullName || 'PataKeja').split(' ')[0],
                 last_name:  (req.user.fullName || 'User').split(' ').slice(1).join(' ') || 'User',
                 email:      req.user.email || 'customer@PataKeja.co.ke',
-                host:       process.env.BACKEND_URL || 'http://localhost:4000',
+                host:       process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000',
                 amount,
                 phone_number: formattedPhone,
                 api_ref:      transactionRef,
@@ -575,7 +575,7 @@ export const guestInitiateUnlock = async (req, res) => {
             const stkRes = await collection.mpesaStkPush({
                 first_name: 'Guest', last_name: 'User',
                 email: 'guest@PataKeja.co.ke',
-                host: process.env.BACKEND_URL || 'http://localhost:4000',
+                host: process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000',
                 amount,
                 phone_number: formattedPhone,
                 api_ref: transactionRef,

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Users, Home, Building2, ClipboardList, CheckCircle, AlertTriangle, UserX, LayoutList, Shield, FileText } from 'lucide-react';
+import { Users, Home, Building2, ClipboardList, CheckCircle, AlertTriangle, UserX, LayoutList, Shield, FileText, Activity, CalendarClock, BarChart3, Eye } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { axios, getToken } = useAppContext();
@@ -47,6 +47,13 @@ const AdminDashboard = () => {
     { label: 'Suspended Users', value: stats.suspendedUsers, icon: UserX, bg: 'bg-orange-50 dark:bg-orange-900/30', iconColor: 'text-orange-600' }
   ];
 
+  const trafficCards = [
+    { label: 'Visits Today', value: stats.todayVisits ?? 0, icon: Activity, bg: 'bg-cyan-50 dark:bg-cyan-900/30', iconColor: 'text-cyan-600' },
+    { label: 'Visits This Week', value: stats.weekVisits ?? 0, icon: CalendarClock, bg: 'bg-sky-50 dark:bg-sky-900/30', iconColor: 'text-sky-600' },
+    { label: 'Visits This Month', value: stats.monthVisits ?? 0, icon: BarChart3, bg: 'bg-violet-50 dark:bg-violet-900/30', iconColor: 'text-violet-600' },
+    { label: 'Unique Visitors (30d)', value: stats.uniqueVisitors30d ?? 0, icon: Eye, bg: 'bg-emerald-50 dark:bg-emerald-900/30', iconColor: 'text-emerald-600' },
+  ];
+
   const quickActions = [
     { label: 'Manage Listings', desc: 'Verify, delist, or review properties', path: '/admin/listings', icon: LayoutList, bg: 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40', textColor: 'text-indigo-700 dark:text-indigo-300' },
     { label: 'User Management', desc: 'Suspend, unsuspend, or review users', path: '/admin/users', icon: Users, bg: 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40', textColor: 'text-blue-700 dark:text-blue-300' },
@@ -89,6 +96,42 @@ const AdminDashboard = () => {
             </button>
           );
         })}
+      </div>
+
+      <h2 className="text-xl font-semibold mt-8 mb-4">Traffic Overview</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {trafficCards.map((stat, index) => {
+          const IconComp = stat.icon;
+          return (
+            <div key={index} className={`${stat.bg} rounded-xl p-5 hover:shadow-md transition-shadow`}>
+              <div className="mb-3">
+                <IconComp className={`w-6 h-6 ${stat.iconColor}`} />
+              </div>
+              <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{stat.value}</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{stat.label}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-8 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Top Pages (Last 30 Days)</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Visits: {stats.totalVisits ?? 0}</p>
+        </div>
+
+        {Array.isArray(stats.topPages) && stats.topPages.length > 0 ? (
+          <div className="space-y-2">
+            {stats.topPages.map((row) => (
+              <div key={row.path} className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-gray-700/60 px-3 py-2">
+                <p className="text-sm text-gray-700 dark:text-gray-200 truncate pr-3">{row.path}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{row.visits}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 dark:text-gray-400">No visit data yet. Traffic stats will appear after users browse the site.</p>
+        )}
       </div>
     </div>
   );

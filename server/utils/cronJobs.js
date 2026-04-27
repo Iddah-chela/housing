@@ -4,14 +4,17 @@ import PropertyUnlock from "../models/propertyUnlock.js";
 import ViewingRequest from "../models/viewingRequest.js";
 import Booking from "../models/booking.js";
 import User from "../models/user.js";
+import Notification from "../models/notification.js";
 import { sendEmail } from "./mailer.js";
 import { sendPushNotification } from "./pushNotifier.js";
 
-const API_BASE = (process.env.BACKEND_URL || 'https://housing-production-89b4.up.railway.app').replace(/\/$/, '');
+const API_BASE = (process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 const DAYS_14 = 14 * 24 * 60 * 60 * 1000;
 const DAYS_30 = 30 * 24 * 60 * 60 * 1000;
+const DAYS_7 = 7 * 24 * 60 * 60 * 1000;
 const HOURS_48 = 48 * 60 * 60 * 1000;
+const WEEKLY_UPDATE_REMINDER_TITLE = 'Weekly Listing Update Reminder';
 
 // ── Run daily ─────────────────────────────────────────────────────────────────
 // Marks listings as needsRefresh (14+ days) or isExpired (30+ days) since last
@@ -52,6 +55,106 @@ export const checkListingFreshness = async () => {
         }
     } catch (error) {
         console.error('[Freshness cron error]', error.message);
+    }
+};
+
+// ── Run weekly ───────────────────────────────────────────────────────────────
+// Reminds landlord/caretaker to refresh listings that have gone 7+ days without
+// verification, while suppressing duplicates for the same user+property in 7 days.
+export const sendWeeklyPropertyUpdateReminders = async () => {
+    try {
+        const cutoff7 = new Date(Date.now() - DAYS_7);
+
+        const staleProperties = await Property.find({
+            isExpired: false,
+            $or: [
+                { lastVerifiedAt: null, createdAt: { $lt: cutoff7 } },
+                { lastVerifiedAt: { $lt: cutoff7 } }
+            ]
+        }).select('_id name owner claimedBy caretakers').lean();
+
+        let sent = 0;
+
+        for (const property of staleProperties) {
+            try {
+                const recipientIds = new Set();
+                const ownerUser = await User.findById(property.owner).select('_id role').lean();
+
+                // If the listing is owned by admin, notify claimed landlord/caretakers instead.
+                if (String(ownerUser?.role || '').toLowerCase() !== 'admin') {
+                    if (ownerUser?._id) recipientIds.add(String(ownerUser._id));
+                } else {
+                    if (property.claimedBy) recipientIds.add(String(property.claimedBy));
+
+                    const caretakerEmails = (property.caretakers || [])
+                        .map((email) => String(email || '').trim().toLowerCase())
+                        .filter(Boolean);
+
+                    if (caretakerEmails.length) {
+                        const caretakerUsers = await User.find({
+                            email: { $in: caretakerEmails }
+                        }).select('_id').lean();
+
+                        caretakerUsers.forEach((user) => recipientIds.add(String(user._id)));
+                    }
+                }
+
+                if (!recipientIds.size) continue;
+
+                const recipients = await User.find({
+                    _id: { $in: Array.from(recipientIds) }
+                }).select('_id email username').lean();
+
+                for (const recipient of recipients) {
+                    if (!recipient?._id) continue;
+
+                    const reminderUrl = `/owner/properties?propertyId=${property._id}`;
+
+                    const alreadySent = await Notification.findOne({
+                        user: String(recipient._id),
+                        title: WEEKLY_UPDATE_REMINDER_TITLE,
+                        url: reminderUrl,
+                        createdAt: { $gte: cutoff7 }
+                    }).lean();
+
+                    if (alreadySent) continue;
+
+                    sendPushNotification(recipient._id, {
+                        title: WEEKLY_UPDATE_REMINDER_TITLE,
+                        body: `Please review and refresh "${property.name}" so renters see accurate availability and pricing.`,
+                        url: reminderUrl,
+                        type: 'system',
+                        tag: `weekly-refresh-${property._id}`
+                    });
+
+                    sendEmail(
+                        recipient.email,
+                        `Weekly listing update reminder — ${property.name}`,
+                        `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;">
+                            <div style="background:#0f766e;padding:24px;text-align:center;border-radius:8px 8px 0 0;">
+                                <h2 style="color:#fff;margin:0;font-size:20px;">Weekly Listing Update Reminder</h2>
+                            </div>
+                            <div style="padding:24px;background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                                <p style="font-size:15px;line-height:1.6;margin:0 0 8px;">Hi <strong>${recipient.username || 'there'}</strong>,</p>
+                                <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">Please review and update your listing details for <strong>${property.name}</strong> this week so renters see the latest availability and pricing.</p>
+                                <div style="text-align:center;">
+                                    <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}${reminderUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Update Property</a>
+                                </div>
+                            </div>
+                        </div>`
+                    ).catch((e) => console.warn('[Weekly reminder] Email failed:', e.message));
+
+                    sent++;
+                }
+            } catch (e) {
+                console.warn('[Weekly reminder] Failed for property', property._id, ':', e.message);
+            }
+        }
+
+        if (sent > 0) {
+        }
+    } catch (error) {
+        console.error('[Weekly reminder cron error]', error.message);
     }
 };
 

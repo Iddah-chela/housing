@@ -4,6 +4,7 @@ import House from "../models/house.js";
 import Report from "../models/report.js";
 import Property from "../models/property.js";
 import PropertyClaim from "../models/propertyClaim.js";
+import SiteVisit from "../models/siteVisit.js";
 import { applyAutoListingLifecycle, evaluateListingReadiness } from "../utils/listingLifecycle.js";
 import { sendEmail } from "../utils/mailer.js";
 import { sendPushNotification } from "../utils/pushNotifier.js";
@@ -337,6 +338,38 @@ export const getDashboardStats = async (req, res) => {
         const totalReports = await Report.countDocuments({ status: 'pending' });
         const suspendedUsers = await User.countDocuments({ isSuspended: true });
 
+        const now = new Date();
+        const startOfDay = new Date(now);
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const startOfWeek = new Date(startOfDay);
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        const [
+            totalVisits,
+            todayVisits,
+            weekVisits,
+            monthVisits,
+            uniqueVisitors30d,
+            topPages,
+        ] = await Promise.all([
+            SiteVisit.countDocuments(),
+            SiteVisit.countDocuments({ createdAt: { $gte: startOfDay } }),
+            SiteVisit.countDocuments({ createdAt: { $gte: startOfWeek } }),
+            SiteVisit.countDocuments({ createdAt: { $gte: startOfMonth } }),
+            SiteVisit.distinct('visitorId', { createdAt: { $gte: last30Days } }).then((rows) => rows.length),
+            SiteVisit.aggregate([
+                { $match: { createdAt: { $gte: last30Days } } },
+                { $group: { _id: '$path', visits: { $sum: 1 } } },
+                { $sort: { visits: -1 } },
+                { $limit: 5 },
+                { $project: { _id: 0, path: '$_id', visits: 1 } },
+            ]),
+        ]);
+
         res.json({
             success: true,
             stats: {
@@ -346,7 +379,13 @@ export const getDashboardStats = async (req, res) => {
                 activeListings,
                 verifiedListings,
                 pendingReports: totalReports,
-                suspendedUsers
+                suspendedUsers,
+                totalVisits,
+                todayVisits,
+                weekVisits,
+                monthVisits,
+                uniqueVisitors30d,
+                topPages,
             }
         });
     } catch (error) {

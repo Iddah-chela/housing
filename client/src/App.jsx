@@ -7,6 +7,7 @@ import { MessageSquareHeart } from 'lucide-react'
 import {Toaster} from 'react-hot-toast'
 import FeedbackModal from './components/FeedbackModal'
 import Footer from './components/Footer'
+import VisitTracker from './components/VisitTracker'
 
 // Lazy-load all pages - they won't be in the initial JS bundle
 const Home            = lazy(() => import('./pages/home'))
@@ -79,6 +80,7 @@ const App = () => {
 
   return (
     <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+      <VisitTracker />
       <Toaster
         position="top-center"
          toastOptions={{

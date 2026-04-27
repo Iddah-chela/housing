@@ -90,6 +90,19 @@ const PropertyDetails = () => {
     useEffect(() => {
       if (!user) return
       const fetchUnlockInfo = async () => {
+        const loadReferralFallback = async (token) => {
+          try {
+            const { data: refData } = await axios.get('/api/payment/referral-info', {
+              headers: { Authorization: `Bearer ${token}` }
+            })
+            if (refData?.success) {
+              setReferralInfo(refData)
+            }
+          } catch (_) {
+            // Non-critical: card stays in loading state if referral API also fails.
+          }
+        }
+
         try {
           const token = await getToken()
           const { data } = await axios.get('/api/payment/property-unlock-info', {
@@ -104,9 +117,18 @@ const PropertyDetails = () => {
             setIsFreeUnlock(data.isFree)
             setFreeReason(data.reason || null)
             setReferralInfo(data)
+          } else {
+            setIsFreeUnlock(false)
+            await loadReferralFallback(token)
           }
         } catch (error) {
           setIsFreeUnlock(false)
+          try {
+            const token = await getToken()
+            await loadReferralFallback(token)
+          } catch (_) {
+            // Ignore token lookup failures.
+          }
         }
       }
       fetchUnlockInfo()

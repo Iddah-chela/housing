@@ -6,7 +6,7 @@ import UserPass from "../models/userPass.js";
 import Booking from "../models/booking.js";
 import { sendEmail } from "../utils/mailer.js";
 import { sendPushNotification } from "../utils/pushNotifier.js";
-const API_BASE = (process.env.BACKEND_URL || 'https://housing-production-89b4.up.railway.app').replace(/\/$/, '');
+const API_BASE = (process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000').replace(/\/$/, '');
 const normalizeDate = (value) => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return null;

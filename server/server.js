@@ -25,8 +25,9 @@ import paymentRouter from "./routes/paymentRoutes.js";
 import newsletterRouter from "./routes/newsletterRoutes.js";
 import notificationRouter from "./routes/notificationRoutes.js";
 import utilityRouter from "./routes/utilityRoutes.js";
+import analyticsRouter from "./routes/analyticsRoutes.js";
 import { expireViewingRequests } from "./utils/expirationHandler.js";
-import { checkListingFreshness, checkUnlockAutoRefunds, sendPostViewingNudges, sendViewingReminders, sendMoveInNudges, sendMoveOutNudges } from "./utils/cronJobs.js";
+import { checkListingFreshness, checkUnlockAutoRefunds, sendPostViewingNudges, sendViewingReminders, sendMoveInNudges, sendMoveOutNudges, sendWeeklyPropertyUpdateReminders } from "./utils/cronJobs.js";
 
 
 connectDB()
@@ -144,6 +145,7 @@ app.use('/api/rent-payment', generalLimiter, rentPaymentRouter)
 app.use('/api/utility', generalLimiter, utilityRouter)
 app.use('/api/newsletter', generalLimiter, newsletterRouter)
 app.use('/api/notifications', generalLimiter, notificationRouter)
+app.use('/api/analytics', generalLimiter, analyticsRouter)
 
 
 const PORT = process.env.PORT || 3000;
@@ -183,6 +185,11 @@ setInterval(async () => {
     await sendViewingReminders();
 }, 24 * 60 * 60 * 1000);
 
+// Weekly: remind landlord/caretaker to refresh property details
+setInterval(async () => {
+    await sendWeeklyPropertyUpdateReminders();
+}, 7 * 24 * 60 * 60 * 1000);
+
 // Run all jobs once shortly after startup
 setTimeout(async () => {
     await expireViewingRequests();
@@ -192,6 +199,7 @@ setTimeout(async () => {
     await sendViewingReminders();
     await sendMoveInNudges();
     await sendMoveOutNudges();
+    await sendWeeklyPropertyUpdateReminders();
 }, 5000);
 
 
