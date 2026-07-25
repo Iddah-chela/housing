@@ -15,7 +15,7 @@ import {
   normalizeListingActionability,
 } from "../utils/listingLifecycle.js";
 import { resolveCoordinates, toPublicLocation } from "../utils/geoUtils.js";
-import { buildPublicAgentReputation, agentReputationSelect } from "../utils/agentReputation.js";
+import { buildPublicAgentReputation, agentReputationSelect, tierBoostMs } from "../utils/agentReputation.js";
 
 const inferTierAndStatus = (property) => {
   const hasRoomLevelData = property.hasRoomLevelData ?? (
@@ -358,6 +358,9 @@ export const getAllProperties = async (req, res) => {
           // Contact fields provided by agent
           contact: v.contactPhone || '',
           whatsappNumber: v.whatsappNumber || '',
+          // Earned placement: high-reputation agents surface higher in the feed
+          featuredAgent: !!agentRep?.featured,
+          agentTier: agentRep?.tier || 'standard',
         };
         // If there are no images but videos exist, try to use a video thumbnail as a preview
         if ((!obj.images || obj.images.length === 0) && Array.isArray(v.videos) && v.videos.length > 0) {
@@ -369,8 +372,13 @@ export const getAllProperties = async (req, res) => {
         return inferTierAndStatus(obj);
       });
 
-      // Merge and sort by createdAt desc so agent vacancies appear alongside properties
-      const merged = [...properties, ...vacancyProps].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      // Merge by recency, but give reputable agents a freshness credit instead of a
+      // permanent top slot — new landlord listings still surface naturally.
+      const rankTime = (item) => {
+        const base = new Date(item.createdAt || 0).getTime() || 0;
+        return base + tierBoostMs(item.agentTier);
+      };
+      const merged = [...properties, ...vacancyProps].sort((a, b) => rankTime(b) - rankTime(a));
 
       return res.json({ success: true, properties: merged });
     } catch (e) {

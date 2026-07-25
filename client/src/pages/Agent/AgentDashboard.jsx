@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import { Plus, Users, Package, MessageSquare, Loader, CheckCircle, CalendarCheck2, Phone, Settings } from 'lucide-react';
+import { Plus, Users, Package, MessageSquare, Loader, CheckCircle, CalendarCheck2, Phone, Settings, Trophy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AgentReputationBadge from '../../components/AgentReputationBadge';
 import {
@@ -92,6 +92,15 @@ export default function AgentDashboard() {
                   {stats.awaitingTenantConfirm} placement{stats.awaitingTenantConfirm === 1 ? '' : 's'} awaiting tenant confirmation
                 </p>
               )}
+              <button
+                onClick={() => navigate('/agent/leaderboard')}
+                className='mt-3 inline-flex items-center gap-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline'
+              >
+                <Trophy size={16} />
+                {stats.ranking?.rank
+                  ? `Ranked #${stats.ranking.rank} of ${stats.ranking.totalRanked} agents`
+                  : 'See the agent leaderboard'}
+              </button>
             </div>
           )}
         </div>

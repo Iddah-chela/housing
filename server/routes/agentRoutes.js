@@ -1,6 +1,6 @@
 import express from 'express';
 import * as agentController from '../controllers/agentController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { protect, optionalProtect } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 import validateLeadId from '../middleware/validateLeadId.js';
 import upload, { singleFile } from '../middleware/uploadMiddleware.js';
@@ -73,6 +73,9 @@ router.post('/placements/:id/confirm', protect, validateLeadId, agentController.
 router.post('/placements/:id/rate', protect, validateLeadId, agentController.rateAgentPlacement);
 
 // ===== STATS ROUTES =====
+
+// Public: agent leaderboard (privacy-aware)
+router.get('/leaderboard', optionalProtect, agentController.getAgentLeaderboard);
 
 // Agent: Get dashboard stats
 router.get('/stats', protect, isAgent, agentController.getAgentStats);

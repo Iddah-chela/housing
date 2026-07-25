@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { ChevronLeft, MessageSquare, Phone, Mail, Loader, Check, ChevronDown, ChevronRight, MessageCircle, Eye, CalendarCheck2, MapPin, RotateCcw, Trash2 } from 'lucide-react';
+import { ChevronLeft, MessageSquare, Phone, Mail, Loader, Check, ChevronDown, ChevronRight, MessageCircle, Eye, CalendarCheck2, MapPin, RotateCcw, Trash2, Copy, Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LeadInbox() {
@@ -16,6 +16,8 @@ export default function LeadInbox() {
   const [reopeningId, setReopeningId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [markingOccupiedId, setMarkingOccupiedId] = useState(null);
+  const [referralCode, setReferralCode] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     // When viewing vacancies, also fetch recent leads so each vacancy can show its contacts
@@ -26,6 +28,54 @@ export default function LeadInbox() {
       fetchLeads();
     }
   }, [tab, leadFilter]);
+
+  // Referral code lets shared listing links credit this agent for new signups
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        const { data } = await axios.get('/api/payment/referral-info', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled && data?.success && data.referralCode) {
+          setReferralCode(data.referralCode);
+        }
+      } catch (_) {
+        // Sharing still works without a referral code
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [axios, getToken]);
+
+  const buildShareLink = (vacancyId) => {
+    const base = `${window.location.origin}/rooms/${vacancyId}`;
+    return referralCode ? `${base}?ref=${referralCode}` : base;
+  };
+
+  const buildShareMessage = (vacancy) => {
+    const parts = [vacancy.title || vacancy.roomType || 'Vacancy'];
+    const area = [vacancy.location?.area, vacancy.location?.city].filter(Boolean).join(', ');
+    if (area) parts.push(area);
+    if (vacancy.rent?.min) parts.push(`from Ksh ${Number(vacancy.rent.min).toLocaleString()}/month`);
+    return `${parts.join(' — ')}\n\nSee photos and book a viewing on PataKeja: ${buildShareLink(vacancy._id)}`;
+  };
+
+  const handleCopyShareLink = async (vacancy) => {
+    try {
+      await navigator.clipboard.writeText(buildShareLink(vacancy._id));
+      setCopiedId(vacancy._id);
+      toast.success('Listing link copied');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (_) {
+      toast.error('Could not copy link');
+    }
+  };
+
+  const handleShareWhatsApp = (vacancy) => {
+    const text = encodeURIComponent(buildShareMessage(vacancy));
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
+  };
 
   const fetchVacancies = async () => {
     try {
@@ -430,6 +480,27 @@ export default function LeadInbox() {
                         >
                           View Public Listing
                         </button>
+                        <div className='flex gap-2'>
+                          <button
+                            onClick={() => handleShareWhatsApp(vacancy)}
+                            className='flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium inline-flex items-center justify-center gap-1.5'
+                          >
+                            <Share2 size={14} /> Share on WhatsApp
+                          </button>
+                          <button
+                            onClick={() => handleCopyShareLink(vacancy)}
+                            className='px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm inline-flex items-center justify-center gap-1.5'
+                          >
+                            {copiedId === vacancy._id
+                              ? <><Check size={14} className='text-green-600' /> Copied</>
+                              : <><Copy size={14} /> Link</>}
+                          </button>
+                        </div>
+                        {referralCode && (
+                          <p className='text-xs text-gray-500 dark:text-gray-400'>
+                            Your shared links are tagged with your referral code — new signups count towards your referral rewards.
+                          </p>
+                        )}
                         <div className='flex gap-2'>
                           <button
                             onClick={() => setOpenVacancyIds((prev) => ({ ...prev, [vacancyId]: !isOpen }))}

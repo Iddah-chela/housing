@@ -44,6 +44,7 @@ const AgentChats      = lazy(() => import('./pages/Agent/AgentChats'))
 const AgentViewings   = lazy(() => import('./pages/Agent/AgentViewings'))
 const AgentBookings   = lazy(() => import('./pages/Agent/AgentBookings'))
 const AgentSettings   = lazy(() => import('./pages/Agent/AgentSettings'))
+const AgentLeaderboard = lazy(() => import('./pages/Agent/AgentLeaderboard'))
 const BecomeAgent     = lazy(() => import('./pages/BecomeAgent'))
 const VacancyMap      = lazy(() => import('./pages/VacancyMap'))
 const PlacementConfirm = lazy(() => import('./pages/PlacementConfirm'))
@@ -158,6 +159,7 @@ const App = () => {
               <Route path='viewings' element={<AgentViewings/>}/>
               <Route path='bookings' element={<AgentBookings/>}/>
               <Route path='settings' element={<AgentSettings/>}/>
+              <Route path='leaderboard' element={<AgentLeaderboard/>}/>
               <Route path='analytics' element={<Navigate to='/agent' replace/>}/>
           </Route>
         </Routes>

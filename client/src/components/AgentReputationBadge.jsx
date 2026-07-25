@@ -1,4 +1,4 @@
-import { Star, BadgeCheck } from 'lucide-react';
+import { Star, BadgeCheck, Trophy } from 'lucide-react';
 
 /**
  * Compact agent reputation display for cards + detail pages.
@@ -19,6 +19,8 @@ export default function AgentReputationBadge({
   const placements = Number(reputation.successfulPlacements || 0);
   const filled = avg != null ? Math.round(avg) : 0;
   const canShowImage = showImage && !reputation.hideRealName;
+  const tierLabel = reputation.featured ? (reputation.tierLabel || 'Top agent') : '';
+  const isTopTier = reputation.tier === 'top';
 
   if (compact) {
     return (
@@ -41,6 +43,11 @@ export default function AgentReputationBadge({
         {reputation.isVerifiedAgent && (
           <span className='inline-flex items-center gap-0.5 text-indigo-600 dark:text-indigo-300'>
             <BadgeCheck className='w-3.5 h-3.5' /> Verified
+          </span>
+        )}
+        {tierLabel && (
+          <span className={`inline-flex items-center gap-0.5 font-medium ${isTopTier ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+            <Trophy className='w-3.5 h-3.5' /> {tierLabel}
           </span>
         )}
       </div>
@@ -84,11 +91,22 @@ export default function AgentReputationBadge({
             ? `${placements} successful house placement${placements === 1 ? '' : 's'}`
             : 'New agent — no confirmed placements yet'}
         </p>
-        {reputation.isVerifiedAgent && (
-          <p className='inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-300 mt-1'>
-            <BadgeCheck className='w-3.5 h-3.5' /> Verified Agent
-          </p>
-        )}
+        <div className='flex flex-wrap items-center gap-2 mt-1'>
+          {reputation.isVerifiedAgent && (
+            <span className='inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-300'>
+              <BadgeCheck className='w-3.5 h-3.5' /> Verified Agent
+            </span>
+          )}
+          {tierLabel && (
+            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+              isTopTier
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+            }`}>
+              <Trophy className='w-3.5 h-3.5' /> {tierLabel}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Home, LayoutGrid, Bell, Calendar, Eye, Settings } from 'lucide-react';
+import { Home, LayoutGrid, Bell, Calendar, Eye, Settings, Trophy } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 export default function AgentLayout() {
@@ -40,6 +40,7 @@ export default function AgentLayout() {
     { name: 'My Leads', path: '/agent/leads', icon: Bell },
     { name: 'Bookings', path: '/agent/bookings', icon: Calendar },
     { name: 'Viewings', path: '/agent/viewings', icon: Eye },
+    { name: 'Ranking', path: '/agent/leaderboard', icon: Trophy, hideOnMobile: true },
     { name: 'Settings', path: '/agent/settings', icon: Settings },
   ];
 
@@ -75,7 +76,7 @@ export default function AgentLayout() {
 
       {/* Mobile Bottom Tab Bar */}
       <div className='md:hidden fixed bottom-0 left-0 right-0 z-30 flex border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-[0_-2px_10px_rgba(0,0,0,0.08)]'>
-        {navItems.map((item) => {
+        {navItems.filter((item) => !item.hideOnMobile).map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
           return (

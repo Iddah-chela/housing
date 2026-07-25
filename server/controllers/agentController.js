@@ -7,7 +7,11 @@ import { hasRole } from '../utils/roleUtils.js';
 import User from '../models/user.js';
 import { sendEmail } from '../utils/mailer.js';
 import { resolveCoordinates, normalizeCoordinates, mapsUrlFromLocation } from '../utils/geoUtils.js';
-import { buildPublicAgentReputation, agentReputationSelect } from '../utils/agentReputation.js';
+import {
+  buildPublicAgentReputation,
+  agentReputationSelect,
+  agentReputationScore,
+} from '../utils/agentReputation.js';
 import { sendPushNotification } from '../utils/pushNotifier.js';
 
 const toUserId = (value) => value?.toString?.() || String(value || '');
@@ -769,6 +773,70 @@ export const cancelProvisionalHold = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/agent/leaderboard
+ * Public, privacy-aware ranking of agents by confirmed placements + tenant ratings.
+ * Hidden-name agents still rank, but appear under their display name with no photo.
+ */
+export const getAgentLeaderboard = async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 20, 50);
+
+    const agents = await User.find({
+      $or: [{ role: 'agent' }, { roles: 'agent' }],
+    })
+      .select(agentReputationSelect)
+      .lean();
+
+    const ranked = agents
+      .map((user) => {
+        const rep = buildPublicAgentReputation(user);
+        return { id: String(user._id), rep };
+      })
+      .filter((entry) => entry.rep && entry.rep.score > 0)
+      .sort((a, b) => {
+        if (b.rep.score !== a.rep.score) return b.rep.score - a.rep.score;
+        if (b.rep.successfulPlacements !== a.rep.successfulPlacements) {
+          return b.rep.successfulPlacements - a.rep.successfulPlacements;
+        }
+        return (b.rep.ratingAvg || 0) - (a.rep.ratingAvg || 0);
+      })
+      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+    const viewerId = req.user?._id ? toUserId(req.user._id) : null;
+
+    const toPublicEntry = (entry) => ({
+      rank: entry.rank,
+      name: entry.rep.name,
+      image: entry.rep.image,
+      successfulPlacements: entry.rep.successfulPlacements,
+      ratingAvg: entry.rep.ratingAvg,
+      ratingCount: entry.rep.ratingCount,
+      tier: entry.rep.tier,
+      tierLabel: entry.rep.tierLabel,
+      isVerifiedAgent: true,
+      hideRealName: entry.rep.hideRealName,
+      isYou: viewerId ? entry.id === viewerId : false,
+    });
+
+    const top = ranked.slice(0, limit).map(toPublicEntry);
+
+    // Always let a signed-in agent see where they stand, even outside the top N
+    let you = null;
+    if (viewerId) {
+      const mine = ranked.find((entry) => entry.id === viewerId);
+      if (mine) {
+        you = { ...toPublicEntry(mine), totalRanked: ranked.length };
+      }
+    }
+
+    res.json({ success: true, leaderboard: top, you, totalRanked: ranked.length });
+  } catch (error) {
+    console.error('getAgentLeaderboard error:', error);
+    res.status(500).json({ success: false, message: 'Error loading leaderboard' });
+  }
+};
+
 // GET: Agent dashboard stats
 export const getAgentStats = async (req, res) => {
   try {
@@ -807,6 +875,26 @@ export const getAgentStats = async (req, res) => {
       placementConfirmStatus: 'awaiting_tenant',
     });
 
+    // Where this agent stands against other agents (drives the leaderboard callout)
+    let ranking = null;
+    try {
+      const myScore = agentReputationScore(agentUser?.agentReputation || {});
+      const peers = await User.find({ $or: [{ role: 'agent' }, { roles: 'agent' }] })
+        .select('agentReputation')
+        .lean();
+      const scored = peers
+        .map((p) => agentReputationScore(p.agentReputation || {}))
+        .filter((score) => score > 0);
+      if (myScore > 0) {
+        const ahead = scored.filter((score) => score > myScore).length;
+        ranking = { rank: ahead + 1, totalRanked: scored.length };
+      } else {
+        ranking = { rank: null, totalRanked: scored.length };
+      }
+    } catch (_) {
+      // ranking is a nice-to-have; never fail the dashboard for it
+    }
+
     res.json({
       activeVacancies,
       totalLeads,
@@ -814,6 +902,7 @@ export const getAgentStats = async (req, res) => {
       leadTypeStats,
       awaitingTenantConfirm: awaitingConfirm,
       reputation: buildPublicAgentReputation(agentUser),
+      ranking,
       settings: {
         displayName: agentUser?.agentReputation?.displayName || '',
         hideRealName: !!agentUser?.agentReputation?.hideRealName,
