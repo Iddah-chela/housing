@@ -104,7 +104,7 @@ export default function AgentSettings() {
               Hide my real account name
             </span>
             <span className='block text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-              When hidden, listings show your display name — or “Verified Agent” if display name is empty. Your account username stays private.
+              When hidden, listings show your display name — or “Verified Agent” if display name is empty. Your account username and profile photo stay private.
             </span>
           </span>
         </label>

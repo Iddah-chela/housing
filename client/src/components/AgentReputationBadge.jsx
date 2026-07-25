@@ -18,6 +18,7 @@ export default function AgentReputationBadge({
   const count = Number(reputation.ratingCount || 0);
   const placements = Number(reputation.successfulPlacements || 0);
   const filled = avg != null ? Math.round(avg) : 0;
+  const canShowImage = showImage && !reputation.hideRealName;
 
   if (compact) {
     return (
@@ -48,7 +49,7 @@ export default function AgentReputationBadge({
 
   return (
     <div className={`flex items-start gap-3 ${className}`}>
-      {showImage && (
+      {canShowImage && (
         <img
           src={image || reputation.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4f46e5&color=fff&bold=true`}
           alt={name}

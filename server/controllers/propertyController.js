@@ -424,7 +424,7 @@ export const getPropertyById = async (req, res) => {
         agentPost: true,
         agent: vacancy.agent,
         agentName: agentRep?.name || 'Agent',
-        agentImage: agentRep?.image || agentUser?.image || '',
+        agentImage: agentRep?.image || '',
         agentEmail: agentUser?.email || '',
         agentPhone: agentUser?.phoneNumber || '',
         agentReputation: agentRep,

@@ -26,7 +26,8 @@ export const buildPublicAgentReputation = (user) => {
   return {
     name,
     hideRealName,
-    image: user.image || '',
+    // Hide profile photo with the real name — a photo can identify the person
+    image: hideRealName ? '' : (user.image || ''),
     successfulPlacements: Number(rep.successfulPlacements || 0),
     ratingAvg,
     ratingCount,
