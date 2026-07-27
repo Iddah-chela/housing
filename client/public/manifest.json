@@ -1,7 +1,7 @@
 ﻿{
   "name": "PataKeja",
   "short_name": "PataKeja",
-  "description": "Find verified rental houses near University of Eldoret",
+  "description": "Find verified, scam-free rental houses across Kenya",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",

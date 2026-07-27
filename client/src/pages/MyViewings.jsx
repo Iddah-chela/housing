@@ -296,30 +296,59 @@ const MyViewings = () => {
                         )}
                       </div>
 
-                      {viewing.locationUnlocked && (mapsUrl || areaLabel) && (
-                        <div className='mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg'>
-                          <p className='text-xs font-semibold text-green-700 dark:text-green-300 mb-1.5 flex items-center gap-1.5'>
-                            <MapPin className='w-3.5 h-3.5' /> Exact location
+                      {viewing.locationUnlocked && (
+                        <div className='mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg space-y-2'>
+                          <p className='text-xs font-semibold text-green-700 dark:text-green-300 flex items-center gap-1.5'>
+                            <MapPin className='w-3.5 h-3.5' /> Viewing confirmed
                           </p>
                           {areaLabel && (
-                            <p className='text-sm text-gray-700 dark:text-gray-300 mb-1.5'>{areaLabel}</p>
+                            <p className='text-sm text-gray-700 dark:text-gray-300'>{areaLabel}</p>
                           )}
-                          {mapsUrl && (
+                          {mapsUrl ? (
                             <a
                               href={mapsUrl}
                               target='_blank'
                               rel='noopener noreferrer'
                               className='inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-all'
                             >
-                              <Navigation className='w-3.5 h-3.5' /> Open in Google Maps
+                              <Navigation className='w-3.5 h-3.5' /> Open exact location in Maps
                             </a>
+                          ) : (
+                            <p className='text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2'>
+                              This listing has no map pin yet. Use the agent contact below to get directions.
+                            </p>
+                          )}
+                          {viewing.agentContact?.phone && (
+                            <div className='pt-1 space-y-1.5'>
+                              <p className='text-sm text-gray-700 dark:text-gray-300'>
+                                <span className='font-medium'>Agent:</span> {viewing.agentContact.name || 'Agent'}
+                              </p>
+                              <div className='flex flex-wrap gap-2'>
+                                <a
+                                  href={`tel:${viewing.agentContact.phone}`}
+                                  className='inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg'
+                                >
+                                  Call {viewing.agentContact.phone}
+                                </a>
+                                {(viewing.agentContact.whatsapp || viewing.agentContact.phone) && (
+                                  <a
+                                    href={`https://wa.me/${String(viewing.agentContact.whatsapp || viewing.agentContact.phone).replace(/\D/g, '')}`}
+                                    target='_blank'
+                                    rel='noopener noreferrer'
+                                    className='inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg'
+                                  >
+                                    WhatsApp agent
+                                  </a>
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
                       )}
 
                       {!viewing.locationUnlocked && statusLabel === 'Pending' && (
                         <p className='mt-3 text-xs text-amber-700 dark:text-amber-300'>
-                          Exact location unlocks after the agent confirms your viewing.
+                          After the agent confirms, you’ll get contact details here — and a map pin if the listing has one.
                         </p>
                       )}
                     </div>

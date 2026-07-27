@@ -107,7 +107,7 @@ const AgentViewings = () => {
   }, [items]);
 
   const confirmViewing = async (id) => {
-    if (!window.confirm('Confirm this viewing? The tenant will get the exact map location.')) return;
+    if (!window.confirm('Confirm this viewing? The tenant will get your contact details, and the exact map pin if this listing has one.')) return;
     try {
       setProcessingId(id);
       const token = await getToken();
@@ -116,7 +116,16 @@ const AgentViewings = () => {
         { status: 'contacted' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      toast.success('Viewing confirmed — exact location shared with tenant');
+      const lead = items.find((item) => String(item._id) === String(id));
+      const hasPin = !!(
+        lead?.vacancy?.location?.coordinates?.latitude
+        || lead?.vacancy?.googleMapsUrl
+      );
+      toast.success(
+        hasPin
+          ? 'Viewing confirmed — exact location shared with tenant'
+          : 'Viewing confirmed — tenant got your contact. Add a map pin on Edit Vacancy so future confirms share Maps directions.'
+      );
       await fetchViewings();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to confirm viewing');

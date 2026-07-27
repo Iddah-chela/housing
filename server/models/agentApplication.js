@@ -38,7 +38,9 @@ const agentApplicationSchema = new mongoose.Schema(
       type: String, // Clerk user ID of admin who reviewed
     },
     reviewedAt: Date,
-    
+    // Set when welcome email/push was sent (so backfill won't spam twice)
+    welcomeNotifiedAt: Date,
+
     // Metadata
     submittedAt: {
       type: Date,

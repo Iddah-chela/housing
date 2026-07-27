@@ -2,10 +2,15 @@ import AgentApplication from '../models/agentApplication.js';
 import User from '../models/user.js';
 import { createClerkClient } from '@clerk/express';
 import { derivePrimaryRole, mergeRoles } from '../utils/roleUtils.js';
+import { sendEmail } from '../utils/mailer.js';
+import { sendPushNotification } from '../utils/pushNotifier.js';
+import { notifyAgentApproved } from '../utils/notifyAgentApproved.js';
 
 const clerk = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY,
 });
+
+const CLIENT_URL = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
 
 // POST: User submits agent application
 export const submitAgentApplication = async (req, res) => {
@@ -257,6 +262,23 @@ export const approveAgentApplication = async (req, res) => {
       }
     });
 
+    // Notify the new agent (email + in-app/push) so they know they can start posting
+    (async () => {
+      try {
+        const applicant = await User.findById(application.user).select('email username').lean();
+        await notifyAgentApproved({
+          userId: application.user,
+          email: applicant?.email,
+          username: applicant?.username,
+          applicationId: application._id,
+        });
+        application.welcomeNotifiedAt = new Date();
+        await application.save();
+      } catch (notifyErr) {
+        console.error('[Agent Approval] notify failed:', notifyErr.message);
+      }
+    })();
+
     // Sync Clerk metadata (block on this so role is consistent)
     console.log(`[Agent Approval] Syncing Clerk metadata for user ${application.user}`);
     try {
@@ -314,6 +336,39 @@ export const rejectAgentApplication = async (req, res) => {
       message: 'Agent application rejected',
       application,
     });
+
+    (async () => {
+      try {
+        const applicant = await User.findById(application.user).select('email username').lean();
+        const name = applicant?.username || 'there';
+        if (applicant?.email) {
+          sendEmail(
+            applicant.email,
+            'Update on your PataKeja agent application',
+            `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;">
+              <div style="background:#dc2626;padding:24px;text-align:center;border-radius:8px 8px 0 0;">
+                <h2 style="color:#fff;margin:0;font-size:20px;">Application update</h2>
+              </div>
+              <div style="padding:24px;background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                <p style="font-size:15px;line-height:1.6;">Hi ${name},</p>
+                <p style="font-size:15px;line-height:1.6;">Your agent application was not approved at this time.</p>
+                ${reason ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin:16px 0;"><p style="margin:0;font-size:14px;color:#555;"><strong>Reason:</strong> ${reason}</p></div>` : ''}
+                <p style="font-size:14px;color:#6b7280;">You can update your details and apply again from the Become Agent page.</p>
+                <p style="text-align:center;margin-top:16px;"><a href="${CLIENT_URL}/become-agent" style="color:#4F46E5;">View application status</a></p>
+              </div>
+            </div>`
+          ).catch(() => {});
+        }
+        sendPushNotification(application.user, {
+          title: 'Agent application update',
+          body: reason ? `Not approved: ${reason}` : 'Your agent application was not approved.',
+          url: '/become-agent',
+          tag: `agent-rejected-${application._id}`,
+          type: 'agent',
+          style: 'warning',
+        }).catch(() => {});
+      } catch (_) {}
+    })();
   } catch (error) {
     console.error('Error rejecting application:', error);
     res.status(500).json({

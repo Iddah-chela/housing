@@ -176,7 +176,7 @@ export default function BecomeAgent() {
             Application Under Review
           </h1>
           <p className='text-blue-800 dark:text-blue-300'>
-            Your application is being reviewed by our admin team. We'll notify you once it's been processed.
+            Your application is being reviewed. You’ll get an email and an in-app notification when it’s approved — then an Agent Dashboard button will appear in the menu.
           </p>
         </div>
       </div>

@@ -598,6 +598,9 @@ export const updateLead = async (req, res) => {
           });
           const listingTitle = vacancy?.title || 'the listing';
           const areaLabel = [vacancy?.location?.area, vacancy?.location?.city].filter(Boolean).join(', ');
+          const agentUser = await User.findById(agentId).select('phoneNumber username').lean();
+          const contactPhone = String(vacancy?.contactPhone || vacancy?.whatsappNumber || agentUser?.phoneNumber || '').trim();
+          const hasPin = !!mapsUrl;
 
           if (tenant?.email) {
             sendEmail(
@@ -612,7 +615,10 @@ export const updateLead = async (req, res) => {
                   ${areaLabel ? `<p style="font-size:14px;color:#555;"><strong>Area:</strong> ${areaLabel}</p>` : ''}
                   ${lead.preferredViewingDate ? `<p style="font-size:14px;color:#555;"><strong>Date:</strong> ${new Date(lead.preferredViewingDate).toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
                   ${lead.preferredViewingTimeRange ? `<p style="font-size:14px;color:#555;"><strong>Time:</strong> ${lead.preferredViewingTimeRange}</p>` : ''}
-                  ${mapsUrl ? `<div style="text-align:center;margin:16px 0;"><a href="${mapsUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Open exact location in Maps</a></div>` : ''}
+                  ${contactPhone ? `<p style="font-size:14px;color:#555;"><strong>Agent contact:</strong> ${contactPhone}</p>` : ''}
+                  ${hasPin
+                    ? `<div style="text-align:center;margin:16px 0;"><a href="${mapsUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Open exact location in Maps</a></div>`
+                    : `<p style="font-size:14px;color:#555;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;">No map pin on this listing yet — use the agent contact above to get directions for your viewing.</p>`}
                   <p style="text-align:center;margin-top:12px;"><a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/my-viewings" style="color:#4F46E5;">View in My Viewings</a></p>
                 </div>
               </div>`
@@ -622,9 +628,13 @@ export const updateLead = async (req, res) => {
           if (lead.student) {
             sendPushNotification(lead.student, {
               title: 'Viewing confirmed',
-              body: `Exact location for ${listingTitle} is now available`,
+              body: hasPin
+                ? `Exact location for ${listingTitle} is now available`
+                : `Your viewing for ${listingTitle} is confirmed — check My Viewings for contact details`,
               url: `/my-viewings?leadId=${lead._id}`,
               tag: `agent-viewing-confirmed-${lead._id}`,
+              type: 'viewing',
+              style: 'success',
             }).catch(() => {});
           }
         } catch (_) {
@@ -1069,8 +1079,8 @@ export const getMyLeads = async (req, res) => {
   try {
     const userId = toUserId(req.user._id);
     const leads = await AgentLead.find({ student: userId })
-      .populate('vacancy', 'title location googleMapsUrl rent roomType photos')
-      .populate('agent', 'username phoneNumber image')
+      .populate('vacancy', 'title location googleMapsUrl rent roomType photos contactPhone whatsappNumber')
+      .populate('agent', 'username phoneNumber image agentReputation')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -1078,6 +1088,7 @@ export const getMyLeads = async (req, res) => {
       const unlocked = viewingLocationUnlocked(lead);
       const vacancy = lead.vacancy ? { ...lead.vacancy } : null;
       let exactLocation = null;
+      let agentContact = null;
 
       if (vacancy) {
         if (unlocked) {
@@ -1091,17 +1102,31 @@ export const getMyLeads = async (req, res) => {
               googleMapsUrl: vacancy.googleMapsUrl,
             }),
           };
+          const phone = String(
+            vacancy.contactPhone || vacancy.whatsappNumber || lead.agent?.phoneNumber || ''
+          ).trim();
+          const whatsapp = String(vacancy.whatsappNumber || vacancy.contactPhone || lead.agent?.phoneNumber || '').trim();
+          agentContact = {
+            name: buildPublicAgentReputation(lead.agent)?.name || lead.agent?.username || 'Agent',
+            phone: phone || null,
+            whatsapp: whatsapp || null,
+          };
         } else if (vacancy.location) {
           delete vacancy.location.coordinates;
           delete vacancy.googleMapsUrl;
         }
+        // Never expose listing contact publicly before confirm
+        delete vacancy.contactPhone;
+        delete vacancy.whatsappNumber;
       }
 
       return {
         ...lead,
         vacancy,
         exactLocation,
+        agentContact,
         locationUnlocked: unlocked,
+        hasExactPin: !!(exactLocation?.mapsUrl),
       };
     });
 
