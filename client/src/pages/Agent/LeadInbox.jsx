@@ -540,19 +540,19 @@ export default function LeadInbox() {
                           ) : (
                             <div className='space-y-3'>
                               {group.leads.map((lead) => (
-                                <div key={lead._id} className='p-3 bg-gray-50 dark:bg-gray-900/30 rounded-lg flex items-center justify-between'>
-                                  <div className='text-left'>
-                                    <p className='font-semibold text-gray-900 dark:text-white'>{lead.studentInfo.name}</p>
-                                    <p className='text-xs text-gray-500 dark:text-gray-400'>{lead.leadType} • {lead.studentInfo.phone}</p>
+                                <div key={lead._id} className='p-3 bg-gray-50 dark:bg-gray-900/30 rounded-lg flex items-start justify-between gap-3 min-w-0'>
+                                  <div className='text-left min-w-0 flex-1'>
+                                    <p className='font-semibold text-gray-900 dark:text-white truncate'>{lead.studentInfo.name}</p>
+                                    <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>{lead.leadType} • {lead.studentInfo.phone}</p>
                                     {lead.message && <p className='text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-2'>{lead.message}</p>}
                                   </div>
-                                  <div className='flex flex-col items-end gap-2'>
+                                  <div className='flex flex-col items-end gap-2 shrink-0'>
                                     {lead.leadType === 'chat' && (
                                       <button
                                         onClick={() => {
                                           toast.success('Opening chat...');
-                                          if (lead.chatId) navigate(`/agent/chats?chatId=${lead.chatId}`);
-                                          else navigate('/agent/chats');
+                                          const target = lead.chatId ? `/agent/chats?chatId=${lead.chatId}` : '/agent/chats';
+                                          navigate(target);
                                         }}
                                         className='px-3 py-1 bg-indigo-600 text-white rounded-md text-sm'
                                       >

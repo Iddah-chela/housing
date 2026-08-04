@@ -53,13 +53,13 @@ const AgentChats = () => {
       ) : (
         <div className='space-y-4'>
           {chats.map(chat => (
-            <div key={chat._id} onClick={() => setSelectedChat(chat)} className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700'>
-              <div className='flex items-center gap-4'>
-                <div className='flex-1'>
-                  <h3 className='font-semibold'>{chat.tenant?.username || chat.tenant?.firstName || 'Tenant'}</h3>
-                  <p className='text-sm text-gray-500'>{chat.vacancy?.title || 'Agent Listing'}</p>
+            <div key={chat._id} onClick={() => setSelectedChat(chat)} className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 overflow-hidden'>
+              <div className='flex items-center gap-4 min-w-0'>
+                <div className='flex-1 min-w-0'>
+                  <h3 className='font-semibold truncate'>{chat.tenant?.username || chat.tenant?.firstName || 'Tenant'}</h3>
+                  <p className='text-sm text-gray-500 truncate'>{chat.vacancy?.title || 'Agent Listing'}</p>
                 </div>
-                <div className='text-sm text-gray-400'>{new Date(chat.lastMessage || chat.updatedAt).toLocaleString()}</div>
+                <div className='text-xs text-gray-400 shrink-0 whitespace-nowrap'>{new Date(chat.lastMessage || chat.updatedAt).toLocaleDateString()}</div>
               </div>
             </div>
           ))}

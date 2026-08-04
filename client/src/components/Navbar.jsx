@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { assets } from '../assets/assets';
 import { useAppContext } from '../context/AppContext';
 import ProfileModal from './ProfileModal';
-import { SignInButton, SignUpButton } from '@clerk/clerk-react';
+import { useClerk } from '@clerk/clerk-react';
 import PropertyListingModal from './PropertyListingModal';
 import LandlordApplicationModal from './LandlordApplicationModal';
 import NotificationBell from './NotificationBell';
@@ -26,6 +26,7 @@ const Navbar = () => {
     
     const location = useLocation()
     const routerNavigate = useNavigate()
+    const { openSignIn, openSignUp } = useClerk()
 
     const{user, navigate, isOwner, isAgent, dbImage, enablePushNotifications, darkMode, toggleDarkMode, isCaretaker} = useAppContext()
 
@@ -71,6 +72,43 @@ const Navbar = () => {
     const heroLight = !isScrolled && !darkMode;  // on hero, light mode
     const heroDark  = !isScrolled &&  darkMode;  // on hero, dark mode
 
+    const getCurrentPathWithQuery = () => `${location.pathname}${location.search}${location.hash}`
+
+    const promptLogin = (redirectUrl = getCurrentPathWithQuery()) => {
+        openSignIn({ redirectUrl })
+    }
+
+    const promptSignup = (redirectUrl = getCurrentPathWithQuery()) => {
+        openSignUp({ redirectUrl })
+    }
+
+    const handleLandlordClick = () => {
+        if (!user) {
+            const params = new URLSearchParams(location.search)
+            params.set('applyLandlord', '1')
+            const redirectUrl = `${location.pathname}?${params.toString()}${location.hash || ''}`
+            promptLogin(redirectUrl)
+            return
+        }
+        if (isOwner) {
+            navigate('/owner')
+            return
+        }
+        setShowLandlordApplicationModal(true)
+    }
+
+    const handleAgentClick = () => {
+        if (!user) {
+            promptLogin('/become-agent')
+            return
+        }
+        if (isAgent) {
+            navigate('/agent')
+            return
+        }
+        navigate('/become-agent')
+    }
+
     return (
         <>
             <nav
@@ -115,6 +153,22 @@ const Navbar = () => {
                     </button>
                 )}
                 
+                <button 
+                    className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-green-700 dark:border-green-500 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50' : heroLight ? 'text-gray-900 border-green-700 bg-green-50/80 hover:bg-green-100/80' : 'text-white border-green-400 bg-green-900/30 hover:bg-green-900/50'}`} 
+                    onClick={handleLandlordClick}
+                >
+                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5' /></svg>
+                    {isOwner ? 'Landlord Dashboard' : 'Become Landlord'}
+                </button>
+
+                <button 
+                    className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-purple-700 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50' : heroLight ? 'text-gray-900 border-purple-700 bg-purple-50/80 hover:bg-purple-100/80' : 'text-white border-purple-400 bg-purple-900/30 hover:bg-purple-900/50'}`} 
+                    onClick={handleAgentClick}
+                >
+                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
+                    {isAgent ? 'Agent Dashboard' : 'Become Agent'}
+                </button>
+
                 {user && !isOwner && (
                     <button 
                         className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-green-700 dark:border-green-500 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50' : heroLight ? 'text-gray-900 border-green-700 bg-green-50/80 hover:bg-green-100/80' : 'text-white border-green-400 bg-green-900/30 hover:bg-green-900/50'}`} 
@@ -125,23 +179,6 @@ const Navbar = () => {
                     </button>
                 )}
 
-                {user && isAgent && (
-                    <button 
-                        className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-indigo-700 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50' : heroLight ? 'text-gray-900 border-indigo-700 bg-indigo-50/80 hover:bg-indigo-100/80' : 'text-white border-indigo-400 bg-indigo-900/30 hover:bg-indigo-900/50'}`} 
-                        onClick={() => navigate('/agent')}
-                    >
-                        Agent Dashboard
-                    </button>
-                )}
-                {user && !isAgent && (
-                    <button 
-                        className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-purple-700 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50' : heroLight ? 'text-gray-900 border-purple-700 bg-purple-50/80 hover:bg-purple-100/80' : 'text-white border-purple-400 bg-purple-900/30 hover:bg-purple-900/50'}`} 
-                        onClick={() => navigate('/become-agent')}
-                    >
-                        <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
-                        Become Agent
-                    </button>
-                )}
                 </div>
 
                 {/* Desktop Right */}
@@ -177,16 +214,18 @@ const Navbar = () => {
                     </div>
                 ) : (
                     <div className="flex gap-2">
-                        <SignInButton mode="modal">
-                            <button className={`px-6 py-2 rounded-full transition-all duration-500 border ${isScrolled ? "text-gray-700 dark:text-gray-200 border-gray-700 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" : heroLight ? "text-gray-800 border-gray-700 hover:bg-gray-100/60" : "text-white border-white/70 hover:bg-white/10"}`}>
-                                Login
-                            </button>
-                        </SignInButton>
-                        <SignUpButton mode="modal">
-                            <button className={`px-6 py-2 rounded-full transition-all duration-500 ${isScrolled ? "text-white bg-indigo-500 hover:bg-indigo-600" : heroLight ? "bg-gray-900 text-white hover:bg-gray-800" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}>
-                                Sign Up
-                            </button>
-                        </SignUpButton>
+                        <button
+                            onClick={() => promptLogin()}
+                            className={`px-6 py-2 rounded-full transition-all duration-500 border ${isScrolled ? "text-gray-700 dark:text-gray-200 border-gray-700 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" : heroLight ? "text-gray-800 border-gray-700 hover:bg-gray-100/60" : "text-white border-white/70 hover:bg-white/10"}`}
+                        >
+                            Login
+                        </button>
+                        <button
+                            onClick={() => promptSignup()}
+                            className={`px-6 py-2 rounded-full transition-all duration-500 ${isScrolled ? "text-white bg-indigo-500 hover:bg-indigo-600" : heroLight ? "bg-gray-900 text-white hover:bg-gray-800" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}
+                        >
+                            Sign Up
+                        </button>
                     </div>
                 )}
                 </div>
@@ -247,6 +286,22 @@ const Navbar = () => {
                         </button>
                     )}
 
+                    <button 
+                        className="flex items-center gap-1.5 border border-green-600 dark:border-green-500 bg-green-50 dark:bg-green-900/30 px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all hover:bg-green-100 dark:hover:bg-green-900/50"
+                        onClick={() => { setIsMenuOpen(false); handleLandlordClick(); }}
+                    >
+                        <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5' /></svg>
+                        {isOwner ? 'Landlord Dashboard' : 'Become Landlord'}
+                    </button>
+
+                    <button 
+                        className="flex items-center gap-1.5 border border-purple-600 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/30 px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all hover:bg-purple-100 dark:hover:bg-purple-900/50"
+                        onClick={() => { setIsMenuOpen(false); handleAgentClick(); }}
+                    >
+                        <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
+                        {isAgent ? 'Agent Dashboard' : 'Become Agent'}
+                    </button>
+
                     {user && !isOwner && (
                         <button 
                             className="flex items-center gap-1.5 border border-green-600 dark:border-green-500 bg-green-50 dark:bg-green-900/30 px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all hover:bg-green-100 dark:hover:bg-green-900/50"
@@ -257,37 +312,20 @@ const Navbar = () => {
                         </button>
                     )}
 
-                    {user && isAgent && (
-                        <button 
-                            className="flex items-center gap-1.5 border border-indigo-600 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
-                            onClick={() => { setIsMenuOpen(false); navigate('/agent'); }}
-                        >
-                            Agent Dashboard
-                        </button>
-                    )}
-
-                    {user && !isAgent && (
-                        <button 
-                            className="flex items-center gap-1.5 border border-purple-600 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/30 px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all hover:bg-purple-100 dark:hover:bg-purple-900/50"
-                            onClick={() => { setIsMenuOpen(false); navigate('/become-agent'); }}
-                        >
-                            <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
-                            Become Agent
-                        </button>
-                    )}
-
                     {!user && (
                         <>
-                            <SignInButton mode="modal">
-                                <button className="border border-gray-800 dark:border-gray-400 text-gray-800 dark:text-gray-200 px-8 py-2.5 rounded-full transition-all duration-500 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    Login
-                                </button>
-                            </SignInButton>
-                            <SignUpButton mode="modal">
-                                <button className="bg-indigo-500 text-white px-8 py-2.5 rounded-full transition-all duration-500 hover:bg-indigo-600">
-                                    Sign Up
-                                </button>
-                            </SignUpButton>
+                            <button
+                                onClick={() => promptLogin()}
+                                className="border border-gray-800 dark:border-gray-400 text-gray-800 dark:text-gray-200 px-8 py-2.5 rounded-full transition-all duration-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                                Login
+                            </button>
+                            <button
+                                onClick={() => promptSignup()}
+                                className="bg-indigo-500 text-white px-8 py-2.5 rounded-full transition-all duration-500 hover:bg-indigo-600"
+                            >
+                                Sign Up
+                            </button>
                         </>
                     )}
                 </div>

@@ -364,8 +364,8 @@ export const rejectAgentApplication = async (req, res) => {
           body: reason ? `Not approved: ${reason}` : 'Your agent application was not approved.',
           url: '/become-agent',
           tag: `agent-rejected-${application._id}`,
-          type: 'agent',
-          style: 'warning',
+          type: 'system',
+          style: 'critical',
         }).catch(() => {});
       } catch (_) {}
     })();

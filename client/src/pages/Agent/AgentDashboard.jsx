@@ -69,6 +69,13 @@ export default function AgentDashboard() {
             </div>
             <div className='flex flex-col sm:flex-row gap-2'>
               <button
+                onClick={() => navigate('/agent/chats')}
+                className='inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 font-medium hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
+              >
+                <MessageSquare size={18} />
+                Messages
+              </button>
+              <button
                 onClick={() => navigate('/agent/settings')}
                 className='inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700'
               >

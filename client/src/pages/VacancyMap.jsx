@@ -5,12 +5,12 @@ import 'leaflet/dist/leaflet.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Lock, MapPin, Unlock } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import PaymentModal from '../components/PaymentModal';
 import { DEFAULT_MAP_CENTER } from '../components/LocationPinPicker';
-import { SignInButton } from '@clerk/clerk-react';
+import { useClerk } from '@clerk/clerk-react';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -58,6 +58,8 @@ const formatRent = (min, max) => {
 export default function VacancyMap() {
   const { axios, getToken, user, isAdmin } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { openSignIn } = useClerk();
   const [loading, setLoading] = useState(true);
   const [unlocked, setUnlocked] = useState(false);
   const [pinCount, setPinCount] = useState(0);
@@ -200,14 +202,13 @@ export default function VacancyMap() {
                     <Unlock className='w-4 h-4' /> Unlock map pins
                   </button>
                 ) : (
-                  <SignInButton mode='modal'>
-                    <button
-                      type='button'
-                      className='inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium'
-                    >
-                      Sign in to unlock
-                    </button>
-                  </SignInButton>
+                  <button
+                    type='button'
+                    onClick={() => openSignIn({ redirectUrl: `${location.pathname}${location.search}${location.hash}` })}
+                    className='inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium'
+                  >
+                    Sign in to unlock
+                  </button>
                 )}
                 <button
                   type='button'

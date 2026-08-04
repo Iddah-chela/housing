@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Home, LayoutGrid, Bell, Calendar, Eye, Settings, Trophy } from 'lucide-react';
+import { Home, LayoutGrid, Bell, Calendar, Eye, Settings, Trophy, MessageSquare } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 export default function AgentLayout() {
@@ -38,6 +38,7 @@ export default function AgentLayout() {
     { name: 'Dashboard', path: '/agent', icon: Home },
     { name: 'Post Vacancy', path: '/agent/post-vacancy', icon: LayoutGrid },
     { name: 'My Leads', path: '/agent/leads', icon: Bell },
+    { name: 'Messages', path: '/agent/chats', icon: MessageSquare },
     { name: 'Bookings', path: '/agent/bookings', icon: Calendar },
     { name: 'Viewings', path: '/agent/viewings', icon: Eye },
     { name: 'Ranking', path: '/agent/leaderboard', icon: Trophy, hideOnMobile: true },

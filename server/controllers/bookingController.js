@@ -124,6 +124,71 @@ export const createBooking = async (req, res)=>{
             } catch (_) {}
         }
 
+        // Notify owner + confirm to tenant
+        (async () => {
+            try {
+                const renterUser = await User.findById(user).select('username email').lean();
+                const ownerId = property.owner;
+                const roomLabel = roomDetails?.roomType || 'room';
+                sendPushNotification(ownerId, {
+                    title: 'New booking',
+                    body: `${renterUser?.username || 'A tenant'} booked a ${roomLabel} at ${property.name}`,
+                    url: '/owner/bookings',
+                    tag: `booking-created-${booking._id}`,
+                    type: 'booking',
+                    style: 'info',
+                }).catch(() => {});
+
+                const ownerUser = await User.findById(ownerId).select('email').lean();
+                if (ownerUser?.email) {
+                    sendEmail(
+                        ownerUser.email,
+                        `New booking — ${property.name}`,
+                        `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;">
+                          <div style="background:#4F46E5;padding:20px;text-align:center;border-radius:8px 8px 0 0;">
+                            <h2 style="color:#fff;margin:0;">New booking</h2>
+                          </div>
+                          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                            <p><strong>${renterUser?.username || 'A tenant'}</strong> booked a <strong>${roomLabel}</strong> at <strong>${property.name}</strong>.</p>
+                            <p>Move-in: ${new Date(moveInDate).toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <p style="text-align:center;margin-top:16px;">
+                              <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/owner/bookings" style="display:inline-block;background:#4F46E5;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;">View bookings</a>
+                            </p>
+                          </div>
+                        </div>`
+                    ).catch(() => {});
+                }
+
+                sendPushNotification(user, {
+                    title: 'Booking confirmed',
+                    body: `Your booking at ${property.name} is confirmed.`,
+                    url: '/my-bookings',
+                    tag: `booking-confirmed-${booking._id}`,
+                    type: 'booking',
+                    style: 'info',
+                }).catch(() => {});
+
+                if (renterUser?.email) {
+                    sendEmail(
+                        renterUser.email,
+                        `Booking confirmed — ${property.name}`,
+                        `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;">
+                          <div style="background:#16a34a;padding:20px;text-align:center;border-radius:8px 8px 0 0;">
+                            <h2 style="color:#fff;margin:0;">Booking confirmed</h2>
+                          </div>
+                          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                            <p>Your booking for a <strong>${roomLabel}</strong> at <strong>${property.name}</strong> is confirmed.</p>
+                            <p>Move-in: ${new Date(moveInDate).toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <p style="text-align:center;margin-top:16px;">
+                              <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/my-bookings" style="display:inline-block;background:#4F46E5;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;">My bookings</a>
+                            </p>
+                          </div>
+                        </div>`
+                    ).catch(() => {});
+                }
+            } catch (_) {}
+        })();
+
         res.json({success: true, message: "Booking Created successfully"})
     } catch (error) {
         console.error('[Booking] Create error:', error.message);

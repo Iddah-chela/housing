@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { assets, facilityIcons } from '../assets/assets'
 import ChatInterface from '../components/ChatInterface'
 import ViewingRequestForm from '../components/ViewingRequestForm'
@@ -11,13 +11,17 @@ import AgentReputationBadge from '../components/AgentReputationBadge'
 import PaymentModal from '../components/PaymentModal'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
-import { SignInButton, SignUpButton } from '@clerk/clerk-react'
+import { useClerk } from '@clerk/clerk-react'
 import { Gift, Lock, Unlock, Key, CreditCard, MessageCircle, Smartphone, PartyPopper, Check, Share2, Copy, Users, User as UserIcon, Image as ImageIcon, PlayCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { PropertyDetailSkeleton } from '../components/Skeletons'
 
 const PropertyDetails = () => {
     const {id} = useParams() // This is now property ID, not room ID
+  const location = useLocation()
+  const { openSignIn } = useClerk()
   const { user, getToken, axios, darkMode, isOwner, isAdmin, navigate } = useAppContext()
+      const getCurrentPathWithQuery = () => `${location.pathname}${location.search}${location.hash}`
+
     const [property, setProperty] = useState(null)
     const [selectedBuilding, setSelectedBuilding] = useState(0)
     const [zoomedBuilding, setZoomedBuilding] = useState(null)
@@ -914,11 +918,12 @@ const PropertyDetails = () => {
                   {hasPendingClaim ? 'Under Review' : (showClaimForm ? 'Close' : 'This is my property')}
                 </button>
               ) : (
-                <SignInButton mode='modal'>
-                  <button className='px-4 py-2 rounded-lg border border-amber-700 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-sm font-medium'>
-                    Sign In to Claim
-                  </button>
-                </SignInButton>
+                <button
+                  onClick={() => openSignIn({ redirectUrl: getCurrentPathWithQuery() })}
+                  className='px-4 py-2 rounded-lg border border-amber-700 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-sm font-medium'
+                >
+                  Sign In to Claim
+                </button>
               )
             )}
           </div>
@@ -1805,11 +1810,12 @@ const PropertyDetails = () => {
                             <div className='mb-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg'>
                               <p className='text-xs font-bold text-green-700 dark:text-green-300 mb-0.5 flex items-center gap-1'><PartyPopper className='w-3.5 h-3.5' /> FREE - First 2 unlocks</p>
                               <p className='text-xs text-green-600 dark:text-green-400 mb-2'>Sign in or create a free account</p>
-                              <SignInButton mode='modal'>
-                                <button className='w-full py-2 rounded-lg font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition-all text-sm flex items-center justify-center gap-2'>
-                                  <Key className='w-4 h-4' /> Sign In for Free Access
-                                </button>
-                              </SignInButton>
+                              <button
+                                onClick={() => openSignIn({ redirectUrl: getCurrentPathWithQuery() })}
+                                className='w-full py-2 rounded-lg font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition-all text-sm flex items-center justify-center gap-2'
+                              >
+                                <Key className='w-4 h-4' /> Sign In for Free Access
+                              </button>
                             </div>
 
                             {/* Divider */}

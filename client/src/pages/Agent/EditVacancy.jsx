@@ -157,6 +157,11 @@ export default function EditVacancy() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
+    const currentPhotosCount = photos.length;
+    const currentVideosCount = videos.length;
+    let uploadedPhotos = 0;
+    let uploadedVideos = 0;
+
     setUploading(true);
     try {
       for (const file of files) {
@@ -178,18 +183,20 @@ export default function EditVacancy() {
         }
 
         if (mediaType === 'photo') {
-          if (photos.length >= 5) {
+          if ((currentPhotosCount + uploadedPhotos) >= 5) {
             toast.error('Maximum 5 photos reached');
             break;
           }
-          setPhotos([...photos, media]);
+          setPhotos((prev) => [...prev, media]);
+          uploadedPhotos += 1;
           toast.success('Photo uploaded');
         } else {
-          if (videos.length >= 3) {
+          if ((currentVideosCount + uploadedVideos) >= 3) {
             toast.error('Maximum 3 videos reached');
             break;
           }
-          setVideos([...videos, media]);
+          setVideos((prev) => [...prev, media]);
+          uploadedVideos += 1;
           toast.success('Video uploaded');
         }
       }

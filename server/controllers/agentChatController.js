@@ -163,10 +163,12 @@ export const sendAgentMessage = async (req, res) => {
           ).catch(() => {});
         }
 
+        const targetUrl = isTenant ? `/agent/chats?chatId=${chatId}` : `/my-chats?chatId=${chatId}`;
+
         sendPushNotification(recipientId, {
           title: 'New agent chat message',
           body: content.length > 100 ? content.substring(0, 100) + '...' : content,
-          url: `/rooms/${chat.vacancy}`,
+          url: targetUrl,
           tag: `agent-chat-${chatId}`
         });
       } catch (_) {

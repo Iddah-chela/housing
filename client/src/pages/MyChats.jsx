@@ -149,28 +149,28 @@ const MyChats = () => {
               <div
                 key={chat._id}
                 onClick={() => setSelectedChat(chat)}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 overflow-hidden"
               >
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-4 min-w-0">
                   <img
                     src={otherUser?.image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(otherUser?.username || 'U') + '&background=6366f1&color=fff'}
                     alt={otherUser?.username}
                     onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(otherUser?.username || 'U') + '&background=6366f1&color=fff' }}
                     className="w-14 h-14 rounded-full object-cover"
                   />
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-lg">{otherUser?.username}</h3>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-3 min-w-0">
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-lg truncate">{otherUser?.username}</h3>
                         {chatTitle && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{chatTitle}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{chatTitle}</p>
                         )}
                         {chat._chatType === 'agent' && (
                           <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Agent Chat</p>
                         )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-gray-400 whitespace-nowrap">
                           {formatDate(chat.lastMessage || chat.updatedAt)}
                         </p>
                         {unreadCount > 0 && (
@@ -181,7 +181,7 @@ const MyChats = () => {
                       </div>
                     </div>
                     {lastMsg && (
-                      <p className="text-gray-600 dark:text-gray-400 mt-2 truncate text-sm">
+                      <p className="text-gray-600 dark:text-gray-400 mt-2 truncate text-sm min-w-0">
                         {lastMsg.sender === user.id ? 'You: ' : ''}
                         {lastMsg.content}
                       </p>

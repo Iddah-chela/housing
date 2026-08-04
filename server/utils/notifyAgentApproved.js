@@ -51,8 +51,8 @@ export const notifyAgentApproved = async ({ userId, email, username, application
       body: 'Your agent application was approved. Open your dashboard and post your first vacancy.',
       url: '/agent/post-vacancy',
       tag: `agent-approved-${tagId}`,
-      type: 'agent',
-      style: 'success',
+      type: 'system',
+      style: 'info',
     });
   }
 };

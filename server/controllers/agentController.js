@@ -721,22 +721,91 @@ export const markLeadOutcome = async (req, res) => {
 
       // Ask tenant to confirm so reputation can count
       if (lead.student) {
+        const vacancy = await AgentVacancy.findById(lead.vacancy).select('title').lean().catch(() => null);
+        const title = vacancy?.title || 'the listing';
         sendPushNotification(lead.student, {
-          title: 'Did you get this house?',
-          body: 'Confirm your placement so we can update the agent’s reputation. You can also leave a rating.',
+          title: 'Booking accepted — confirm placement',
+          body: `The agent marked you as booked for ${title}. Confirm so it counts, and you can leave a rating.`,
           url: `/placement-confirm/${lead._id}`,
           type: 'booking',
           style: 'info',
         }).catch(() => {});
+        try {
+          const tenant = await User.findById(lead.student).select('email username').lean();
+          if (tenant?.email) {
+            sendEmail(
+              tenant.email,
+              `Booking accepted — ${title}`,
+              `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;">
+                <div style="background:#16a34a;padding:24px;text-align:center;border-radius:8px 8px 0 0;">
+                  <h2 style="color:#fff;margin:0;">Booking accepted</h2>
+                </div>
+                <div style="padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                  <p>The agent accepted your booking for <strong>${title}</strong>.</p>
+                  <p>Please confirm you got the house so their reputation can update.</p>
+                  <p style="text-align:center;margin-top:20px;">
+                    <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/placement-confirm/${lead._id}"
+                       style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Confirm placement</a>
+                  </p>
+                </div>
+              </div>`
+            ).catch(() => {});
+          }
+        } catch (_) {}
       }
 
       res.json({ message: 'Outcome marked successfully. Waiting for tenant confirmation.', lead });
       return;
     }
 
-    // default behavior for other outcomes: set status to the outcome so UI can remove/reflect it
+    // Decline / no-response / viewed — tell the tenant what happened
     lead.status = outcome;
     await lead.save();
+
+    if (lead.student && (outcome === 'not-fit' || outcome === 'no-response' || outcome === 'viewed')) {
+      (async () => {
+        try {
+          const vacancy = await AgentVacancy.findById(lead.vacancy).select('title').lean();
+          const title = vacancy?.title || 'the listing';
+          const tenant = await User.findById(lead.student).select('email').lean();
+          const isDecline = outcome === 'not-fit' || outcome === 'no-response';
+          const pushTitle = isDecline
+            ? (lead.leadType === 'viewing' ? 'Viewing declined' : lead.leadType === 'booking' ? 'Booking declined' : 'Request declined')
+            : 'Viewing marked as completed';
+          const pushBody = isDecline
+            ? `Your ${lead.leadType || 'request'} for ${title} was not taken forward.`
+            : `The agent marked your viewing for ${title} as completed.`;
+
+          sendPushNotification(lead.student, {
+            title: pushTitle,
+            body: pushBody,
+            url: '/my-viewings',
+            tag: `agent-outcome-${lead._id}-${outcome}`,
+            type: lead.leadType === 'booking' ? 'booking' : 'viewing',
+            style: isDecline ? 'critical' : 'info',
+          }).catch(() => {});
+
+          if (tenant?.email && isDecline) {
+            sendEmail(
+              tenant.email,
+              `${pushTitle} — ${title}`,
+              `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222;">
+                <div style="background:#dc2626;padding:24px;text-align:center;border-radius:8px 8px 0 0;">
+                  <h2 style="color:#fff;margin:0;">${pushTitle}</h2>
+                </div>
+                <div style="padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                  <p>${pushBody}</p>
+                  <p style="text-align:center;margin-top:16px;">
+                    <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/rooms" style="color:#4F46E5;">Browse more houses</a>
+                  </p>
+                </div>
+              </div>`
+            ).catch(() => {});
+          }
+        } catch (_) {}
+      })();
+    }
+
     res.json({ message: 'Outcome marked successfully', lead });
   } catch (error) {
     console.error('Error marking outcome:', error);
@@ -1035,23 +1104,41 @@ export const createLead = async (req, res) => {
 
     await AgentVacancy.findByIdAndUpdate(vacancyId, updatePayload);
 
-    // Notify agent (and optionally caretakers) by email including student contact
+    // Notify agent (email + in-app/push) — contact / viewing / booking all share this path
     (async () => {
       try {
-        const agentUser = await User.findById(vacancy.agent).select('firstName lastName email phone').lean();
+        const agentUser = await User.findById(vacancy.agent).select('username email phoneNumber').lean();
         const studentContact = `${studentInfo.name} (${studentInfo.phone})`;
         const listingTitle = vacancy.title || vacancy.roomType || 'an agent listing';
+        const leadLabel =
+          leadType === 'viewing' ? 'Viewing request'
+            : leadType === 'booking' ? 'Booking / reserve request'
+              : 'Contact request';
+        const dashUrl =
+          leadType === 'viewing' ? '/agent/viewings'
+            : leadType === 'booking' ? '/agent/bookings'
+              : '/agent/leads';
+
         const html = `<div style="font-family:Arial,sans-serif;color:#222;max-width:520px;margin:auto;">
-            <h2 style="background:#4F46E5;color:#fff;padding:12px;border-radius:6px;margin:0 0 12px;">New lead for ${listingTitle}</h2>
+            <h2 style="background:#4F46E5;color:#fff;padding:12px;border-radius:6px;margin:0 0 12px;">${leadLabel} — ${listingTitle}</h2>
             <p style="margin:0 0 8px;">Tenant: <strong>${studentContact}</strong></p>
+            ${leadType === 'viewing' && preferredViewingDate ? `<p style="margin:0 0 8px;">Preferred date: ${new Date(preferredViewingDate).toLocaleDateString('en-KE')}</p>` : ''}
+            ${leadType === 'booking' && preferredMoveInDate ? `<p style="margin:0 0 8px;">Preferred move-in: ${new Date(preferredMoveInDate).toLocaleDateString('en-KE')}</p>` : ''}
             <p style="margin:0 0 8px;">Message: ${message ? `<em>${message}</em>` : '—'}</p>
-            <p style="margin:0 0 8px;">Vacancy: ${listingTitle}</p>
-            <p style="margin:0 0 8px;">Open the agent dashboard to manage this lead.</p>
+            <p style="margin:16px 0 0;"><a href="${process.env.CLIENT_URL || 'http://localhost:5173'}${dashUrl}" style="display:inline-block;background:#4F46E5;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;">Open in dashboard</a></p>
           </div>`;
 
         if (agentUser?.email) {
-          sendEmail(agentUser.email, `New lead — ${listingTitle} — PataKeja`, html).catch(() => {});
+          sendEmail(agentUser.email, `${leadLabel} — ${listingTitle} — PataKeja`, html).catch(() => {});
         }
+        sendPushNotification(vacancy.agent, {
+          title: leadLabel,
+          body: `${studentInfo.name} is interested in ${listingTitle}`,
+          url: dashUrl,
+          tag: `agent-lead-${lead._id}`,
+          type: leadType === 'booking' ? 'booking' : leadType === 'viewing' ? 'viewing' : 'message',
+          style: 'info',
+        }).catch(() => {});
       } catch (_) {
         // ignore notification errors
       }
