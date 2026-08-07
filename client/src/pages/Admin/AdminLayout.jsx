@@ -31,6 +31,7 @@ const AdminLayout = () => {
     { name: 'Dashboard', path: '/admin' },
     { name: 'Applications', path: '/admin/applications' },
     { name: 'Agent Applications', path: '/admin/agent-applications' },
+    { name: 'Caretaker Applications', path: '/admin/caretaker-applications' },
     { name: 'Announcements', path: '/admin/announcements' },
     { name: 'Reports', path: '/admin/reports' },
     { name: 'Users', path: '/admin/users' },

@@ -24,6 +24,7 @@ const userSchema = mongoose.Schema({
         enum: [
             "user",
             "agent",
+            "caretaker",
             "houseOwner",
             "admin"
         ],
@@ -34,6 +35,7 @@ const userSchema = mongoose.Schema({
         enum: [
             "user",
             "agent",
+            "caretaker",
             "houseOwner",
             "admin"
         ],

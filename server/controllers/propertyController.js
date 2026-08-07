@@ -179,10 +179,12 @@ export const createProperty = async (req, res) => {
       googleMapsUrl,
       coordinates,
       landlordName,
+      landlordPhone,
       videos,
     } = req.body;
     const owner = req.user._id;
     const isAdmin = hasRole(req.user, 'admin');
+    const isCaretakerLister = hasRole(req.user, 'caretaker') && !hasRole(req.user, 'houseOwner') && !isAdmin;
     const resolvedCoords = resolveCoordinates({ coordinates, googleMapsUrl });
 
     // Exact pin required — shared with renters only after a viewing is confirmed
@@ -229,6 +231,13 @@ export const createProperty = async (req, res) => {
       !normalizedAddress || !normalizedContact || !normalizedPlace || !normalizedPropertyType
     );
 
+    const defaultSource = isSparseAdminCreate
+      ? 'field_list'
+      : (isCaretakerLister ? 'caretaker_submitted' : (sourceType || 'landlord_submitted'));
+
+    const normalizedEmail = String(req.user.email || '').trim().toLowerCase();
+    const caretakerEmails = isCaretakerLister && normalizedEmail ? [normalizedEmail] : [];
+
     const property = await Property.create({
       owner,
       name: normalizedName || 'Partner Listing',
@@ -244,12 +253,25 @@ export const createProperty = async (req, res) => {
       declaredUnits: declaredUnits ?? null,
       listingTier: isSparseAdminCreate ? 'directory' : (listingTier || (parsedBuildings.length > 0 ? 'live' : 'directory')),
       vacancyStatus: isSparseAdminCreate ? 'unknown' : (vacancyStatus || (parsedBuildings.length > 0 ? 'full' : 'unknown')),
-      sourceType: isSparseAdminCreate ? 'field_list' : (sourceType || 'landlord_submitted'),
+      sourceType: defaultSource,
       contactDisplayMode: contactDisplayMode || 'public',
       consentStatus: consentStatus || 'unknown',
       googleMapsUrl: googleMapsUrl || '',
       coordinates: resolvedCoords || undefined,
       landlordName: landlordName?.trim() || '',
+      landlordPhone: String(landlordPhone || '').trim(),
+      caretakers: caretakerEmails,
+      ...(isCaretakerLister
+        ? {
+            isClaimed: true,
+            claimedBy: owner,
+            claimedByEmail: normalizedEmail,
+            claimRole: 'caretaker',
+            claimStatus: 'verified',
+            claimReviewedAt: new Date(),
+            lastConfirmedAt: new Date(),
+          }
+        : {}),
       buildings: parsedBuildings,
       images: uploadedImageUrls,
       videos: Array.isArray(videos) ? videos : [],
@@ -540,6 +562,7 @@ export const updateProperty = async (req, res) => {
       googleMapsUrl,
       coordinates,
       landlordName,
+      landlordPhone,
       videos,
     } = req.body;
     const owner = req.user._id;
@@ -623,6 +646,7 @@ export const updateProperty = async (req, res) => {
       consentStatus: consentStatus || existing.consentStatus,
       googleMapsUrl: googleMapsUrl !== undefined ? googleMapsUrl : (existing.googleMapsUrl || ''),
       landlordName: landlordName !== undefined ? (landlordName?.trim() || '') : (existing.landlordName || ''),
+      landlordPhone: landlordPhone !== undefined ? String(landlordPhone || '').trim() : (existing.landlordPhone || ''),
       compoundRoadSurface: compoundRoadSurface !== undefined
         ? (String(compoundRoadSurface || '').toLowerCase() === 'murram' ? 'murram' : 'tarmac')
         : (existing.compoundRoadSurface || 'tarmac'),
@@ -814,17 +838,32 @@ export const removeCaretaker = async (req, res) => {
 export const getManagedProperties = async (req, res) => {
   try {
     const userEmail = req.user.email;
-    if (!userEmail) {
-      return res.json({ success: false, message: "User email not found" });
-    }
+    const userId = req.user._id;
+    const orClauses = [];
 
-    const properties = await Property.find({ 
-      caretakers: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
-    })
+    if (userEmail) {
+      orClauses.push({
+        caretakers: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      });
+    }
+    // Houses this caretaker listed (owner + caretaker_submitted) or claimed as caretaker
+    orClauses.push({ claimedBy: userId, claimRole: 'caretaker' });
+    orClauses.push({ owner: userId, sourceType: 'caretaker_submitted' });
+
+    const properties = await Property.find({ $or: orClauses })
       .populate('owner', 'username email image')
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, properties });
+    // Dedupe by id
+    const seen = new Set();
+    const unique = properties.filter((p) => {
+      const id = String(p._id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    res.json({ success: true, properties: unique });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }

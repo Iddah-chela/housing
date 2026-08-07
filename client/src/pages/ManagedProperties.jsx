@@ -11,11 +11,12 @@ import PropertyListingModal from '../components/PropertyListingModal'
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 const ManagedProperties = () => {
-  const { user, getToken, axios, isOwner } = useAppContext()
+  const { user, getToken, axios, isOwner, isCaretaker } = useAppContext()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showListModal, setShowListModal] = useState(false)
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get('tab')
     return ['availability', 'tracker', 'utilities'].includes(tab) ? tab : 'availability'
@@ -383,17 +384,25 @@ const ManagedProperties = () => {
       <Navbar />
       <div className='py-28 md:py-32 px-4 md:px-16 lg:px-24 xl:px-32 min-h-screen'>
         {/* Header */}
-        <div className='flex items-center gap-4 mb-6'>
+        <div className='flex items-center gap-4 mb-6 flex-wrap'>
           <button onClick={() => navigate(-1)} className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg'>
             <ArrowLeft className='w-5 h-5' />
           </button>
-          <div>
+          <div className='flex-1 min-w-[200px]'>
             <div className='flex items-center gap-2'>
               <Shield className='w-6 h-6 text-indigo-600' />
               <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100'>Manage Properties</h1>
             </div>
             <p className='text-gray-500 text-sm mt-1'>Properties you manage as a caretaker</p>
           </div>
+          {isCaretaker && (
+            <button
+              onClick={() => setShowListModal(true)}
+              className='px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium'
+            >
+              + List a house
+            </button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -426,7 +435,23 @@ const ManagedProperties = () => {
           <div className='text-center py-20 bg-gray-50 dark:bg-gray-800 rounded-xl'>
             <Building2 className='w-12 h-12 text-gray-300 mx-auto mb-4' />
             <p className='text-gray-500 text-lg mb-2'>No managed properties</p>
-            <p className='text-gray-400 text-sm'>When a house owner adds your email as a caretaker, their properties will appear here.</p>
+            <p className='text-gray-400 text-sm mb-4'>List a house you manage, or open a listing and tap Request to manage.</p>
+            {isCaretaker && (
+              <button
+                onClick={() => setShowListModal(true)}
+                className='px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium'
+              >
+                List your first house
+              </button>
+            )}
+            {!isCaretaker && (
+              <button
+                onClick={() => navigate('/become-caretaker')}
+                className='px-4 py-2 rounded-lg border border-teal-600 text-teal-700 text-sm font-medium'
+              >
+                Become a caretaker
+              </button>
+            )}
           </div>
         ) : activeTab === 'utilities' ? (
           <UtilityManager initialProperties={properties} />
@@ -863,6 +888,14 @@ const ManagedProperties = () => {
           existingProperty={editingProperty}
           onClose={() => {
             setEditingProperty(null)
+            fetchManagedProperties()
+          }}
+        />
+      )}
+      {showListModal && (
+        <PropertyListingModal
+          onClose={() => {
+            setShowListModal(false)
             fetchManagedProperties()
           }}
         />

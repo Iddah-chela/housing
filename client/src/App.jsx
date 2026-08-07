@@ -35,6 +35,7 @@ const AdminUsers      = lazy(() => import('./pages/Admin/AdminUsers'))
 const AdminListings   = lazy(() => import('./pages/Admin/AdminListings'))
 const AdminFeedback   = lazy(() => import('./pages/Admin/AdminFeedback'))
 const AdminAgentApplications = lazy(() => import('./pages/Admin/AdminAgentApplications'))
+const AdminCaretakerApplications = lazy(() => import('./pages/Admin/AdminCaretakerApplications'))
 const AgentLayout     = lazy(() => import('./pages/Agent/AgentLayout'))
 const AgentDashboard  = lazy(() => import('./pages/Agent/AgentDashboard'))
 const PostVacancy     = lazy(() => import('./pages/Agent/PostVacancy'))
@@ -46,6 +47,7 @@ const AgentBookings   = lazy(() => import('./pages/Agent/AgentBookings'))
 const AgentSettings   = lazy(() => import('./pages/Agent/AgentSettings'))
 const AgentLeaderboard = lazy(() => import('./pages/Agent/AgentLeaderboard'))
 const BecomeAgent     = lazy(() => import('./pages/BecomeAgent'))
+const BecomeCaretaker = lazy(() => import('./pages/BecomeCaretaker'))
 const VacancyMap      = lazy(() => import('./pages/VacancyMap'))
 const PlacementConfirm = lazy(() => import('./pages/PlacementConfirm'))
 const Terms           = lazy(() => import('./pages/Terms'))
@@ -132,6 +134,7 @@ const App = () => {
           <Route path='/viewing/action' element={<ViewingAction/>}/>
           <Route path='/unsubscribe' element={<Unsubscribe/>}/>
           <Route path='/become-agent' element={<BecomeAgent/>}/>
+          <Route path='/become-caretaker' element={<BecomeCaretaker/>}/>
           <Route path='/owner' element={<Layout/>}>
               <Route index element={<Dashboard/>}/>
               <Route path='viewing-requests' element={<ViewingRequests/>}/>
@@ -144,6 +147,7 @@ const App = () => {
               <Route index element={<AdminDashboard/>}/>
               <Route path='applications' element={<AdminApplications/>}/>
               <Route path='agent-applications' element={<AdminAgentApplications/>}/>
+              <Route path='caretaker-applications' element={<AdminCaretakerApplications/>}/>
               <Route path='announcements' element={<AdminAnnouncements/>}/>
               <Route path='reports' element={<AdminReports/>}/>
               <Route path='users' element={<AdminUsers/>}/>

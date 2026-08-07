@@ -3,10 +3,15 @@ import User from '../models/user.js';
 import { clerkClient } from '@clerk/express';
 import cloudinary from '../config/cloudinary.js';
 import { derivePrimaryRole, hasRole, mergeRoles } from '../utils/roleUtils.js';
+import { uploadSensitiveDocument, signedUrlForPublicId } from '../utils/sensitiveUpload.js';
 
-// Helper: upload a file from multer to cloudinary
-const uploadToCloudinary = async (file, folder) => {
+// Helper: upload a file from multer to Cloudinary (sensitive docs are authenticated)
+const uploadToCloudinary = async (file, folder, { sensitive = false } = {}) => {
     if (!file) return null;
+    if (sensitive) {
+        const uploaded = await uploadSensitiveDocument(file, folder);
+        return uploaded?.publicId || null;
+    }
     const result = await cloudinary.uploader.upload(file.path, { folder });
     return result.secure_url;
 };
@@ -36,8 +41,8 @@ export const instantSignup = async (req, res) => {
 
         // Upload documents to Cloudinary
         const [idDocumentUrl, ownershipProofUrl] = await Promise.all([
-            uploadToCloudinary(idFile, 'landlord_applications/id'),
-            deedFile ? uploadToCloudinary(deedFile, 'landlord_applications/deeds') : Promise.resolve(null)
+            uploadToCloudinary(idFile, 'landlord_applications/id', { sensitive: true }),
+            deedFile ? uploadToCloudinary(deedFile, 'landlord_applications/deeds', { sensitive: true }) : Promise.resolve(null)
         ]);
 
         // Check existing application
@@ -208,11 +213,19 @@ export const getAllApplications = async (req, res) => {
             .populate('reviewedBy', 'username email')
             .sort({ createdAt: -1 })
             .lean();
+
+        const withSignedDocs = applications.map((app) => ({
+            ...app,
+            idDocument: signedUrlForPublicId(app.idDocument) || app.idDocument,
+            ownershipProof: app.ownershipProof
+                ? (signedUrlForPublicId(app.ownershipProof) || app.ownershipProof)
+                : app.ownershipProof,
+        }));
         
         res.status(200).json({
             success: true,
-            count: applications.length,
-            applications
+            count: withSignedDocs.length,
+            applications: withSignedDocs
         });
         
     } catch (error) {

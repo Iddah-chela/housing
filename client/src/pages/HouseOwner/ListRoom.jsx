@@ -300,7 +300,7 @@ const ListRoom = () => {
                            Add
                          </button>
                        </div>
-                       <p className='text-xs text-gray-400 mt-2'>Caretakers can toggle room vacancy for this property.</p>
+                       <p className='text-xs text-gray-400 mt-2'>Add by email if you know it — or caretakers can apply via Become Caretaker and request to manage this house (you&apos;ll approve on your dashboard).</p>
                      </div>
                    )}
                  </div>

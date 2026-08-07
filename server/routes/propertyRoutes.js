@@ -19,6 +19,12 @@ import {
   getMyPropertyClaims,
   uploadPropertyVideo,
 } from "../controllers/propertyController.js";
+import {
+  requestManageProperty,
+  getOwnerCaretakerRequests,
+  respondCaretakerManageRequest,
+  getMyManageRequests,
+} from "../controllers/caretakerManageController.js";
 
 const propertyRouter = express.Router();
 
@@ -35,8 +41,12 @@ propertyRouter.post('/toggle-room', protect, toggleRoomAvailability);
 propertyRouter.get('/managed', protect, getManagedProperties);
 propertyRouter.post('/caretaker-toggle-room', protect, caretakerToggleRoom);
 propertyRouter.get('/claims/my', protect, getMyPropertyClaims);
+propertyRouter.get('/caretaker-requests/owner', protect, getOwnerCaretakerRequests);
+propertyRouter.get('/caretaker-requests/mine', protect, getMyManageRequests);
+propertyRouter.post('/caretaker-requests/:requestId/respond', protect, respondCaretakerManageRequest);
 propertyRouter.post('/:id/caretakers', protect, addCaretaker);
 propertyRouter.delete('/:id/caretakers', protect, removeCaretaker);
+propertyRouter.post('/:id/request-manage', protect, requestManageProperty);
 propertyRouter.post('/:id/claim', protect, upload.array('evidenceFiles', 4), submitPropertyClaim);
 propertyRouter.get('/:id/claim-status', protect, getPropertyClaimStatus);
 
@@ -44,6 +54,6 @@ propertyRouter.get('/:id/claim-status', protect, getPropertyClaimStatus);
 propertyRouter.get('/:id', optionalProtect, getPropertyById);
 propertyRouter.put('/:id', protect, updateProperty);
 propertyRouter.delete('/:id', protect, deleteProperty);
-propertyRouter.post('/:id/verify', protect, verifyListing); // Landlord refreshes listing
+propertyRouter.post('/:id/verify', protect, verifyListing);
 
 export default propertyRouter;

@@ -109,6 +109,18 @@ const Navbar = () => {
         navigate('/become-agent')
     }
 
+    const handleCaretakerClick = () => {
+        if (!user) {
+            promptLogin('/become-caretaker')
+            return
+        }
+        if (isCaretaker) {
+            navigate('/managed-properties')
+            return
+        }
+        navigate('/become-caretaker')
+    }
+
     return (
         <>
             <nav
@@ -167,6 +179,14 @@ const Navbar = () => {
                 >
                     <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
                     {isAgent ? 'Agent Dashboard' : 'Become Agent'}
+                </button>
+
+                <button 
+                    className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-teal-700 dark:border-teal-500 bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50' : heroLight ? 'text-gray-900 border-teal-700 bg-teal-50/80 hover:bg-teal-100/80' : 'text-white border-teal-400 bg-teal-900/30 hover:bg-teal-900/50'}`} 
+                    onClick={handleCaretakerClick}
+                >
+                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z' /></svg>
+                    {isCaretaker ? 'Caretaker Home' : 'Become Caretaker'}
                 </button>
 
                 {user && !isOwner && (
@@ -300,6 +320,14 @@ const Navbar = () => {
                     >
                         <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
                         {isAgent ? 'Agent Dashboard' : 'Become Agent'}
+                    </button>
+
+                    <button 
+                        className="flex items-center gap-1.5 border border-teal-600 dark:border-teal-500 bg-teal-50 dark:bg-teal-900/30 px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all hover:bg-teal-100 dark:hover:bg-teal-900/50"
+                        onClick={() => { setIsMenuOpen(false); handleCaretakerClick(); }}
+                    >
+                        <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z' /></svg>
+                        {isCaretaker ? 'Caretaker Home' : 'Become Caretaker'}
                     </button>
 
                     {user && !isOwner && (

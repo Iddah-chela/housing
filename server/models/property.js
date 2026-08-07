@@ -252,6 +252,12 @@ const propertySchema = new mongoose.Schema({
     type: String,
     default: ''       // shown to tenants who unlock contact info, instead of owner username
   },
+  // Optional landlord phone when a caretaker lists on the landlord's behalf
+  landlordPhone: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   // ── Utility billing settings ──────────────────────────────────────────
   utilitySettings: {
     waterPaidBy:       { type: String, enum: ['owner', 'tenant'], default: 'tenant' },

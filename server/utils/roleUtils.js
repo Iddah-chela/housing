@@ -1,4 +1,4 @@
-export const VALID_ROLES = new Set(['user', 'agent', 'houseOwner', 'admin']);
+export const VALID_ROLES = new Set(['user', 'agent', 'caretaker', 'houseOwner', 'admin']);
 
 export const normalizeRole = (role) => {
   const raw = String(role || '').trim();
@@ -6,6 +6,7 @@ export const normalizeRole = (role) => {
   if (lowered === 'houseowner') return 'houseOwner';
   if (lowered === 'admin') return 'admin';
   if (lowered === 'agent') return 'agent';
+  if (lowered === 'caretaker') return 'caretaker';
   if (lowered === 'user') return 'user';
   return raw;
 };
@@ -33,6 +34,7 @@ export const derivePrimaryRole = (roles, fallback = 'user') => {
   if (set.has('admin')) return 'admin';
   if (set.has('houseOwner')) return 'houseOwner';
   if (set.has('agent')) return 'agent';
+  if (set.has('caretaker')) return 'caretaker';
   if (set.has('user')) return 'user';
   return fallback || 'user';
 };

@@ -1,5 +1,6 @@
 import User from "../models/user.js";
 import Property from "../models/property.js";
+import { hasRole } from "../utils/roleUtils.js";
 // GET /api/user/
 
 export const getUserData = async (req, res) => {
@@ -10,9 +11,9 @@ export const getUserData = async (req, res) => {
         const image = req.user.image || null;
         const email = req.user.email || '';
 
-        // Check if user is a caretaker for any property
-        let isCaretaker = false;
-        if (email) {
+        // Caretaker if platform role OR email on any property.caretakers
+        let isCaretaker = hasRole(req.user, 'caretaker');
+        if (!isCaretaker && email) {
             const managed = await Property.findOne({
                 caretakers: { $regex: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
             }).select('_id').lean();

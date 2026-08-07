@@ -1,5 +1,4 @@
 import Feedback from '../models/feedback.js';
-import User from '../models/user.js';
 
 // Submit feedback (authenticated users)
 export const submitFeedback = async (req, res) => {
@@ -19,12 +18,10 @@ export const submitFeedback = async (req, res) => {
       return res.json({ success: false, message: 'Message must be under 1000 characters' });
     }
 
-    const user = await User.findOne({ clerkId: userId });
-
     const feedback = await Feedback.create({
       user: userId,
-      username: user?.username || 'Anonymous',
-      userImage: user?.image || '',
+      username: req.user?.username || 'Anonymous',
+      userImage: req.user?.image || '',
       category: category || 'general',
       rating,
       message

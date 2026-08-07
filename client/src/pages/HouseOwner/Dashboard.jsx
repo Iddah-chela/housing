@@ -47,20 +47,24 @@ const Dashboard = () => {
     })
     const [loading, setLoading] = useState(true)
     const [claimTasks, setClaimTasks] = useState([])
+    const [caretakerRequests, setCaretakerRequests] = useState([])
+    const [respondingRequest, setRespondingRequest] = useState(null)
 
     const fetchDashboard = async () => {
         try {
             const token = await getToken()
             const headers = { Authorization: `Bearer ${token}` }
 
-            const [bookingsRes, propertiesRes, viewingsRes, rentRes, claimsRes] = await Promise.all([
+            const [bookingsRes, propertiesRes, viewingsRes, rentRes, claimsRes, caretakerReqRes] = await Promise.all([
                 axios.get('/api/bookings/property', { headers }),
                 axios.get('/api/properties/owner/my-properties', { headers }),
                 axios.get('/api/viewing/owner', { headers }).catch(() => ({ data: { success: false } })),
                 axios.get('/api/rent-payment/owner/summary', { headers }).catch(() => ({ data: { success: false } })),
-                axios.get('/api/properties/claims/my', { headers }).catch(() => ({ data: { success: false, claims: [] } }))
+                axios.get('/api/properties/claims/my', { headers }).catch(() => ({ data: { success: false, claims: [] } })),
+                axios.get('/api/properties/caretaker-requests/owner', { headers }).catch(() => ({ data: { success: false, requests: [] } })),
             ])
 
+            setCaretakerRequests(caretakerReqRes.data?.requests || [])
             let totalRooms = 0, vacantRooms = 0, occupiedRooms = 0, bookedRooms = 0
             let monthlyRevenue = 0
             const properties = propertiesRes.data?.properties || []
@@ -190,6 +194,77 @@ const Dashboard = () => {
                     </div>
                 ))}
             </div>
+
+            {caretakerRequests.length > 0 && (
+                <div className='mb-8 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-xl overflow-hidden'>
+                    <div className='px-5 py-4 border-b border-teal-100 dark:border-teal-800'>
+                        <h2 className='font-semibold text-teal-900 dark:text-teal-100'>Pending caretaker requests</h2>
+                        <p className='text-xs text-teal-700 dark:text-teal-300 mt-0.5'>Someone says they manage one of your houses</p>
+                    </div>
+                    <div className='divide-y divide-teal-100 dark:divide-teal-800'>
+                        {caretakerRequests.map((req) => (
+                            <div key={req._id} className='px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3'>
+                                <div>
+                                    <p className='font-medium text-gray-900 dark:text-gray-100'>{req.requesterName || req.requesterEmail}</p>
+                                    <p className='text-sm text-gray-600 dark:text-gray-300'>
+                                        Wants to manage <strong>{req.property?.name || 'your property'}</strong>
+                                        {req.requesterPhone ? ` · ${req.requesterPhone}` : ''}
+                                    </p>
+                                    {req.message && <p className='text-xs text-gray-500 mt-1 italic'>{req.message}</p>}
+                                </div>
+                                <div className='flex gap-2'>
+                                    <button
+                                        disabled={respondingRequest === req._id}
+                                        onClick={async () => {
+                                            try {
+                                                setRespondingRequest(req._id)
+                                                const token = await getToken()
+                                                await axios.post(
+                                                    `/api/properties/caretaker-requests/${req._id}/respond`,
+                                                    { answer: 'approve' },
+                                                    { headers: { Authorization: `Bearer ${token}` } }
+                                                )
+                                                toast.success('Caretaker approved')
+                                                fetchDashboard()
+                                            } catch (e) {
+                                                toast.error(e.response?.data?.message || 'Failed')
+                                            } finally {
+                                                setRespondingRequest(null)
+                                            }
+                                        }}
+                                        className='px-3 py-1.5 rounded-lg bg-teal-600 text-white text-sm'
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        disabled={respondingRequest === req._id}
+                                        onClick={async () => {
+                                            try {
+                                                setRespondingRequest(req._id)
+                                                const token = await getToken()
+                                                await axios.post(
+                                                    `/api/properties/caretaker-requests/${req._id}/respond`,
+                                                    { answer: 'decline' },
+                                                    { headers: { Authorization: `Bearer ${token}` } }
+                                                )
+                                                toast.success('Request declined')
+                                                fetchDashboard()
+                                            } catch (e) {
+                                                toast.error(e.response?.data?.message || 'Failed')
+                                            } finally {
+                                                setRespondingRequest(null)
+                                            }
+                                        }}
+                                        className='px-3 py-1.5 rounded-lg border border-red-300 text-red-700 text-sm'
+                                    >
+                                        Decline
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className='grid lg:grid-cols-2 gap-6'>
                 {/* Recent Bookings */}

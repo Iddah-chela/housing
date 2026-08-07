@@ -19,7 +19,7 @@ const PropertyDetails = () => {
     const {id} = useParams() // This is now property ID, not room ID
   const location = useLocation()
   const { openSignIn } = useClerk()
-  const { user, getToken, axios, darkMode, isOwner, isAdmin, navigate } = useAppContext()
+  const { user, getToken, axios, darkMode, isOwner, isAdmin, isCaretaker, navigate } = useAppContext()
       const getCurrentPathWithQuery = () => `${location.pathname}${location.search}${location.hash}`
 
     const [property, setProperty] = useState(null)
@@ -55,6 +55,9 @@ const PropertyDetails = () => {
       claimNotes: '',
     })
     const [claimEvidenceFiles, setClaimEvidenceFiles] = useState([])
+    const [manageRequesting, setManageRequesting] = useState(false)
+    const [manageMessage, setManageMessage] = useState('')
+    const [showManageRequest, setShowManageRequest] = useState(false)
 
     const buildDefaultAgentBuildings = (listing) => {
       const availableRooms = Math.max(1, Number(listing?.availableRooms || listing?.vacantRooms || 1))
@@ -926,7 +929,65 @@ const PropertyDetails = () => {
                 </button>
               )
             )}
+            {!isAgentListing && isCaretaker && user && (
+              <button
+                onClick={() => setShowManageRequest((s) => !s)}
+                className='px-4 py-2 rounded-lg border border-teal-700 text-teal-900 dark:text-teal-100 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors text-sm font-medium'
+              >
+                {showManageRequest ? 'Close' : 'Request to manage'}
+              </button>
+            )}
+            {!isAgentListing && user && !isCaretaker && !isOwner && !isAdmin && (
+              <button
+                onClick={() => navigate('/become-caretaker')}
+                className='px-4 py-2 rounded-lg border border-teal-600/60 text-teal-800 dark:text-teal-200 text-sm font-medium'
+              >
+                Become caretaker to manage
+              </button>
+            )}
           </div>
+
+          {showManageRequest && (
+            <div className='mt-4 p-4 rounded-lg border border-teal-300 dark:border-teal-700 bg-white/70 dark:bg-gray-900/30'>
+              <p className='text-sm font-semibold mb-2'>Ask the landlord to confirm you manage this house</p>
+              <textarea
+                value={manageMessage}
+                onChange={(e) => setManageMessage(e.target.value)}
+                placeholder='Optional message (e.g. I have been the caretaker here for 3 years)'
+                className='w-full px-3 py-2 rounded border border-teal-300 dark:border-teal-700 bg-white dark:bg-gray-800 text-sm mb-3'
+                rows={2}
+              />
+              <button
+                disabled={manageRequesting}
+                onClick={async () => {
+                  try {
+                    setManageRequesting(true)
+                    const token = await getToken()
+                    const { data } = await axios.post(
+                      `/api/properties/${id}/request-manage`,
+                      { message: manageMessage },
+                      { headers: { Authorization: `Bearer ${token}` } }
+                    )
+                    if (data.success) {
+                      toast.success(data.message || 'Request sent')
+                      setShowManageRequest(false)
+                    } else {
+                      toast.error(data.message || 'Could not send request')
+                      if (data.requiresCaretakerApplication) navigate('/become-caretaker')
+                    }
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Failed to send request')
+                    if (err.response?.data?.requiresCaretakerApplication) navigate('/become-caretaker')
+                  } finally {
+                    setManageRequesting(false)
+                  }
+                }}
+                className='px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium disabled:opacity-60'
+              >
+                {manageRequesting ? 'Sending…' : 'Send request to landlord'}
+              </button>
+            </div>
+          )}
 
           {showClaimForm && (
             <div className='mt-4 p-4 rounded-lg border border-amber-300 dark:border-amber-700 bg-white/70 dark:bg-gray-900/30'>

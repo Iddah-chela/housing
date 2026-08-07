@@ -141,8 +141,15 @@ export const initiateUnlock = async (req, res) => {
 
         const transactionRef = 'PATA_' + Date.now() + '_' + Math.random().toString(36).substring(7);
 
-        // -- TEST MODE: skip real payment, auto-activate pass --------------
+        // -- TEST MODE: only allowed outside production ----------------------
         if (process.env.PAYMENT_TEST_MODE === 'true') {
+            if (process.env.NODE_ENV === 'production') {
+                await pass.deleteOne();
+                return res.status(500).json({
+                    success: false,
+                    message: 'Payment test mode is disabled in production. Contact support.',
+                });
+            }
             pass.transactionRef = transactionRef;
             pass.paymentStatus = 'completed';
             await pass.save();
@@ -299,10 +306,19 @@ export const paymentWebhook = async (req, res) => {
         // api_ref holds our transactionRef set during initiation
         const body = req.body;
 
-        // Optional: validate challenge secret
         const expectedChallenge = process.env.INTASEND_WEBHOOK_CHALLENGE;
-        if (expectedChallenge && body.challenge !== expectedChallenge) {
-            console.warn('Webhook challenge mismatch');
+        // Production requires a challenge so strangers can't POST fake COMPLETE events
+        if (process.env.NODE_ENV === 'production') {
+            if (!expectedChallenge || expectedChallenge.length < 16) {
+                console.error('[PaymentWebhook] INTASEND_WEBHOOK_CHALLENGE missing or too short in production');
+                return res.status(500).json({ success: false, message: 'Webhook not configured' });
+            }
+            if (body.challenge !== expectedChallenge) {
+                console.warn('[PaymentWebhook] challenge mismatch');
+                return res.status(403).json({ success: false, message: 'Invalid challenge' });
+            }
+        } else if (expectedChallenge && body.challenge !== expectedChallenge) {
+            console.warn('[PaymentWebhook] challenge mismatch');
             return res.status(403).json({ success: false, message: 'Invalid challenge' });
         }
 
@@ -343,8 +359,11 @@ export const confirmPayment = async (req, res) => {
             });
         }
 
-        // TEST MODE: skip real verification
+        // TEST MODE: skip real verification (blocked in production)
         if (process.env.PAYMENT_TEST_MODE === 'true') {
+            if (process.env.NODE_ENV === 'production') {
+                return res.status(500).json({ success: false, message: 'Payment test mode is disabled in production.' });
+            }
             pass.paymentStatus = 'completed';
             await pass.save();
             return res.json({
@@ -547,8 +566,12 @@ export const guestInitiateUnlock = async (req, res) => {
             expiresAt
         });
 
-        // TEST MODE
+        // TEST MODE (blocked in production)
         if (process.env.PAYMENT_TEST_MODE === 'true') {
+            if (process.env.NODE_ENV === 'production') {
+                await pass.deleteOne();
+                return res.status(500).json({ success: false, message: 'Payment test mode is disabled in production.' });
+            }
             pass.transactionRef = transactionRef;
             pass.paymentStatus = 'completed';
             await pass.save();
@@ -631,8 +654,11 @@ export const guestConfirmPayment = async (req, res) => {
             });
         }
 
-        // TEST MODE
+        // TEST MODE (blocked in production)
         if (process.env.PAYMENT_TEST_MODE === 'true') {
+            if (process.env.NODE_ENV === 'production') {
+                return res.status(500).json({ success: false, message: 'Payment test mode is disabled in production.' });
+            }
             pass.paymentStatus = 'completed';
             await pass.save();
             return res.json({

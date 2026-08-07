@@ -128,6 +128,7 @@ export const AppProvider = ({children})=>{
                 if (lowered === 'houseowner') return 'houseOwner';
                 if (lowered === 'admin') return 'admin';
                 if (lowered === 'agent') return 'agent';
+                if (lowered === 'caretaker') return 'caretaker';
                 if (lowered === 'user') return 'user';
                 return raw;
             };
@@ -151,7 +152,7 @@ export const AppProvider = ({children})=>{
             const ownerStatus = roleSet.has("houseOwner") || roleSet.has("admin");
             const adminStatus = roleSet.has("admin");
             const agentStatus = roleSet.has("agent");
-            const caretakerStatus = !!data.isCaretaker;
+            const caretakerStatus = !!data.isCaretaker || roleSet.has("caretaker");
             setIsOwner(ownerStatus);
             setIsAdmin(adminStatus);
             setIsAgent(agentStatus);
