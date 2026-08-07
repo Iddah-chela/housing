@@ -30,6 +30,7 @@ import utilityRouter from "./routes/utilityRoutes.js";
 import analyticsRouter from "./routes/analyticsRoutes.js";
 import agentRouter from "./routes/agentRoutes.js";
 import agentApplicationRouter from "./routes/agentApplicationRoutes.js";
+import caretakerApplicationRouter from "./routes/caretakerApplicationRoutes.js";
 import mapRouter from "./routes/mapRoutes.js";
 import multer from 'multer';
 import upload from './middleware/uploadMiddleware.js';
@@ -149,7 +150,7 @@ const stkLimiter = rateLimit({
 });
 
 // ── Body parsing — small default, large only where needed ─────────────────────
-const largeBodyPrefixes = ['/api/properties', '/api/rooms', '/api/profile', '/api/landlord-application']
+const largeBodyPrefixes = ['/api/properties', '/api/rooms', '/api/profile', '/api/landlord-application', '/api/caretaker-applications']
 app.use((req, res, next) => {
     if (largeBodyPrefixes.some(prefix => req.path.startsWith(prefix))) return next()
     return express.json({ limit: '1mb' })(req, res, next)
@@ -205,6 +206,7 @@ app.use('/api/visit', generalLimiter, analyticsRouter)
 app.use('/api/analytics', generalLimiter, analyticsRouter)
 app.use('/api/agent', generalLimiter, agentRouter)
 app.use('/api/agent-applications', generalLimiter, agentApplicationRouter)
+app.use('/api/caretaker-applications', generalLimiter, caretakerApplicationRouter)
 app.use('/api/map', generalLimiter, mapRouter)
 
 // Dev-only: debug upload endpoint to test multipart handling without Cloudinary/auth
