@@ -77,8 +77,9 @@ const Navbar = () => {
                 setShowPartnerMenu(false)
             }
         }
-        document.addEventListener('mousedown', onPointerDown)
-        return () => document.removeEventListener('mousedown', onPointerDown)
+        // Use click (bubble) so the toggle button's click isn't racing a mousedown close.
+        document.addEventListener('click', onPointerDown)
+        return () => document.removeEventListener('click', onPointerDown)
     }, [showPartnerMenu])
 
     // hero state helpers - evaluated once per render, no dark: cascade needed
@@ -161,7 +162,7 @@ const Navbar = () => {
                 </Link>
 
                 {/* Desktop Nav — links + compact role actions; partner CTAs in dropdown */}
-                <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center gap-3 xl:gap-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center gap-3 xl:gap-5 overflow-visible">
                     {navLinks.map((link, i) => (
                         <a key={i} href={link.path} className={`group flex flex-col gap-0.5 shrink-0 text-sm xl:text-base ${isScrolled ? "text-gray-700 dark:text-gray-200" : heroLight ? "text-gray-900" : "text-white"}`}>
                             {link.name}
@@ -196,11 +197,15 @@ const Navbar = () => {
                     )}
 
                     {/* Partner roles collapsed so profile stays visible */}
-                    <div className="relative shrink-0" ref={partnerMenuRef}>
+                    <div className="relative shrink-0 z-[1200]" ref={partnerMenuRef}>
                         <button
                             type="button"
                             className={`${pillClass} flex items-center gap-1`}
-                            onClick={() => setShowPartnerMenu((open) => !open)}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setShowPartnerMenu((open) => !open)
+                            }}
                             aria-expanded={showPartnerMenu}
                             aria-haspopup="menu"
                         >
@@ -212,9 +217,10 @@ const Navbar = () => {
                         {showPartnerMenu && (
                             <div
                                 role="menu"
-                                className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1 z-[1200]"
+                                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1 z-[1300]"
                             >
                                 <button
+                                    type="button"
                                     role="menuitem"
                                     className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
                                     onClick={() => { setShowPartnerMenu(false); handleLandlordClick(); }}
@@ -222,6 +228,7 @@ const Navbar = () => {
                                     {isOwner ? 'Landlord dashboard' : 'Become landlord'}
                                 </button>
                                 <button
+                                    type="button"
                                     role="menuitem"
                                     className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
                                     onClick={() => { setShowPartnerMenu(false); handleAgentClick(); }}
@@ -229,6 +236,7 @@ const Navbar = () => {
                                     {isAgent ? 'Agent dashboard' : 'Become agent'}
                                 </button>
                                 <button
+                                    type="button"
                                     role="menuitem"
                                     className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
                                     onClick={() => { setShowPartnerMenu(false); handleCaretakerClick(); }}
@@ -237,6 +245,7 @@ const Navbar = () => {
                                 </button>
                                 {user && !isOwner && (
                                     <button
+                                        type="button"
                                         role="menuitem"
                                         className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 border-t border-gray-100 dark:border-gray-800"
                                         onClick={() => { setShowPartnerMenu(false); setShowLandlordApplicationModal(true); }}
