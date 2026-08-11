@@ -1,4 +1,4 @@
-import React, {useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { assets } from '../assets/assets';
 import { useAppContext } from '../context/AppContext';
@@ -20,9 +20,11 @@ const Navbar = () => {
 
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [showPartnerMenu, setShowPartnerMenu] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showPropertyModal, setShowPropertyModal] = useState(false);
     const [showLandlordApplicationModal, setShowLandlordApplicationModal] = useState(false);
+    const partnerMenuRef = useRef(null);
     
     const location = useLocation()
     const routerNavigate = useNavigate()
@@ -68,9 +70,28 @@ const Navbar = () => {
         }
     }, [location.pathname, location.search, user, isOwner, routerNavigate])
 
+    useEffect(() => {
+        if (!showPartnerMenu) return
+        const onPointerDown = (e) => {
+            if (partnerMenuRef.current && !partnerMenuRef.current.contains(e.target)) {
+                setShowPartnerMenu(false)
+            }
+        }
+        document.addEventListener('mousedown', onPointerDown)
+        return () => document.removeEventListener('mousedown', onPointerDown)
+    }, [showPartnerMenu])
+
     // hero state helpers - evaluated once per render, no dark: cascade needed
     const heroLight = !isScrolled && !darkMode;  // on hero, light mode
     const heroDark  = !isScrolled &&  darkMode;  // on hero, dark mode
+
+    const pillClass = `border px-3 py-1 text-sm font-light rounded-full cursor-pointer transition-all whitespace-nowrap ${
+        isScrolled
+            ? 'text-black dark:text-gray-200 border-gray-700 dark:border-gray-500 hover:bg-gray-100/60 dark:hover:bg-gray-700'
+            : heroLight
+                ? 'text-gray-900 border-gray-700 hover:bg-gray-100/60'
+                : 'text-white border-white/70 hover:bg-white/10'
+    }`
 
     const getCurrentPathWithQuery = () => `${location.pathname}${location.search}${location.hash}`
 
@@ -125,7 +146,7 @@ const Navbar = () => {
         <>
             <nav
                 style={{ top: 'var(--announcement-offset, 0px)' }}
-                className={`fixed left-0 w-full flex items-center justify-between px-4 md:px-16 lg:px-24 xl:px-32 transition-all duration-500 z-[1100] overflow-visible ${
+                className={`fixed left-0 w-full flex items-center gap-3 md:gap-4 px-4 md:px-8 lg:px-16 xl:px-24 transition-all duration-500 z-[1100] overflow-visible ${
                 isScrolled
                     ? "bg-white/80 dark:bg-gray-900/80 shadow-md text-gray-700 dark:text-gray-200 backdrop-blur-lg py-2 md:py-2"
                     : heroLight
@@ -136,73 +157,100 @@ const Navbar = () => {
 
                 {/* Logo - overflows navbar intentionally */}
                 <Link to ="/" className="flex-shrink-0 relative z-50">
-                    <img src={assets.logo} alt="logo" className={`h-24 md:h-32 w-auto -my-6 md:-my-8 ${isScrolled && !darkMode && "invert opacity-80"}`} />
+                    <img src={assets.logo} alt="logo" className={`h-24 md:h-28 lg:h-32 w-auto -my-6 md:-my-7 lg:-my-8 ${isScrolled && !darkMode && "invert opacity-80"}`} />
                 </Link>
 
-                {/* Desktop Nav */}
-                <div className="hidden md:flex items-center gap-4 lg:gap-8">
+                {/* Desktop Nav — links + compact role actions; partner CTAs in dropdown */}
+                <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center gap-3 xl:gap-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {navLinks.map((link, i) => (
-                        <a key={i} href={link.path} className={`group flex flex-col gap-0.5 ${isScrolled ? "text-gray-700 dark:text-gray-200" : heroLight ? "text-gray-900" : "text-white"}`}>
+                        <a key={i} href={link.path} className={`group flex flex-col gap-0.5 shrink-0 text-sm xl:text-base ${isScrolled ? "text-gray-700 dark:text-gray-200" : heroLight ? "text-gray-900" : "text-white"}`}>
                             {link.name}
                             <div className={`${isScrolled ? "bg-gray-700 dark:bg-gray-300" : heroLight ? "bg-gray-900" : "bg-white"} h-0.5 w-0 group-hover:w-full transition-all duration-300`} />
                         </a>
                     ))}
 
-                {user && isOwner && (   
-                    <>
-                        <button className={`border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-gray-700 dark:border-gray-500 hover:bg-gray-100/60 dark:hover:bg-gray-700' : heroLight ? 'text-gray-900 border-gray-700 hover:bg-gray-100/60' : 'text-white border-white/70 hover:bg-white/10'}`} onClick={()=> navigate('/owner')}>
-                            Dashboard
+                    {user && isOwner && (
+                        <>
+                            <button className={pillClass} onClick={() => navigate('/owner')}>
+                                Dashboard
+                            </button>
+                            <button
+                                className={`border px-3 py-1 text-sm font-light rounded-full cursor-pointer transition-all whitespace-nowrap ${isScrolled ? 'text-black dark:text-gray-200 border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50' : heroLight ? 'text-gray-900 border-indigo-600 bg-indigo-50/80 hover:bg-indigo-100/80' : 'text-white border-indigo-400 bg-indigo-900/30 hover:bg-indigo-900/50'}`}
+                                onClick={() => setShowPropertyModal(true)}
+                            >
+                                + List
+                            </button>
+                        </>
+                    )}
+
+                    {user && isAgent && (
+                        <button className={pillClass} onClick={() => navigate('/agent')}>
+                            Agent
                         </button>
-                        <button className={`border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-gray-700 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50' : heroLight ? 'text-gray-900 border-indigo-600 bg-indigo-50/80 hover:bg-indigo-100/80' : 'text-white border-indigo-400 bg-indigo-900/30 hover:bg-indigo-900/50'}`} onClick={() => setShowPropertyModal(true)}>
-                            + List Property
+                    )}
+
+                    {user && isCaretaker && (
+                        <button className={pillClass} onClick={() => navigate('/managed-properties')}>
+                            Manage
                         </button>
-                    </>
-                )}
+                    )}
 
-                {user && isCaretaker && (
-                    <button className={`border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-gray-700 dark:border-gray-500 hover:bg-gray-100/60 dark:hover:bg-gray-700' : heroLight ? 'text-gray-900 border-gray-700 hover:bg-gray-100/60' : 'text-white border-white/70 hover:bg-white/10'}`} onClick={() => navigate('/managed-properties')}>
-                        Manage Houses
-                    </button>
-                )}
-                
-                <button 
-                    className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-green-700 dark:border-green-500 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50' : heroLight ? 'text-gray-900 border-green-700 bg-green-50/80 hover:bg-green-100/80' : 'text-white border-green-400 bg-green-900/30 hover:bg-green-900/50'}`} 
-                    onClick={handleLandlordClick}
-                >
-                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5' /></svg>
-                    {isOwner ? 'Landlord Dashboard' : 'Become Landlord'}
-                </button>
-
-                <button 
-                    className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-purple-700 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50' : heroLight ? 'text-gray-900 border-purple-700 bg-purple-50/80 hover:bg-purple-100/80' : 'text-white border-purple-400 bg-purple-900/30 hover:bg-purple-900/50'}`} 
-                    onClick={handleAgentClick}
-                >
-                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
-                    {isAgent ? 'Agent Dashboard' : 'Become Agent'}
-                </button>
-
-                <button 
-                    className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-teal-700 dark:border-teal-500 bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50' : heroLight ? 'text-gray-900 border-teal-700 bg-teal-50/80 hover:bg-teal-100/80' : 'text-white border-teal-400 bg-teal-900/30 hover:bg-teal-900/50'}`} 
-                    onClick={handleCaretakerClick}
-                >
-                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z' /></svg>
-                    {isCaretaker ? 'Caretaker Home' : 'Become Caretaker'}
-                </button>
-
-                {user && !isOwner && (
-                    <button 
-                        className={`flex items-center gap-1.5 border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all ${isScrolled ? 'text-black dark:text-gray-200 border-green-700 dark:border-green-500 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50' : heroLight ? 'text-gray-900 border-green-700 bg-green-50/80 hover:bg-green-100/80' : 'text-white border-green-400 bg-green-900/30 hover:bg-green-900/50'}`} 
-                        onClick={() => setShowLandlordApplicationModal(true)}
-                    >
-                        <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5' /></svg>
-                        List Your Property
-                    </button>
-                )}
-
+                    {/* Partner roles collapsed so profile stays visible */}
+                    <div className="relative shrink-0" ref={partnerMenuRef}>
+                        <button
+                            type="button"
+                            className={`${pillClass} flex items-center gap-1`}
+                            onClick={() => setShowPartnerMenu((open) => !open)}
+                            aria-expanded={showPartnerMenu}
+                            aria-haspopup="menu"
+                        >
+                            Partner
+                            <svg className={`w-3.5 h-3.5 transition-transform ${showPartnerMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        {showPartnerMenu && (
+                            <div
+                                role="menu"
+                                className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1 z-[1200]"
+                            >
+                                <button
+                                    role="menuitem"
+                                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                    onClick={() => { setShowPartnerMenu(false); handleLandlordClick(); }}
+                                >
+                                    {isOwner ? 'Landlord dashboard' : 'Become landlord'}
+                                </button>
+                                <button
+                                    role="menuitem"
+                                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                    onClick={() => { setShowPartnerMenu(false); handleAgentClick(); }}
+                                >
+                                    {isAgent ? 'Agent dashboard' : 'Become agent'}
+                                </button>
+                                <button
+                                    role="menuitem"
+                                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                    onClick={() => { setShowPartnerMenu(false); handleCaretakerClick(); }}
+                                >
+                                    {isCaretaker ? 'Caretaker home' : 'Become caretaker'}
+                                </button>
+                                {user && !isOwner && (
+                                    <button
+                                        role="menuitem"
+                                        className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 border-t border-gray-100 dark:border-gray-800"
+                                        onClick={() => { setShowPartnerMenu(false); setShowLandlordApplicationModal(true); }}
+                                    >
+                                        List your property
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Desktop Right */}
-                <div className="hidden md:flex items-center gap-4">
+                {/* Desktop Right — always pinned so profile never scrolls off */}
+                <div className="hidden lg:flex flex-shrink-0 items-center gap-2 xl:gap-3 ml-auto">
                     {/* Dark Mode Toggle */}
                     <button
                         onClick={toggleDarkMode}
@@ -236,13 +284,13 @@ const Navbar = () => {
                     <div className="flex gap-2">
                         <button
                             onClick={() => promptLogin()}
-                            className={`px-6 py-2 rounded-full transition-all duration-500 border ${isScrolled ? "text-gray-700 dark:text-gray-200 border-gray-700 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" : heroLight ? "text-gray-800 border-gray-700 hover:bg-gray-100/60" : "text-white border-white/70 hover:bg-white/10"}`}
+                            className={`px-4 py-2 rounded-full transition-all duration-500 border ${isScrolled ? "text-gray-700 dark:text-gray-200 border-gray-700 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" : heroLight ? "text-gray-800 border-gray-700 hover:bg-gray-100/60" : "text-white border-white/70 hover:bg-white/10"}`}
                         >
                             Login
                         </button>
                         <button
                             onClick={() => promptSignup()}
-                            className={`px-6 py-2 rounded-full transition-all duration-500 ${isScrolled ? "text-white bg-indigo-500 hover:bg-indigo-600" : heroLight ? "bg-gray-900 text-white hover:bg-gray-800" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}
+                            className={`px-4 py-2 rounded-full transition-all duration-500 ${isScrolled ? "text-white bg-indigo-500 hover:bg-indigo-600" : heroLight ? "bg-gray-900 text-white hover:bg-gray-800" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}
                         >
                             Sign Up
                         </button>
@@ -250,8 +298,8 @@ const Navbar = () => {
                 )}
                 </div>
 
-                {/* Mobile Menu Button */}
-                <div className="flex items-center gap-3 md:hidden">
+                {/* Mobile / tablet Menu Button — profile stays reachable below lg */}
+                <div className="flex items-center gap-3 lg:hidden ml-auto">
                     {user && (
                         <>
                         <NotificationBell isScrolled={isScrolled} />
@@ -268,7 +316,7 @@ const Navbar = () => {
                 </div>
 
                 {/* Mobile Menu */}
-                <div className={`fixed top-0 left-0 w-full h-screen bg-white dark:bg-gray-900 text-base flex flex-col md:hidden items-center justify-center gap-5 font-medium text-gray-800 dark:text-gray-200 transition-all duration-500 overflow-y-auto py-16 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+                <div className={`fixed top-0 left-0 w-full h-screen bg-white dark:bg-gray-900 text-base flex flex-col lg:hidden items-center justify-center gap-5 font-medium text-gray-800 dark:text-gray-200 transition-all duration-500 overflow-y-auto py-16 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
                     <button className="absolute top-4 right-4" onClick={() => setIsMenuOpen(false)}>
                         <img src={assets.closeIcon} alt="" className='h-6.5' />
                     </button>
